@@ -2,6 +2,7 @@
 *.swp
 *~
 .ycm_extra_conf.pyc
+.color_coded
 
 # CMake
 CMakeCache.txt
