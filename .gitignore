@@ -1,5 +1,7 @@
 # Editors 
 *.swp
+*~
+.ycm_extra_conf.pyc
 
 # CMake
 CMakeCache.txt
@@ -7,3 +9,4 @@ CMakeFiles/
 cmake_install.cmake
 compile_commands.json
 Makefile
+
