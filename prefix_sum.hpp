@@ -19,7 +19,7 @@ namespace cle {
   
     class Prefix_Sum_Kernel {
     public:
-        static constexpr const char* PROGRAM_FILE = "prefix_sum.cl";
+        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("prefix_sum.cl");
         static constexpr const char* KERNEL_NAME = "prefix_sum";
         static constexpr uint32_t WORK_ITEM_SIZE = 2;
 
@@ -41,47 +41,8 @@ namespace cle {
             cl::Program program = make_program(context, PROGRAM_FILE);
 
             cl_int err = CL_SUCCESS;
-            auto kf = kernel_functor(program, KERNEL_NAME, &err);
-            if (err != CL_SUCCESS) {
-                std::cerr << "Failed to make kernel with: ";
-                switch(err) {
-                    case CL_INVALID_PROGRAM:
-                        std::cerr << "invalid program" << std::endl;
-                        break;
-                    case CL_INVALID_PROGRAM_EXECUTABLE:
-                        std::cerr << "invalid program executable" << std::endl;
-                        break;
-                    case CL_INVALID_KERNEL_NAME:
-                        std::cerr << "invalid kernel name" << std::endl;
-                        break;
-                    case CL_INVALID_KERNEL_DEFINITION:
-                        std::cerr << "invalid kernel definition" << std::endl;
-                        break;
-                    case CL_INVALID_VALUE:
-                        std::cerr << "invalid value" << std::endl;
-                        break;
-                    case CL_OUT_OF_RESOURCES:
-                        std::cerr << "out of resources" << std::endl;
-                        break;
-                    case CL_OUT_OF_HOST_MEMORY:
-                        std::cerr << "out of host memory" << std::endl;
-                        break;
-                }
-
-                if (err == CL_INVALID_PROGRAM || err == CL_INVALID_PROGRAM_EXECUTABLE) {
-                    // Print build logs
-                    std::cout << "Printing program build log(s) for further diagnosis:" << std::endl;
-
-                    std::string build_log;
-                    std::vector<cl::Device> context_devices;
-
-                    context.getInfo(CL_CONTEXT_DEVICES, &context_devices);
-                    for (cl::Device device : context_devices) {
-                        program.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &build_log);
-                        std::cout << build_log << std::endl;
-                    }
-                }
-            }
+            auto kf = kernel_functor(program,KERNEL_NAME, &err);
+            sanitize_make_kernel(err, context, program);
 
             return kf;
         }
