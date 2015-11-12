@@ -1,5 +1,6 @@
 # Editors 
 *.swp
+*.swo
 *~
 .ycm_extra_conf.pyc
 .color_coded
