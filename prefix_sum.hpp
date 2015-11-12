@@ -38,11 +38,11 @@ namespace cle {
         *  - input.size() == output.size()
         */
         static std::function<kernel_functor::type_> get_kernel(cl::Context& context) {
-            cl::Program program = make_program(context, PROGRAM_FILE);
+            cl_int error_code = CL_SUCCESS;
 
-            cl_int err = CL_SUCCESS;
-            auto kf = kernel_functor(program,KERNEL_NAME, &err);
-            sanitize_make_kernel(err, context, program);
+            cl::Program program = make_program(context, PROGRAM_FILE, error_code);
+            auto kf = kernel_functor(program,KERNEL_NAME, &error_code);
+            sanitize_make_kernel(error_code, context, program);
 
             return kf;
         }
