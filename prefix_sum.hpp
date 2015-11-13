@@ -26,22 +26,30 @@ namespace cle {
         typedef cl::make_kernel<cl::Buffer&, cl::Buffer&, cl::Buffer&, cl::LocalSpaceArg, cl_ulong> kernel_functor;
 
         /*
-        * cl_prefix_sum
+        * kernel prefix_sum
         * 
         * Performs exclusive prefix sum on input
         *
-        * Input: Buffer with cl_uint array
-        * Output: Buffer with cl_uint array 
-        *         cl_uint with total sum
+        * Input
+        *       Buffer with cl_uint array
+        *
+        * Output
+        *       Buffer with cl_uint array 
+        *       cl_uint with total sum
         *
         * Invariants:
         *  - input.size() == output.size()
         */
-        static std::function<kernel_functor::type_> get_kernel(cl::Context& context) {
-            cl_int error_code = CL_SUCCESS;
+        static std::function<kernel_functor::type_> get_kernel(cl::Context& context, cl_int& error_code) {
+            error_code = CL_SUCCESS;
+            std::function<kernel_functor::type_> kf;
 
             cl::Program program = make_program(context, PROGRAM_FILE, error_code);
-            auto kf = kernel_functor(program,KERNEL_NAME, &error_code);
+            if (error_code != CL_SUCCESS) {
+                return kf;
+            }
+
+            kf = kernel_functor(program,KERNEL_NAME, &error_code);
             sanitize_make_kernel(error_code, context, program);
 
             return kf;

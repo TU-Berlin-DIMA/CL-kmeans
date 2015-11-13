@@ -3,6 +3,7 @@
 #define HELPERS_HPP_
 
 #include <string>
+#include <sstream>
 #include <fstream>
 #include <utility>
 #include <iostream>
@@ -19,8 +20,116 @@
 // Append path prefix defined in CMakeLists to OpenCL kernel file name
 #define CL_KERNEL_FILE_PATH(FILE_NAME) CL_KERNELS_PATH "/" FILE_NAME
 
+
+// The syntax ({ x; }) is called a "statement expression"
+// Statement expressions are supported by GCC and Clang
+// More information:
+// https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
+// http://stackoverflow.com/q/6440021
+
+// Sanitize OpenCL errors returned by value
+//
+// Input
+//      F: expression (without semicolon)
+//
+// Return value
+//      the success or error value as cl_int
+//
+// Usage example
+//      cl_int err; err = cle_sanitize_val( f() );
+#define cle_sanitize_val(F)                             \
+    ({                                                  \
+        cl_int ERROR_CODE = F;                          \
+        if (ERROR_CODE != CL_SUCCESS) {                 \
+            std::cerr << "Failed "                      \
+                << #F                                   \
+                << " with: "                            \
+                << cle::opencl_error_string(ERROR_CODE) \
+                << std::endl;                           \
+        }                                               \
+        ERROR_CODE;                                     \
+    })
+
+// Sanitize OpenCL errors returned by value
+// Calls "return" with error value as parameter if an error occurs
+//
+// Input
+//      F: exprssion (without semicolon)
+//
+// Return value:
+//      none    
+//
+// Usage example
+//      cl_int g() { cle_sanitize_val_return( f() ); }
+#define cle_sanitize_val_return(F)                      \
+    do {                                                \
+        cl_int error_code = CL_SUCCESS;                 \
+        error_code = F;                                 \
+        if (error_code != CL_SUCCESS) {                 \
+            std::cerr << "Failed "                      \
+                << #F                                   \
+                << " with: "                            \
+                << cle::opencl_error_string(error_code) \
+                << std::endl;                           \
+            return error_code;                          \
+        }                                               \
+    } while(0)
+
+// Sanitize OpenCL errors returned by reference
+//
+// Input
+//      F: expression (without semicolon)
+//      ERROR_CODE: error variable passed by reference to F
+//
+// Return value:
+//      the success or error value as cl_int
+//
+// Usage example
+//      cl_int err; cle_sanitize_ref( f(&err), err);
+#define cle_sanitize_ref(F, ERROR_CODE)                 \
+    ({                                                  \
+        ERROR_CODE = CL_SUCCESS;                        \
+        F;                                              \
+        if (ERROR_CODE != CL_SUCCESS) {                 \
+            std::cerr << "Failed "                      \
+                << #F                                   \
+                << " with: "                            \
+                << cle::opencl_error_string(ERROR_CODE) \
+                << std::endl;                           \
+        }                                               \
+        ERROR_CODE;                                     \
+    })
+
+// Sanitize OpenCL errors returned by reference
+// Calls "return" with error value as parameter if an error occurs
+//
+// Input
+//      F: expression (without semicolon)
+//      ERROR_CODE: error variable passed by reference to F
+//
+// Return value:
+//      none
+//
+// Usage example
+//      cl_int g() { cle_sanitize_ref_return( f(&err), err); }
+#define cle_sanitize_ref_return(F, ERROR_CODE)          \
+    do {                                                \
+        ERROR_CODE = CL_SUCCESS;                        \
+        F;                                              \
+        if (ERROR_CODE != CL_SUCCESS) {                 \
+            std::cerr << "Failed "                      \
+                << #F                                   \
+                << " with: "                            \
+                << cle::opencl_error_string(ERROR_CODE) \
+                << std::endl;                           \
+            return ERROR_CODE;                          \
+        }                                               \
+    } while(0)
+
+
 namespace cle {
 
+    std::string opencl_device_string(cl_device_type device_type);
     std::string opencl_error_string(cl_int error_code);
 
     cl::Program make_program(cl::Context context, std::string file, cl_int& error_code) {
@@ -29,7 +138,9 @@ namespace cle {
         // Open OpenCL source file
         std::ifstream sourceFile(file);
         if (not sourceFile.good()) {
-            std::cerr << "Failed to open program file " << file << "; ";
+            std::cerr << "Failed to open program file "
+                << file
+                << "; ";
 
             // Further diagnosis
             if (sourceFile.eof()) {
@@ -59,24 +170,20 @@ namespace cle {
                 );
 
         // Create program instance with source code
-        program = cl::Program(context, source, &error_code);
+        cle_sanitize_ref(
+                program = cl::Program(context, source, &error_code),
+                error_code
+                );
         if (error_code != CL_SUCCESS) {
-            std::cerr << "Program constructor failed with "
-                << opencl_error_string(error_code)
-                << std::endl;
-
             return program;
         }
 
         std::vector<cl::Device> context_devices;
-        context.getInfo(CL_CONTEXT_DEVICES, &context_devices);
+        error_code = cle_sanitize_val(
+                context.getInfo(CL_CONTEXT_DEVICES, &context_devices));
 
-        error_code = program.build(context_devices);
-        if (error_code != CL_SUCCESS) {
-            std::cerr << "Building program failed with "
-                << opencl_error_string(error_code)
-                << std::endl;
-        }
+        error_code = cle_sanitize_val(
+                program.build(context_devices));
 
         return program;
     }
@@ -89,42 +196,130 @@ namespace cle {
             
             std::cerr << "Failed to make kernel with: "
                 << opencl_error_string(error_code);
+
             switch(error_code) {
                 case CL_INVALID_PROGRAM:
                 case CL_INVALID_PROGRAM_EXECUTABLE:
                     // Print build logs
                     std::cerr << "Printing program build log(s) for further diagnosis:" << std::endl;
 
-                    context.getInfo(CL_CONTEXT_DEVICES, &context_devices);
+                    cle_sanitize_val(
+                            context.getInfo(CL_CONTEXT_DEVICES, &context_devices));
+
                     for (cl::Device device : context_devices) {
-                        program.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &error_help_string);
+                        cle_sanitize_val(
+                                program.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &error_help_string));
+
                         std::cerr << error_help_string << std::endl;
                     }
 
                     break;
 
                 case CL_INVALID_KERNEL_NAME:
-                    std::cerr << "  Hint: Kernel with this name wasn't found in program" << std::endl;
+                    cle_sanitize_val(
+                            program.getInfo(CL_PROGRAM_NUM_KERNELS, &error_help_size));
+                    cle_sanitize_val(
+                            program.getInfo(CL_PROGRAM_KERNEL_NAMES, &error_help_string));
 
-                    program.getInfo(CL_PROGRAM_NUM_KERNELS, &error_help_size);
-                    program.getInfo(CL_PROGRAM_KERNEL_NAMES, &error_help_string);
-                    std::cerr << "  Program knows of " << error_help_size << " kernels: " << error_help_string << std::endl;
+                    std::cerr
+                        << "  Hint: Kernel with this name wasn't found in program"
+                        << std::endl
+                        << "  Program knows of "
+                        << error_help_size
+                        << " kernels: "
+                        << error_help_string
+                        << std::endl;
 
                     break;
 
                 case CL_INVALID_KERNEL_DEFINITION:
-                    std::cerr << "  Hint: __kernel function signature doesn't match function call. Are parameters wrong?" << std::endl;
+                    std::cerr << "  Hint: __kernel function signature doesn't match function call. Are parameters wrong?"
+                        << std::endl;
                     break;
 
                 case CL_INVALID_VALUE:
-                    std::cerr << "  Hint: Kernel name is NULL" << std::endl;
+                    std::cerr << "  Hint: Kernel name is NULL"
+                        << std::endl;
                     break;
 
                 case CL_OUT_OF_RESOURCES:
-                    std::cerr << "  Hint: Device resource allocation failed" << std::endl;
+                    std::cerr << "  Hint: Device resource allocation failed"
+                        << std::endl;
                     break;
             }
         }
+    }
+
+    cl_int show_platforms(std::vector<cl::Platform> const& platforms) {
+        cl_int err = CL_SUCCESS;
+        std::string platform_name, device_name, device_version;
+        cl_device_type device_type;
+        std::vector<cl::Device> devices_list;
+
+        std::cout << "Platforms:" << std::endl;
+        for (auto platform : platforms) {
+            cle_sanitize_val_return(
+                    platform.getInfo(CL_PLATFORM_NAME, &platform_name));
+
+            cle_sanitize_val_return(
+                    platform.getDevices(CL_DEVICE_TYPE_ALL, &devices_list));
+
+            std::cout << "  - " << platform_name << std::endl;
+            for (auto device : devices_list) {
+                cle_sanitize_val_return(
+                        device.getInfo(CL_DEVICE_TYPE, &device_type));
+                cle_sanitize_val_return(
+                        device.getInfo(CL_DEVICE_NAME, &device_name));
+                cle_sanitize_val_return(
+                        device.getInfo(CL_DEVICE_VERSION, &device_version));
+
+                std::cout << "    + "
+                    << cle::opencl_device_string(device_type)
+                    << " Device: "
+                    << " "
+                    << device_name
+                    << ", "
+                    << device_version
+                    << std::endl;
+            }
+        }
+
+        return err;
+    }
+
+    std::string opencl_device_string(cl_device_type device_type) {
+        std::stringstream ss;
+
+        while (device_type != 0) {
+            switch(device_type) {
+                case CL_DEVICE_TYPE_CPU:
+                    ss << "CPU";
+                    device_type ^= CL_DEVICE_TYPE_CPU;
+                    break;
+                case CL_DEVICE_TYPE_GPU:
+                    ss << "GPU";
+                    device_type ^= CL_DEVICE_TYPE_GPU;
+                    break;
+                case CL_DEVICE_TYPE_ACCELERATOR:
+                    ss << "ACCELERATOR";
+                    device_type ^= CL_DEVICE_TYPE_ACCELERATOR;
+                    break;
+                case CL_DEVICE_TYPE_DEFAULT:
+                    ss << "DEFAULT";
+                    device_type ^= CL_DEVICE_TYPE_DEFAULT;
+                    break;
+                case CL_DEVICE_TYPE_CUSTOM:
+                    ss << "CUSTOM";
+                    device_type ^= CL_DEVICE_TYPE_CUSTOM;
+                    break;
+            }
+
+            if (device_type != 0) {
+                ss << '|';
+            }
+        }
+
+        return ss.str();
     }
 
     std::string opencl_error_string(cl_int error_code) {
