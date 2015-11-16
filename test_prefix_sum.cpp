@@ -63,24 +63,6 @@ int main() {
         return err;
     }
 
-    // Show context info
-    std::vector<cl::Device> context_devices;
-    std::vector<cl_context_properties> context_properties;
-    std::string device_name;
-
-    cle_sanitize_val_return(
-            context.getInfo(CL_CONTEXT_DEVICES, &context_devices));
-
-    std::cout << "Selected devices:" << std::endl;
-    for (auto device : context_devices) {
-        cle_sanitize_val_return(
-                device.getInfo(CL_DEVICE_NAME, &device_name));
-        std::cout << "  - " << device_name << std::endl;
-    }
-
-    cle_sanitize_val_return(
-            context.getInfo(CL_CONTEXT_PROPERTIES, &context_properties));
-
     // Get a list of devices on this platform
     std::vector<cl::Device> devices;
     cle_sanitize_val_return(
@@ -94,16 +76,15 @@ int main() {
             );
 
     // Create kernel
-    std::function<cle::Prefix_Sum_Kernel::kernel_functor::type_>
-        prefix_sum_kernel
-        = cle::Prefix_Sum_Kernel::get_kernel(context, err);
+    cle::Prefix_Sum_Kernel prefix_sum_kernel;
+    err = prefix_sum_kernel.initialize(context);
     if (err != CL_SUCCESS) {
         return err;
     }
 
-    cl::Buffer idata_buffer(context, CL_MEM_READ_WRITE, idata.size() * sizeof(decltype(idata)::value_type));
-    cl::Buffer odata_buffer(context, CL_MEM_READ_WRITE, odata.size() * sizeof(decltype(odata)::value_type));
-    cl::Buffer carry_buffer(context, CL_MEM_READ_WRITE, sizeof(decltype(carry)));
+    cle::TypedBuffer<cl_uint> idata_buffer(context, CL_MEM_READ_WRITE, idata.size());
+    cle::TypedBuffer<cl_uint> odata_buffer(context, CL_MEM_READ_WRITE, odata.size());
+    cle::TypedBuffer<cl_uint> carry_buffer(context, CL_MEM_READ_WRITE, 1);
 
     cle_sanitize_val_return(
             queue.enqueueWriteBuffer(
@@ -128,9 +109,7 @@ int main() {
             cl::EnqueueArgs(queue, cl::NDRange(GLOBAL_SIZE), cl::NDRange(LOCAL_SIZE)),
             idata_buffer,
             odata_buffer,
-            carry_buffer,
-            cl::Local(sizeof(decltype(idata)::value_type) * idata.size()),
-            idata.size()
+            carry_buffer
             );
 
     // Get output buffer
