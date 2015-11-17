@@ -18,21 +18,17 @@ SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -Wall -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 
-# Set OpenCL Include and Library paths manually; fix to use find_package() instead
-FIND_PATH(OPENCL_INCLUDE_DIR CL/cl.h PATHS "/home/lutzcle/phd/opencl/include")
-FIND_PATH(OPENCL_INCLUDE_DIR CL/cl.hpp PATHS "/home/lutzcle/phd/opencl/include")
-FIND_LIBRARY(OPENCL_LIBRARY OpenCL PATHS "$HOME/phd/opencl/lib:$HOME/phd/opencl/opt/intel/opencl-1.2-5.0.0.57/lib64")
-# FIND_PACKAGE(OpenCL REQUIRED)
-INCLUDE_DIRECTORIES(${OPENCL_INCLUDE_DIR})
+FIND_PACKAGE(OpenCL REQUIRED)
+INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIR})
 
 ADD_EXECUTABLE(join join.c)
-TARGET_LINK_LIBRARIES(join ${OPENCL_LIBRARY})
+TARGET_LINK_LIBRARIES(join ${OpenCL_LIBRARY})
 
 ADD_EXECUTABLE(test_prefix_sum test_prefix_sum.c)
-TARGET_LINK_LIBRARIES(test_prefix_sum ${OPENCL_LIBRARY})
+TARGET_LINK_LIBRARIES(test_prefix_sum ${OpenCL_LIBRARY})
 
 ADD_EXECUTABLE(test_prefix_sum_cpp test_prefix_sum.cpp)
-TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OPENCL_LIBRARY})
+TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY})
 
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})
