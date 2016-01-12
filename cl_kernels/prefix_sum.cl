@@ -1,5 +1,3 @@
-#define NULL ((void *) 0)
-
 __kernel 
 void prefix_sum(
 		__global uint *const g_idata,
