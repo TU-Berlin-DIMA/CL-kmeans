@@ -25,7 +25,13 @@ namespace cle {
         cl_int initialize(cl::Context& context) {
             cl_int error_code = CL_SUCCESS;
 
-            kernel_functor_ = get_kernel(context, error_code);
+            cl::Program program = make_program(context, PROGRAM_FILE, error_code);
+            if (error_code != CL_SUCCESS) {
+                return error_code;
+            }
+
+            kernel_functor_ = Base_Kernel(program,KERNEL_NAME, &error_code);
+            sanitize_make_kernel(error_code, context, program);
 
             return error_code;
         }
@@ -71,22 +77,6 @@ namespace cle {
         static constexpr const char* KERNEL_NAME = "prefix_sum";
 
         Kernel_Functor kernel_functor_;
-
-        static Kernel_Functor get_kernel(cl::Context& context, cl_int& error_code) {
-            error_code = CL_SUCCESS;
-            Kernel_Functor kf;
-
-            cl::Program program = make_program(context, PROGRAM_FILE, error_code);
-            if (error_code != CL_SUCCESS) {
-                return kf;
-            }
-
-            kf = Base_Kernel(program,KERNEL_NAME, &error_code);
-            sanitize_make_kernel(error_code, context, program);
-
-            return kf;
-        }
-
     };
 }
 
