@@ -4,6 +4,8 @@
 #define WORK_ITEM_SIZE 2
 #define LOCAL_WORK_SIZE (DATA_SIZE / WORK_ITEM_SIZE)
 
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
