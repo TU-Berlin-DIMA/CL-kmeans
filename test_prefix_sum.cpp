@@ -17,13 +17,22 @@ void print_vector(std::vector<cl_uint> const& vec) {
     std::cout << std::endl;
 }
 
+cl_uint prefix_sum(std::vector<cl_uint> const& in, std::vector<cl_uint>& out) {
+  out[0] = 0;
+  for (uint64_t i = 1; i != in.size(); ++i) {
+    out[i] = in[i - 1] + out[i - 1];
+  }
+
+  return in[in.size() - 1] + out[out.size() - 1];
+}
+
 int main() {
     const uint32_t DATA_SIZE = 8;
     const uint32_t GLOBAL_SIZE = DATA_SIZE / cle::Prefix_Sum_Kernel::WORK_ITEM_SIZE;
     const uint32_t LOCAL_SIZE = GLOBAL_SIZE;
 
-    std::vector<cl_uint> idata(DATA_SIZE), odata(DATA_SIZE);
-    cl_uint carry(0);
+    std::vector<cl_uint> idata(DATA_SIZE), odata(DATA_SIZE), check_odata(DATA_SIZE);
+    cl_uint carry(0), check_carry(0);
 
     cl_int err = CL_SUCCESS;
 
@@ -136,4 +145,16 @@ int main() {
     print_vector(odata);
     std::cout << "CL prefix carry: " << carry << std::endl;
 
+    // Check result
+    bool is_result_correct = true;
+    check_carry = prefix_sum(idata, check_odata);
+    is_result_correct = std::equal(idata.begin(), idata.end(), check_odata.begin());
+    is_result_correct &= carry == check_carry;
+
+    if (is_result_correct) {
+        std::cerr << "Result is incorrect :-(" << std::endl;
+    }
+    else {
+        std::cout << "Result is correct :-)" << std::endl;
+    }
 }
