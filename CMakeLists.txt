@@ -30,6 +30,8 @@ TARGET_LINK_LIBRARIES(test_prefix_sum ${OpenCL_LIBRARY})
 ADD_EXECUTABLE(test_prefix_sum_cpp test_prefix_sum.cpp)
 TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY})
 
+ADD_EXECUTABLE(test_csv test_csv.cpp)
+
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})
 
