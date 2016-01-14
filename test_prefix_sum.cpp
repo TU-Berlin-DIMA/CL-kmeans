@@ -11,11 +11,7 @@
 #endif
 
 #include "prefix_sum.hpp"
-
-void print_vector(std::vector<cl_uint> const& vec) {
-    for_each(vec.begin(), vec.end(), [](cl_uint x){ std::cout << x << " "; });
-    std::cout << std::endl;
-}
+#include "utils.hpp"
 
 cl_uint prefix_sum(std::vector<cl_uint> const& in, std::vector<cl_uint>& out) {
   out[0] = 0;
@@ -41,7 +37,7 @@ int main() {
         idata[i] = i + 1;
     }
     std::cout << "CL input" << std::endl;
-    print_vector(idata);
+    cle::Utils::print_vector(idata);
 
     // Get available platforms
     std::vector<cl::Platform> platforms;
@@ -142,7 +138,7 @@ int main() {
 
     // Print output
     std::cout << "CL output" << std::endl;
-    print_vector(odata);
+    cle::Utils::print_vector(odata);
     std::cout << "CL prefix carry: " << carry << std::endl;
 
     // Check result
