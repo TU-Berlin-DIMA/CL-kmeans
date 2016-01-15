@@ -51,6 +51,15 @@ public:
                 << strerror(errno) << std::endl;
         }
 
+        if(posix_madvise((void*)mapped, file_size, POSIX_MADV_WILLNEED) != 0) {
+            std::cerr << "Madvise failed with code "
+                << strerror(errno) << std::endl;
+        }
+
+        // Preallocate memory
+        tune_vectors((file_size + NUM_VECTORS) / NUM_VECTORS,
+                vectors ...);
+
         // Process file
         file_offset = 0;
         while (file_offset < file_size) {
@@ -63,6 +72,8 @@ public:
 
             file_offset += chars_tokenized;
         }
+
+        munmap((void*)mapped, file_size);
 
         return 1;
     }
@@ -136,6 +147,18 @@ private:
         parse_line<depth+1>(ssbuf, tokens, other...);
 
         return 1;
+    }
+
+    template <typename T>
+    void tune_vectors(size_t avg_size, std::vector<T>& vec) {
+        vec.reserve(avg_size / sizeof(T));
+    }
+
+    template <typename T, typename ... Ts>
+    void tune_vectors(size_t avg_size, std::vector<T>& vec, Ts& ... other) {
+        vec.reserve(avg_size / sizeof(T));
+
+        tune_vectors(avg_size, other ...);
     }
 
     char delimiter_ = ',';

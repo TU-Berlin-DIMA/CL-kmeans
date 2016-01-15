@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 
     csv.read_csv(file_name, a, b);
 
-    cle::Utils::print_vector(a);
-    cle::Utils::print_vector(b);
+    // cle::Utils::print_vector(a);
+    // cle::Utils::print_vector(b);
 
 }
