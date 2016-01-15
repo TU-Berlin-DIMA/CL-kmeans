@@ -1,0 +1,84 @@
+#include <iostream>
+#include <vector>
+#include <limits>
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+
+using centroid_distance = std::pair<size_t, double>;
+
+double two_norm(double a_x, double a_y, double b_x, double b_y) {
+    double t_x = b_x - a_x;
+    double t_y = b_y - a_y;
+
+    return t_x * t_x + t_y * t_y;
+}
+
+centroid_distance min_centroid_distance(centroid_distance a, centroid_distance b) {
+    return (std::get<1>(a) < std::get<1>(b)) ? a : b;
+}
+
+void kmeans_naive(double const epsilon,
+        std::vector<double> const& points_x, std::vector<double> const& points_y,
+        std::vector<double>& centroids_x, std::vector<double>& centroids_y,
+        std::vector<centroid_distance>& cluster_assignment) {
+
+    assert(points_x.size() == points_y.size());
+    assert(centroids_x.size() == centroids_y.size());
+
+    if (cluster_assignment.size() != centroids_x.size()) {
+        cluster_assignment.resize(centroids_x.size());
+    }
+
+    double old_sum_distances = 0;
+    double sum_distances = 2 * epsilon;
+    double distance = 0;
+    centroid_distance min_centroid = std::make_pair(
+            std::numeric_limits<size_t>::max(),
+            std::numeric_limits<double>::max());
+    centroid_distance cur_centroid;
+    std::vector<size_t> cluster_size(centroids_x.size());
+
+    while (std::abs(sum_distances - old_sum_distances) > epsilon) {
+
+        // Phase 1: assign points to clusters
+        old_sum_distances = sum_distances;
+        sum_distances = 0;
+        for (size_t p = 0; p != points_x.size(); ++p) {
+            for (size_t c = 0; c != centroids_x.size(); ++c) {
+                distance = two_norm(points_x[p], points_y[p], centroids_x[c], centroids_y[c]);
+                cur_centroid = std::make_pair(c, distance);
+
+                min_centroid = std::min(min_centroid, cur_centroid, min_centroid_distance);
+            }
+
+            cluster_assignment[p] = min_centroid;
+            sum_distances += distance;
+        }
+
+        // Phase 2: calculate new clusters
+        // Arithmetic mean of all points assigned to cluster
+        std::fill(cluster_size.begin(), cluster_size.end(), 0);
+        std::fill(centroids_x.begin(), centroids_x.end(), 0);
+        std::fill(centroids_y.begin(), centroids_y.end(), 0);
+
+        for (size_t p = 0; p != points_x.size(); ++p) {
+            size_t c = std::get<0>(cluster_assignment[p]);
+
+            cluster_size[c] += 1;
+            centroids_x[c] += points_x[p];
+            centroids_y[c] += points_y[p];
+        }
+
+        for (size_t c = 0; c != centroids_x.size(); ++c) {
+            centroids_x[c] = centroids_x[c] / cluster_size[c];
+            centroids_y[c] = centroids_y[c] / cluster_size[c];
+        }
+    }
+
+}
+
+
+int main() {
+
+}
