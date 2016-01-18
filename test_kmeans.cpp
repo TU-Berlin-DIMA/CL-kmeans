@@ -9,6 +9,7 @@
 
 #include "csv.hpp"
 #include "utils.hpp"
+#include "timer.hpp"
 
 using centroid_distance = struct {
     size_t cluster;
@@ -116,9 +117,9 @@ int main(int argc, char **argv) {
     std::vector<double> points_x, points_y;
 
     csv.read_csv(input_path, points_x, points_y);
-    std::cout << "Read CSV" << std::endl;
+    std::cout << "Read " << input_path << std::endl;
 
-    cle::Utils::print_vector(points_x);
+    // cle::Utils::print_vector(points_x);
 
     constexpr size_t num_clusters = 9;
     double epsilon = 0.05;
@@ -135,15 +136,20 @@ int main(int argc, char **argv) {
         centroids_y[c] = points_y[random_point];
     }
 
+    uint64_t nanos = 0;
+    cle::Timer timer;
+    timer.start();
     kmeans_naive(epsilon, points_x, points_y, centroids_x, centroids_y,
             cluster_assignment, statistics);
+    nanos = timer.stop<std::chrono::microseconds>();
 
+    std::cout << "Runtime: " << nanos << " µs" << std::endl;
     std::cout << "# iterations: " << statistics.iterations << std::endl;
     std::cout << "Delta: " << statistics.delta << std::endl;
 
-    std::cout << "Clusters:" << std::endl;
-    for (auto x : cluster_assignment) {
-        std::cout << "Centroid: " << x.cluster
-            << " Distance to centroid: " << x.distance << std::endl;
-    }
+    // std::cout << "Clusters:" << std::endl;
+    // for (auto x : cluster_assignment) {
+    //     std::cout << "Centroid: " << x.cluster
+    //         << " Distance to centroid: " << x.distance << std::endl;
+    // }
 }
