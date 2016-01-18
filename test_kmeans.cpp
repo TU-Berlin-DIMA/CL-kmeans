@@ -10,7 +10,10 @@
 #include "csv.hpp"
 #include "utils.hpp"
 
-using centroid_distance = std::pair<size_t, double>;
+using centroid_distance = struct {
+    size_t cluster;
+    double distance;
+};
 
 using kmeans_stats = struct {
     uint64_t iterations;
@@ -24,15 +27,17 @@ double two_norm(double a_x, double a_y, double b_x, double b_y) {
     return t_x * t_x + t_y * t_y;
 }
 
-bool min_centroid_distance(centroid_distance const& a, centroid_distance const& b) {
-    return std::get<1>(a) < std::get<1>(b);
+bool min_centroid_distance(centroid_distance const &a,
+        centroid_distance const &b) {
+    return a.distance < b.distance;
 }
 
-void kmeans_naive(double const epsilon,
-        std::vector<double> const& points_x, std::vector<double> const& points_y,
-        std::vector<double>& centroids_x, std::vector<double>& centroids_y,
-        std::vector<centroid_distance>& cluster_assignment,
-        kmeans_stats& stats) {
+void kmeans_naive(double const epsilon, std::vector<double> const &points_x,
+        std::vector<double> const &points_y,
+        std::vector<double> &centroids_x,
+        std::vector<double> &centroids_y,
+        std::vector<centroid_distance> &cluster_assignment,
+        kmeans_stats &stats) {
 
     assert(points_x.size() == points_y.size());
     assert(centroids_x.size() == centroids_y.size());
@@ -56,15 +61,16 @@ void kmeans_naive(double const epsilon,
         old_sum_distances = sum_distances;
         sum_distances = 0;
         for (size_t p = 0; p != points_x.size(); ++p) {
-            min_centroid = std::make_pair(
-                std::numeric_limits<size_t>::max(),
-                std::numeric_limits<double>::max());
- 
-            for (size_t c = 0; c != centroids_x.size(); ++c) {
-                distance = two_norm(points_x[p], points_y[p], centroids_x[c], centroids_y[c]);
-                cur_centroid = std::make_pair(c, distance);
+            min_centroid = {std::numeric_limits<size_t>::max(),
+                std::numeric_limits<double>::max()};
 
-                min_centroid = std::min(min_centroid, cur_centroid, min_centroid_distance);
+            for (size_t c = 0; c != centroids_x.size(); ++c) {
+                distance =
+                    two_norm(points_x[p], points_y[p], centroids_x[c], centroids_y[c]);
+                cur_centroid = {c, distance};
+
+                min_centroid =
+                    std::min(min_centroid, cur_centroid, min_centroid_distance);
             }
 
             cluster_assignment[p] = min_centroid;
@@ -78,7 +84,7 @@ void kmeans_naive(double const epsilon,
         std::fill(centroids_y.begin(), centroids_y.end(), 0);
 
         for (size_t p = 0; p != points_x.size(); ++p) {
-            size_t c = std::get<0>(cluster_assignment[p]);
+            size_t c = cluster_assignment[p].cluster;
 
             cluster_size[c] += 1;
             centroids_x[c] += points_x[p];
@@ -96,7 +102,6 @@ void kmeans_naive(double const epsilon,
     stats.iterations = iterations;
     stats.delta = std::abs(sum_distances - old_sum_distances);
 }
-
 
 int main(int argc, char **argv) {
 
@@ -138,6 +143,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Clusters:" << std::endl;
     for (auto x : cluster_assignment) {
-        std::cout << "Centroid: " << x.first << " Distance to centroid: " << x.second << std::endl;
+        std::cout << "Centroid: " << x.cluster
+            << " Distance to centroid: " << x.distance << std::endl;
     }
 }
