@@ -5,11 +5,17 @@
 #include <cassert>
 #include <cmath>
 #include <random>
+#include <cstdint>
 
 #include "csv.hpp"
 #include "utils.hpp"
 
 using centroid_distance = std::pair<size_t, double>;
+
+using kmeans_stats = struct {
+    uint64_t iterations;
+    double delta;
+};
 
 double two_norm(double a_x, double a_y, double b_x, double b_y) {
     double t_x = b_x - a_x;
@@ -25,7 +31,8 @@ bool min_centroid_distance(centroid_distance const& a, centroid_distance const& 
 void kmeans_naive(double const epsilon,
         std::vector<double> const& points_x, std::vector<double> const& points_y,
         std::vector<double>& centroids_x, std::vector<double>& centroids_y,
-        std::vector<centroid_distance>& cluster_assignment) {
+        std::vector<centroid_distance>& cluster_assignment,
+        kmeans_stats& stats) {
 
     assert(points_x.size() == points_y.size());
     assert(centroids_x.size() == centroids_y.size());
@@ -40,7 +47,9 @@ void kmeans_naive(double const epsilon,
     centroid_distance min_centroid;
     centroid_distance cur_centroid;
     std::vector<size_t> cluster_size(centroids_x.size());
+    uint64_t iterations;
 
+    iterations = 0;
     while (std::abs(sum_distances - old_sum_distances) > epsilon) {
 
         // Phase 1: assign points to clusters
@@ -80,8 +89,12 @@ void kmeans_naive(double const epsilon,
             centroids_x[c] = centroids_x[c] / cluster_size[c];
             centroids_y[c] = centroids_y[c] / cluster_size[c];
         }
+
+        ++iterations;
     }
 
+    stats.iterations = iterations;
+    stats.delta = std::abs(sum_distances - old_sum_distances);
 }
 
 
@@ -109,13 +122,19 @@ int main(int argc, char **argv) {
     std::random_device rand;
     std::vector<double> centroids_x(num_clusters), centroids_y(num_clusters);
 
+    kmeans_stats statistics = {};
+
     for (size_t c = 0; c != centroids_x.size(); ++c) {
         size_t random_point = rand() % points_x.size();
         centroids_x[c] = points_x[random_point];
         centroids_y[c] = points_y[random_point];
     }
 
-    kmeans_naive(epsilon, points_x, points_y, centroids_x, centroids_y, cluster_assignment);
+    kmeans_naive(epsilon, points_x, points_y, centroids_x, centroids_y,
+            cluster_assignment, statistics);
+
+    std::cout << "# iterations: " << statistics.iterations << std::endl;
+    std::cout << "Delta: " << statistics.delta << std::endl;
 
     std::cout << "Clusters:" << std::endl;
     for (auto x : cluster_assignment) {
