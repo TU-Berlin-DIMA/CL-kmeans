@@ -35,6 +35,7 @@ namespace cle {
 
 // Timer for benchmarking
 // Header-only implementation for compiler inlining
+// Verified that G++ with -O2 optimization inlines these functions
 class Timer {
 public:
     void start() {
