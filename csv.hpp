@@ -14,6 +14,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+// #define PARSE_WITH_BOOST
+
+#ifdef PARSE_WITH_BOOST
+#include <boost/lexical_cast.hpp>
+#endif
+
 namespace cle {
 
 class CSV {
@@ -176,12 +182,17 @@ private:
 
         T v;
 
+#ifdef PARSE_WITH_BOOST
+        v = boost::lexical_cast<T>(std::get<0>(tokens[depth]), std::get<1>(tokens[depth]) - 1);
+        vec.push_back(v);
+#else
         ssbuf.write(std::get<0>(tokens[depth]), std::get<1>(tokens[depth]));
         ssbuf >> v;
 
         vec.push_back(v);
         ssbuf.clear();
         ssbuf.str("");
+#endif
 
         return 1;
     }
@@ -192,11 +203,16 @@ private:
 
         T v;
 
+#ifdef PARSE_WITH_BOOST
+        v = boost::lexical_cast<T>(std::get<0>(tokens[depth]), std::get<1>(tokens[depth]) - 1);
+        vec.push_back(v);
+#else
         ssbuf.write(std::get<0>(tokens[depth]), std::get<1>(tokens[depth]));
         ssbuf >> v;
         vec.push_back(v);
         ssbuf.clear();
         ssbuf.str("");
+#endif
 
         parse_line<depth+1>(ssbuf, tokens, other...);
 
@@ -210,11 +226,16 @@ private:
         T v;
 
         for (size_t i = 0; i != size; ++i) {
+#ifdef PARSE_WITH_BOOST
+            v = boost::lexical_cast<T>(std::get<0>(tokens[i]), std::get<1>(tokens[i]) - 1);
+            vectors[i].push_back(v);
+#else
             ssbuf.write(std::get<0>(tokens[i]), std::get<1>(tokens[i]));
             ssbuf >> v;
             vectors[i].push_back(v);
             ssbuf.clear();
             ssbuf.str("");
+#endif
         }
 
         return 1;
