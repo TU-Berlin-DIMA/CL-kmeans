@@ -9,6 +9,7 @@
 #include <sstream>
 #include <cassert>
 #include <array>
+#include <type_traits>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -19,6 +20,8 @@
 #ifdef PARSE_WITH_BOOST
 #include <boost/lexical_cast.hpp>
 #endif
+
+#include <boost/spirit/include/qi.hpp>
 
 namespace cle {
 
@@ -153,7 +156,7 @@ private:
         size_t begin_offset = 0;
         size_t t = 0;
         while (offset < buffer_size && t < num_tokens) {
-            char c = buffer[offset];
+            char const& c = buffer[offset];
 
             if (c == delimiter || c == '\n') {
                 std::get<0>(tokens[t]) = &buffer[begin_offset];
@@ -181,18 +184,26 @@ private:
             std::vector<T>& vec) {
 
         T v;
+        char const * begin = std::get<0>(tokens[depth]);
+        size_t size = std::get<1>(tokens[depth]);
+        char const * last = &begin[size];
 
+        if (std::is_same<double, T>::value) {
+            boost::spirit::qi::parse(begin, last, boost::spirit::qi::double_, v);
+            vec.push_back(v);
+        }
+        else {
 #ifdef PARSE_WITH_BOOST
-        v = boost::lexical_cast<T>(std::get<0>(tokens[depth]), std::get<1>(tokens[depth]) - 1);
-        vec.push_back(v);
+            v = boost::lexical_cast<T>(begin, size);
+            vec.push_back(v);
 #else
-        ssbuf.write(std::get<0>(tokens[depth]), std::get<1>(tokens[depth]));
-        ssbuf >> v;
-
-        vec.push_back(v);
-        ssbuf.clear();
-        ssbuf.str("");
+            ssbuf.write(begin, size);
+            ssbuf >> v;
+            vec.push_back(v);
+            ssbuf.clear();
+            ssbuf.str("");
 #endif
+        }
 
         return 1;
     }
@@ -202,17 +213,26 @@ private:
             std::vector<T>& vec, Ts& ... other) {
 
         T v;
+        char const * begin = std::get<0>(tokens[depth]);
+        size_t size = std::get<1>(tokens[depth]);
+        char const * last = &begin[size];
 
+        if (std::is_same<double, T>::value) {
+            boost::spirit::qi::parse(begin, last, boost::spirit::qi::double_, v);
+            vec.push_back(v);
+        }
+        else {
 #ifdef PARSE_WITH_BOOST
-        v = boost::lexical_cast<T>(std::get<0>(tokens[depth]), std::get<1>(tokens[depth]) - 1);
-        vec.push_back(v);
+            v = boost::lexical_cast<T>(begin, size);
+            vec.push_back(v);
 #else
-        ssbuf.write(std::get<0>(tokens[depth]), std::get<1>(tokens[depth]));
-        ssbuf >> v;
-        vec.push_back(v);
-        ssbuf.clear();
-        ssbuf.str("");
+            ssbuf.write(begin, size);
+            ssbuf >> v;
+            vec.push_back(v);
+            ssbuf.clear();
+            ssbuf.str("");
 #endif
+        }
 
         parse_line<depth+1>(ssbuf, tokens, other...);
 
@@ -224,18 +244,31 @@ private:
             std::array<std::vector<T>, size>& vectors) {
 
         T v;
+        char const * token_begin;
+        char const * token_last;
+        size_t token_size;
 
         for (size_t i = 0; i != size; ++i) {
+            token_begin = std::get<0>(tokens[i]);
+            token_size = std::get<1>(tokens[i]);
+            token_last = &token_begin[token_size];
+
+            if (std::is_same<double, T>::value) {
+                boost::spirit::qi::parse(token_begin, token_last, boost::spirit::qi::double_, v);
+                vectors[i].push_back(v);
+            }
+            else {
 #ifdef PARSE_WITH_BOOST
-            v = boost::lexical_cast<T>(std::get<0>(tokens[i]), std::get<1>(tokens[i]) - 1);
-            vectors[i].push_back(v);
+                v = boost::lexical_cast<T>(token_begin, token_size);
+                vectors[i].push_back(v);
 #else
-            ssbuf.write(std::get<0>(tokens[i]), std::get<1>(tokens[i]));
-            ssbuf >> v;
-            vectors[i].push_back(v);
-            ssbuf.clear();
-            ssbuf.str("");
+                ssbuf.write(token_begin, token_size);
+                ssbuf >> v;
+                vectors[i].push_back(v);
+                ssbuf.clear();
+                ssbuf.str("");
 #endif
+            }
         }
 
         return 1;
