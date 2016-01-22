@@ -1,4 +1,3 @@
-
 #ifndef KMEANS_CL_API_HPP_
 #define KMEANS_CL_API_HPP_
 

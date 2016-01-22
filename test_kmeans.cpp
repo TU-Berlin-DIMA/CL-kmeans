@@ -11,6 +11,9 @@
 #include "utils.hpp"
 #include "timer.hpp"
 
+#include "helpers.hpp"
+#include "kmeans.hpp"
+
 using centroid_distance = struct {
     size_t cluster;
     double distance;
@@ -104,6 +107,7 @@ void kmeans_naive(double const epsilon, std::vector<double> const &points_x,
     stats.delta = std::abs(sum_distances - old_sum_distances);
 }
 
+
 int main(int argc, char **argv) {
 
     if (argc != 2) {
@@ -122,11 +126,16 @@ int main(int argc, char **argv) {
     // cle::Utils::print_vector(points_x);
 
     constexpr size_t num_clusters = 9;
-    double epsilon = 0.05;
-    std::vector<centroid_distance> cluster_assignment;
+    constexpr double epsilon = 0.05;
+    constexpr uint32_t max_iterations = 100;
+    size_t num_points = points_x.size();
+    std::vector<centroid_distance> cluster_assignment_and_distance;
+    std::vector<uint64_t> cluster_assignment(num_points);
 
     std::random_device rand;
-    std::vector<double> centroids_x(num_clusters), centroids_y(num_clusters);
+    std::vector<double> centroids_x(num_clusters);
+    std::vector<double> centroids_y(num_clusters);
+    std::vector<uint64_t> cluster_size(num_clusters);
 
     kmeans_stats statistics = {};
 
@@ -140,7 +149,7 @@ int main(int argc, char **argv) {
     cle::Timer timer;
     timer.start();
     kmeans_naive(epsilon, points_x, points_y, centroids_x, centroids_y,
-            cluster_assignment, statistics);
+            cluster_assignment_and_distance, statistics);
     nanos = timer.stop<std::chrono::microseconds>();
 
     std::cout << "Runtime: " << nanos << " µs" << std::endl;
@@ -152,4 +161,23 @@ int main(int argc, char **argv) {
     //     std::cout << "Centroid: " << x.cluster
     //         << " Distance to centroid: " << x.distance << std::endl;
     // }
+
+    cle::CLInitializer clinit;
+    clinit.choose_platform_interactive();
+    clinit.choose_device_interactive();
+
+    cle::Kmeans_GPU kmeans_gpu(
+            clinit.get_context(),
+            clinit.get_commandqueue());
+    kmeans_gpu.initialize();
+    kmeans_gpu(
+            max_iterations,
+            points_x,
+            points_y,
+            centroids_x,
+            centroids_y,
+            cluster_size,
+            cluster_assignment
+            );
+    kmeans_gpu.finalize();
 }

@@ -60,8 +60,8 @@ void kmeans(
             double point_y = g_points_y[p];
             ulong cluster_assignment = g_cluster_assignment[p];
 
-            min_c = -1;
-            min_dist = -1;
+            min_c = ULONG_MAX;
+            min_dist = DBL_MAX;
 
             for (uint c = 0; c < NUM_CLUSTERS; ++c) {
                 dist = gaussian_distance(point_x, point_y, l_old_centroids_x[c], l_old_centroids_y[c]);

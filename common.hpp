@@ -1,5 +1,5 @@
-#ifndef UTILS_HPP
-#define UTILS_HPP
+#ifndef COMMON_HPP_
+#define COMMON_HPP_
 
 #include <algorithm>
 #include <vector>
@@ -20,4 +20,4 @@ public:
 
 };
 
-#endif /* UTILS_HPP */
+#endif /* COMMON_HPP_ */
