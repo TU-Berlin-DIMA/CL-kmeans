@@ -24,7 +24,7 @@ FIND_PACKAGE(OpenCL REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIR})
 
 ADD_LIBRARY(Helpers STATIC common.cpp)
-ADD_LIBRARY(CLExt STATIC cl_kernel.cpp cl_initializer.cpp cl_string.cpp)
+ADD_LIBRARY(CLExt SHARED cle/kernel.cpp cle/initializer.cpp cle/string.cpp)
 
 ADD_EXECUTABLE(join join.c)
 TARGET_LINK_LIBRARIES(join ${OpenCL_LIBRARY})

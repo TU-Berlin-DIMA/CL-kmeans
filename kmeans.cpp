@@ -1,6 +1,6 @@
 #include "kmeans.hpp"
 
-#include "cl_common.hpp"
+#include "cle/common.hpp"
 
 #include "kmeans_cl_api.hpp"
 

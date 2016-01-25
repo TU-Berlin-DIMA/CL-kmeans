@@ -1,7 +1,7 @@
-#ifndef PREFIX_SUM_HPP_
-#define PREFIX_SUM_HPP_
+#ifndef PREFIX_SUM_HPP
+#define PREFIX_SUM_HPP
 
-#include "cl_common.hpp"
+#include "cle/common.hpp"
 
 #include <functional>
 #include <string>

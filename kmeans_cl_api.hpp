@@ -1,7 +1,7 @@
-#ifndef KMEANS_CL_API_HPP_
-#define KMEANS_CL_API_HPP_
+#ifndef KMEANS_CL_API_HPP
+#define KMEANS_CL_API_HPP
 
-#include "cl_common.hpp"
+#include "cle/common.hpp"
 
 #include <functional>
 #include <cassert>
@@ -116,4 +116,4 @@ namespace cle {
     };
 }
 
-#endif /* KMEANS_CL_API_HPP_ */
+#endif /* KMEANS_CL_API_HPP */

@@ -1,6 +1,6 @@
 #include "prefix_sum.hpp"
 #include "common.hpp"
-#include "cl_common.hpp"
+#include "cle/common.hpp"
 
 #include <iostream>
 #include <vector>
