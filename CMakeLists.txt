@@ -23,6 +23,9 @@ FIND_PACKAGE(Boost REQUIRED)
 FIND_PACKAGE(OpenCL REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIR})
 
+ADD_LIBRARY(Helpers STATIC common.cpp)
+ADD_LIBRARY(CLExt STATIC cl_kernel.cpp cl_initializer.cpp cl_string.cpp)
+
 ADD_EXECUTABLE(join join.c)
 TARGET_LINK_LIBRARIES(join ${OpenCL_LIBRARY})
 
@@ -30,12 +33,13 @@ ADD_EXECUTABLE(test_prefix_sum test_prefix_sum.c)
 TARGET_LINK_LIBRARIES(test_prefix_sum ${OpenCL_LIBRARY})
 
 ADD_EXECUTABLE(test_prefix_sum_cpp test_prefix_sum.cpp)
-TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY})
+TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY} Helpers CLExt)
 
 ADD_EXECUTABLE(test_csv test_csv.cpp)
+TARGET_LINK_LIBRARIES(test_csv Helpers)
 
 ADD_EXECUTABLE(test_kmeans test_kmeans.cpp kmeans.cpp)
-TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY})
+TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY} Helpers CLExt)
 
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})

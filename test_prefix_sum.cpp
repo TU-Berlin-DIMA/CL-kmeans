@@ -1,3 +1,7 @@
+#include "prefix_sum.hpp"
+#include "common.hpp"
+#include "cl_common.hpp"
+
 #include <iostream>
 #include <vector>
 #include <cstdint>
@@ -9,9 +13,6 @@
 #else
 #include <CL/cl.hpp>
 #endif
-
-#include "prefix_sum.hpp"
-#include "utils.hpp"
 
 cl_uint prefix_sum(std::vector<cl_uint> const& in, std::vector<cl_uint>& out) {
   out[0] = 0;

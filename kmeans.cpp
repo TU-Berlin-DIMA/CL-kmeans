@@ -1,5 +1,9 @@
 #include "kmeans.hpp"
 
+#include "cl_common.hpp"
+
+#include "kmeans_cl_api.hpp"
+
 #include <cstdint>
 #include <cstddef> // size_t
 #include <vector>
@@ -10,9 +14,6 @@
 #else
 #include <CL/cl.hpp>
 #endif
-
-#include "kmeans_cl_api.hpp"
-#include "helpers.hpp"
 
 cle::Kmeans_GPU::Kmeans_GPU(cl::Context const& context, cl::CommandQueue const& queue) :
     context_(context), queue_(queue)

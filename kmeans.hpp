@@ -1,6 +1,8 @@
 #ifndef KMEANS_HPP
 #define KMEANS_HPP
 
+#include "kmeans_cl_api.hpp"
+
 #include <vector>
 #include <cstdint>
 #include <cstddef> // size_t
@@ -10,8 +12,6 @@
 #else
 #include <CL/cl.hpp>
 #endif
-
-#include "kmeans_cl_api.hpp"
 
 namespace cle {
 class Kmeans_GPU {

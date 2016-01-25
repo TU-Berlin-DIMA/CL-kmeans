@@ -1,3 +1,10 @@
+#include "csv.hpp"
+#include "timer.hpp"
+#include "common.hpp"
+#include "cl_common.hpp"
+
+#include "kmeans.hpp"
+
 #include <iostream>
 #include <vector>
 #include <limits>
@@ -7,12 +14,6 @@
 #include <random>
 #include <cstdint>
 
-#include "csv.hpp"
-#include "utils.hpp"
-#include "timer.hpp"
-
-#include "helpers.hpp"
-#include "kmeans.hpp"
 
 using centroid_distance = struct {
     size_t cluster;

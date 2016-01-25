@@ -1,6 +1,7 @@
-
 #ifndef PREFIX_SUM_HPP_
 #define PREFIX_SUM_HPP_
+
+#include "cl_common.hpp"
 
 #include <functional>
 #include <string>
@@ -13,8 +14,6 @@
 #else
 #include <CL/cl.hpp>
 #endif
-
-#include "helpers.hpp"
 
 namespace cle {
   

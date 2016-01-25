@@ -1,6 +1,8 @@
 #ifndef KMEANS_CL_API_HPP_
 #define KMEANS_CL_API_HPP_
 
+#include "cl_common.hpp"
+
 #include <functional>
 #include <cassert>
 
@@ -9,8 +11,6 @@
 #else
 #include <CL/cl.hpp>
 #endif
-
-#include "helpers.hpp"
 
 namespace cle {
 

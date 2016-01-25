@@ -1,5 +1,17 @@
 #include "cl_initializer.hpp"
 
+#include "cl_sanitize.hpp"
+#include "cl_kernel.hpp"
+#include "cl_string.hpp"
+
+#include <iostream>
+
+#ifdef MAC
+#include <OpenCL/cl.hpp>
+#else
+#include <CL/cl.hpp>
+#endif
+
 cle::CLInitializer::CLInitializer() :
     platform_(NULL),
     context_(NULL),
