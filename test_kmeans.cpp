@@ -181,4 +181,10 @@ int main(int argc, char **argv) {
             cluster_assignment
             );
     kmeans_gpu.finalize();
+
+    std::cout << "Clusters:" << std::endl;
+    for (uint32_t p = 0; p < points_x.size(); ++p) {
+        std::cout << "Point (" << points_x[p] << ", " << points_y[p] <<
+            ") Centroid: " << cluster_assignment[p] << std::endl;
+    }
 }

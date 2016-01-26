@@ -14,7 +14,7 @@
 
 namespace cle {
 
-    class Kmeans_Kernel {
+    class Kmeans_With_Host_Kernel {
     public:
         cl_int initialize(cl::Context& context) {
             cl_int error_code = CL_SUCCESS;
@@ -48,19 +48,15 @@ namespace cle {
                 TypedBuffer<cl_char>& did_changes,
                 TypedBuffer<cl_double>& points_x,
                 TypedBuffer<cl_double>& points_y,
-                TypedBuffer<cl_double>& point_distance,
                 TypedBuffer<cl_double>& centroids_x,
                 TypedBuffer<cl_double>& centroids_y,
-                TypedBuffer<cl_ulong>& cluster_size,
-                TypedBuffer<cl_ulong>& cluster_assignment
+                TypedBuffer<cl_ulong>& memberships
                 ) {
 
             // assert did_changes.size() == #global work items
             assert(points_x.size() == points_y.size());
-            assert(points_x.size() == point_distance.size());
-            assert(points_x.size() == cluster_assignment.size());
+            assert(points_x.size() == memberships.size());
             assert(centroids_x.size() == centroids_y.size());
-            assert(centroids_x.size() == cluster_size.size());
 
             const size_t centroid_bytes = sizeof(cl_double) * centroids_x.size();
             cl::LocalSpaceArg local_centroids_x = cl::Local(centroid_bytes);
@@ -73,11 +69,9 @@ namespace cle {
                     did_changes,
                     points_x,
                     points_y,
-                    point_distance,
                     centroids_x,
                     centroids_y,
-                    cluster_size,
-                    cluster_assignment,
+                    memberships,
                     local_centroids_x,
                     local_centroids_y,
                     local_old_centroids_x,
@@ -97,8 +91,6 @@ namespace cle {
             cl::Buffer&,
             cl::Buffer&,
             cl::Buffer&,
-            cl::Buffer&,
-            cl::Buffer&,
             cl::LocalSpaceArg,
             cl::LocalSpaceArg,
             cl::LocalSpaceArg,
@@ -110,7 +102,7 @@ namespace cle {
         typedef std::function<Base_Kernel::type_> Kernel_Functor;
 
         static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("kmeans.cl");
-        static constexpr const char* KERNEL_NAME = "kmeans";
+        static constexpr const char* KERNEL_NAME = "kmeans_with_host";
 
         Kernel_Functor kernel_functor_;
     };

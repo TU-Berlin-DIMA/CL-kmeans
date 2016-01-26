@@ -23,7 +23,6 @@ cle::Kmeans_GPU::Kmeans_GPU(cl::Context const& context, cl::CommandQueue const& 
 int cle::Kmeans_GPU::initialize() {
 
     cl_int err = CL_SUCCESS;
-    cl_uint work_item_dims;
 
     // Create kernel
     err = this->kmeans_kernel_.initialize(this->context_);
@@ -32,12 +31,22 @@ int cle::Kmeans_GPU::initialize() {
     }
 
     cl::Device device;
-    this->queue_.getInfo(CL_QUEUE_DEVICE, &device);
+    cle_sanitize_val_return(
+            this->queue_.getInfo(
+                CL_QUEUE_DEVICE,
+                &device
+                ));
 
-    device.getInfo(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, &work_item_dims);
-    this->max_work_item_sizes_.resize(work_item_dims);
-    device.getInfo(CL_DEVICE_MAX_WORK_ITEM_SIZES, this->max_work_item_sizes_.data());
-    device.getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &this->max_work_group_size_);
+    cle_sanitize_val_return(
+            device.getInfo(
+                CL_DEVICE_MAX_WORK_ITEM_SIZES,
+                &this->max_work_item_sizes_
+            ));
+    cle_sanitize_val_return(
+            device.getInfo(
+                CL_DEVICE_MAX_WORK_GROUP_SIZE,
+                &this->max_work_group_size_
+                ));
 
     return 1;
 }
@@ -53,7 +62,7 @@ int cle::Kmeans_GPU::operator() (
         std::vector<double>& centroids_x,
         std::vector<double>& centroids_y,
         std::vector<uint64_t>& cluster_size,
-        std::vector<uint64_t>& cluster_assignment
+        std::vector<uint64_t>& memberships
         ) {
 
     uint32_t iterations;
@@ -67,11 +76,9 @@ int cle::Kmeans_GPU::operator() (
     cle::TypedBuffer<cl_char> d_did_changes(this->context_, CL_MEM_READ_WRITE, global_size);
     cle::TypedBuffer<cl_double> d_points_x(this->context_, CL_MEM_READ_ONLY, num_points);
     cle::TypedBuffer<cl_double> d_points_y(this->context_, CL_MEM_READ_ONLY, num_points);
-    cle::TypedBuffer<cl_double> d_point_distance(this->context_, CL_MEM_READ_WRITE, num_points);
     cle::TypedBuffer<cl_double> d_centroids_x(this->context_, CL_MEM_READ_WRITE, num_clusters);
     cle::TypedBuffer<cl_double> d_centroids_y(this->context_, CL_MEM_READ_WRITE, num_clusters);
-    cle::TypedBuffer<cl_ulong> d_cluster_size(this->context_, CL_MEM_READ_WRITE, num_clusters);
-    cle::TypedBuffer<cl_ulong> d_cluster_assignment(this->context_, CL_MEM_READ_WRITE, num_points);
+    cle::TypedBuffer<cl_ulong> d_memberships(this->context_, CL_MEM_READ_WRITE, num_points);
 
 
     // copy points (x,y) host -> device
@@ -93,48 +100,13 @@ int cle::Kmeans_GPU::operator() (
                 points_y.data()
                 ));
 
-    cle_sanitize_val(
-            this->queue_.enqueueFillBuffer(
-                d_point_distance,
-                __DBL_MAX__,
-                0,
-                d_point_distance.bytes()
-                ));
-
     cle_sanitize_val_return(
             this->queue_.enqueueWriteBuffer(
-                d_centroids_x,
+                d_memberships,
                 CL_FALSE,
                 0,
-                d_centroids_x.bytes(),
-                centroids_x.data()
-                ));
-
-    cle_sanitize_val_return(
-            this->queue_.enqueueWriteBuffer(
-                d_centroids_y,
-                CL_FALSE,
-                0,
-                d_centroids_y.bytes(),
-                centroids_y.data()
-                ));
-
-    cle_sanitize_val_return(
-            this->queue_.enqueueWriteBuffer(
-                d_cluster_size,
-                CL_FALSE,
-                0,
-                d_cluster_size.bytes(),
-                cluster_size.data()
-                ));
-
-    cle_sanitize_val_return(
-            this->queue_.enqueueWriteBuffer(
-                d_cluster_assignment,
-                CL_FALSE,
-                0,
-                d_cluster_assignment.bytes(),
-                cluster_assignment.data()
+                d_memberships.bytes(),
+                memberships.data()
                 ));
 
     // copy centroids (x,y) host -> device
@@ -152,6 +124,24 @@ int cle::Kmeans_GPU::operator() (
                     d_did_changes.bytes()
                     ));
 
+        cle_sanitize_val_return(
+                this->queue_.enqueueWriteBuffer(
+                    d_centroids_x,
+                    CL_FALSE,
+                    0,
+                    d_centroids_x.bytes(),
+                    centroids_x.data()
+                    ));
+
+        cle_sanitize_val_return(
+                this->queue_.enqueueWriteBuffer(
+                    d_centroids_y,
+                    CL_FALSE,
+                    0,
+                    d_centroids_y.bytes(),
+                    centroids_y.data()
+                    ));
+
         // execute kernel
         kmeans_kernel_(
                 cl::EnqueueArgs(
@@ -162,21 +152,28 @@ int cle::Kmeans_GPU::operator() (
                 d_did_changes,
                 d_points_x,
                 d_points_y,
-                d_point_distance,
                 d_centroids_x,
                 d_centroids_y,
-                d_cluster_size,
-                d_cluster_assignment
+                d_memberships
                 );
 
         // copy did_changes device -> host
         cle_sanitize_val(
                 this->queue_.enqueueReadBuffer(
                     d_did_changes,
-                    CL_TRUE,
+                    CL_FALSE,
                     0,
                     d_did_changes.bytes(),
                     h_did_changes.data()
+                    ));
+
+        cle_sanitize_val(
+                this->queue_.enqueueReadBuffer(
+                    d_memberships,
+                    CL_TRUE,
+                    0,
+                    d_memberships.bytes(),
+                    memberships.data()
                     ));
 
         // inspect did_changes
@@ -186,14 +183,24 @@ int cle::Kmeans_GPU::operator() (
                 [](cl_char i){ return i == CL_TRUE; }
                 );
 
-        // flip old_centroids <-> centroids
+        if (did_changes == true) {
+            // Initialize to zero
+            std::fill(centroids_x.begin(), centroids_x.end(), 0);
+            std::fill(centroids_y.begin(), centroids_y.end(), 0);
+            std::fill(cluster_size.begin(), cluster_size.end(), 0);
+
+            // Calculate new centroids
+            for (uint32_t p = 0; p < num_points; ++p) {
+                uint32_t c = memberships[p];
+
+                centroids_x[c] += points_x[p];
+                centroids_y[c] += points_y[p];
+                ++cluster_size[c];
+            }
+        }
 
         ++iterations;
     }
-
-    // copy centroids (x,y) device -> host
-    // copy cluster sizes device -> host
-    // copy point assignments device -> host
 
     return 1;
 }

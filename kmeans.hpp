@@ -31,11 +31,11 @@ public:
             std::vector<double>& centroids_x,
             std::vector<double>& centroids_y,
             std::vector<uint64_t>& cluster_size,
-            std::vector<uint64_t>& cluster_assignment
+            std::vector<uint64_t>& memberships
             );
 
 private:
-    cle::Kmeans_Kernel kmeans_kernel_;
+    cle::Kmeans_With_Host_Kernel kmeans_kernel_;
     cl::Context context_;
     cl::CommandQueue queue_;
 
