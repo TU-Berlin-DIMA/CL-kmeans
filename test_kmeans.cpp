@@ -22,7 +22,6 @@ using centroid_distance = struct {
 
 using kmeans_stats = struct {
     uint64_t iterations;
-    double delta;
 };
 
 double two_norm(double a_x, double a_y, double b_x, double b_y) {
@@ -37,7 +36,7 @@ bool min_centroid_distance(centroid_distance const &a,
     return a.distance < b.distance;
 }
 
-void kmeans_naive(double const epsilon, std::vector<double> const &points_x,
+void kmeans_naive(uint32_t const max_iterations, std::vector<double> const &points_x,
         std::vector<double> const &points_y,
         std::vector<double> &centroids_x,
         std::vector<double> &centroids_y,
@@ -51,8 +50,7 @@ void kmeans_naive(double const epsilon, std::vector<double> const &points_x,
         cluster_assignment.resize(points_x.size());
     }
 
-    double old_sum_distances = 0;
-    double sum_distances = 2 * epsilon;
+    bool did_changes;
     double distance = 0;
     centroid_distance min_centroid;
     centroid_distance cur_centroid;
@@ -60,11 +58,11 @@ void kmeans_naive(double const epsilon, std::vector<double> const &points_x,
     uint64_t iterations;
 
     iterations = 0;
-    while (std::abs(sum_distances - old_sum_distances) > epsilon) {
+    did_changes = true;
+    while (did_changes == true && iterations < max_iterations) {
+        did_changes = false;
 
         // Phase 1: assign points to clusters
-        old_sum_distances = sum_distances;
-        sum_distances = 0;
         for (size_t p = 0; p != points_x.size(); ++p) {
             min_centroid = {std::numeric_limits<size_t>::max(),
                 std::numeric_limits<double>::max()};
@@ -78,8 +76,10 @@ void kmeans_naive(double const epsilon, std::vector<double> const &points_x,
                     std::min(min_centroid, cur_centroid, min_centroid_distance);
             }
 
-            cluster_assignment[p] = min_centroid;
-            sum_distances += distance;
+            if (min_centroid.cluster != cluster_assignment[p].cluster) {
+                cluster_assignment[p] = min_centroid;
+                did_changes = true;
+            }
         }
 
         // Phase 2: calculate new clusters
@@ -105,7 +105,6 @@ void kmeans_naive(double const epsilon, std::vector<double> const &points_x,
     }
 
     stats.iterations = iterations;
-    stats.delta = std::abs(sum_distances - old_sum_distances);
 }
 
 
@@ -127,7 +126,6 @@ int main(int argc, char **argv) {
     // cle::Utils::print_vector(points_x);
 
     constexpr size_t num_clusters = 9;
-    constexpr double epsilon = 0.05;
     constexpr uint32_t max_iterations = 100;
     size_t num_points = points_x.size();
     std::vector<centroid_distance> cluster_assignment_and_distance;
@@ -149,19 +147,17 @@ int main(int argc, char **argv) {
     uint64_t nanos = 0;
     cle::Timer timer;
     timer.start();
-    kmeans_naive(epsilon, points_x, points_y, centroids_x, centroids_y,
+    kmeans_naive(max_iterations, points_x, points_y, centroids_x, centroids_y,
             cluster_assignment_and_distance, statistics);
     nanos = timer.stop<std::chrono::microseconds>();
 
     std::cout << "Runtime: " << nanos << " µs" << std::endl;
     std::cout << "# iterations: " << statistics.iterations << std::endl;
-    std::cout << "Delta: " << statistics.delta << std::endl;
 
-    // std::cout << "Clusters:" << std::endl;
-    // for (auto x : cluster_assignment) {
-    //     std::cout << "Centroid: " << x.cluster
-    //         << " Distance to centroid: " << x.distance << std::endl;
-    // }
+    std::cout << "Clusters:" << std::endl;
+    for (auto x : cluster_assignment_and_distance) {
+        std::cout << "Centroid: " << x.cluster << std::endl;
+    }
 
     cle::CLInitializer clinit;
     clinit.choose_platform_interactive();
