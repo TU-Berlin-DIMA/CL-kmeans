@@ -58,7 +58,7 @@ namespace cle {
             assert(points_x.size() == memberships.size());
             assert(centroids_x.size() == centroids_y.size());
 
-            const size_t centroid_bytes = sizeof(cl_double) * centroids_x.size();
+            const size_t centroid_bytes = centroids_x.bytes();
             cl::LocalSpaceArg local_centroids_x = cl::Local(centroid_bytes);
             cl::LocalSpaceArg local_centroids_y = cl::Local(centroid_bytes);
             cl::LocalSpaceArg local_old_centroids_x = cl::Local(centroid_bytes);
