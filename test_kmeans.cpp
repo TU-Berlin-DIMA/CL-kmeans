@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
   // cle::Utils::print_vector(points_x);
 
   constexpr size_t num_clusters = 9;
-  constexpr uint32_t max_iterations = 1;
+  constexpr uint32_t max_iterations = 100;
   size_t num_points = points_x.size();
   std::vector<uint64_t> memberships_naive(num_points);
   std::vector<uint64_t> memberships_gpu(num_points);
@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
   for (uint32_t p = 0; p < points_x.size(); ++p) {
       if (memberships_naive[p] != memberships_gpu[p]) {
           ++num_diff;
-          std::cout << p << ": " << memberships_naive[p] << " | " << memberships_gpu[p] << std::endl;
+          // std::cout << p << ": " << memberships_naive[p] << " | " << memberships_gpu[p] << std::endl;
       }
   }
   std::cout << "[" << num_diff << " / " << points_x.size() << "]" << std::endl;
