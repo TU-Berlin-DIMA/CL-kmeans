@@ -69,15 +69,15 @@ int cle::Kmeans_GPU::operator() (
     bool did_changes;
 
     size_t global_size = this->max_work_group_size_ * this->max_work_item_sizes_[0];
-    size_t num_points = points_x.size();
-    size_t num_clusters = centroids_x.size();
+    const size_t num_points = points_x.size();
+    const size_t num_clusters = centroids_x.size();
     std::vector<cl_char> h_did_changes(global_size);
 
     cle::TypedBuffer<cl_char> d_did_changes(this->context_, CL_MEM_READ_WRITE, global_size);
     cle::TypedBuffer<cl_double> d_points_x(this->context_, CL_MEM_READ_ONLY, num_points);
     cle::TypedBuffer<cl_double> d_points_y(this->context_, CL_MEM_READ_ONLY, num_points);
-    cle::TypedBuffer<cl_double> d_centroids_x(this->context_, CL_MEM_READ_WRITE, num_clusters);
-    cle::TypedBuffer<cl_double> d_centroids_y(this->context_, CL_MEM_READ_WRITE, num_clusters);
+    cle::TypedBuffer<cl_double> d_centroids_x(this->context_, CL_MEM_READ_ONLY, num_clusters);
+    cle::TypedBuffer<cl_double> d_centroids_y(this->context_, CL_MEM_READ_ONLY, num_clusters);
     cle::TypedBuffer<cl_ulong> d_memberships(this->context_, CL_MEM_READ_WRITE, num_points);
 
 
@@ -109,11 +109,9 @@ int cle::Kmeans_GPU::operator() (
                 memberships.data()
                 ));
 
-    // copy centroids (x,y) host -> device
-
     iterations = 0;
     did_changes = true;
-    while (did_changes && iterations < max_iterations) {
+    while (did_changes == true && iterations < max_iterations) {
 
         // set did_changes to false on device
         cle_sanitize_val(
@@ -180,7 +178,7 @@ int cle::Kmeans_GPU::operator() (
         did_changes = std::any_of(
                 h_did_changes.cbegin(),
                 h_did_changes.cend(),
-                [](cl_char i){ return i == CL_TRUE; }
+                [](cl_char i){ return i == 1; }
                 );
 
         if (did_changes == true) {
@@ -197,10 +195,16 @@ int cle::Kmeans_GPU::operator() (
                 centroids_y[c] += points_y[p];
                 ++cluster_size[c];
             }
+
+            for (uint32_t c = 0; c < num_clusters; ++c) {
+                centroids_x[c] = centroids_x[c] / cluster_size[c];
+                centroids_y[c] = centroids_y[c] / cluster_size[c];
+            }
         }
 
         ++iterations;
     }
+    std::cout << "iters: " << iterations << std::endl;
 
     return 1;
 }
