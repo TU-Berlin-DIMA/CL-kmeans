@@ -50,9 +50,9 @@ private:
 
 };
 
-class KmeansGPU {
+class KmeansGPUAssisted {
 public:
-    KmeansGPU(
+    KmeansGPUAssisted(
             cl::Context const& context,
             cl::CommandQueue const& queue
             );

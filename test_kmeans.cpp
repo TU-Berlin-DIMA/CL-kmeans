@@ -49,7 +49,9 @@ int main(int argc, char **argv) {
   cle::KmeansNaive64 kmeans_naive_64;
   kmeans_naive_64.initialize();
 
-  cle::KmeansGPU kmeans_gpu_64(clinit.get_context(), clinit.get_commandqueue());
+  cle::KmeansGPUAssisted kmeans_gpu_64(
+          clinit.get_context(), clinit.get_commandqueue()
+          );
   kmeans_gpu_64.initialize();
 
   cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
