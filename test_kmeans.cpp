@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   uint64_t bytes_read = (points_x.size() + points_y.size()) * sizeof(double);
   std::cout << "Read " << bytes_read / 1024 / 1024 << " MiB" << std::endl;
 
-  constexpr uint32_t num_runs = 1;
+  constexpr uint32_t num_runs = 5;
   constexpr uint32_t max_iterations = 100;
   constexpr uint64_t num_clusters = 9;
   uint64_t num_points = points_x.size();
@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
           std::move(points_x), std::move(points_y));
   bm64.initialize(num_clusters, cle::KmeansInitializer::first_x);
 
-  cle::KmeansNaive<double> kmeans_naive_64;
+  cle::KmeansNaive64 kmeans_naive_64;
   kmeans_naive_64.initialize();
 
   cle::KmeansGPU kmeans_gpu_64(clinit.get_context(), clinit.get_commandqueue());
