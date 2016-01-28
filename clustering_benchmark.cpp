@@ -1,6 +1,7 @@
 #include "clustering_benchmark.hpp"
 
 #include <cstdint>
+#include <algorithm> // std::equal
 
 
 cle::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
@@ -87,6 +88,49 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT>::run(
     }
 
     return bs;
+}
+
+template <typename FP, typename INT>
+int cle::ClusteringBenchmark<FP, INT>::setVerificationReference(
+        ClusteringFunction ref) {
+
+    cle::KmeansStats stats;
+
+    reference_memberships_.resize(num_points_);
+
+    ref(
+            max_iterations_,
+            points_x_, points_y_,
+            centroids_x_, centroids_y_,
+            cluster_size_,
+            reference_memberships_,
+            stats
+       );
+
+    return 1;
+}
+
+template<typename FP, typename INT>
+int cle::ClusteringBenchmark<FP, INT>::verify(ClusteringFunction f) {
+
+    cle::KmeansStats stats;
+    int is_correct;
+
+    f(
+            max_iterations_,
+            points_x_, points_y_,
+            centroids_x_, centroids_y_,
+            cluster_size_,
+            memberships_,
+            stats
+       );
+
+    is_correct = std::equal(
+            reference_memberships_.begin(),
+            reference_memberships_.end(),
+            memberships_.begin());
+
+    return is_correct;
 }
 
 template class cle::ClusteringBenchmark<float, uint32_t>;

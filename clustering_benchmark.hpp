@@ -71,6 +71,8 @@ public:
     int finalize();
 
     ClusteringBenchmarkStats run(ClusteringFunction f);
+    int setVerificationReference(ClusteringFunction reference);
+    int verify(ClusteringFunction f);
 
 private:
     const uint32_t num_runs_;
@@ -83,6 +85,7 @@ private:
     std::vector<FP> centroids_y_;
     std::vector<INT> cluster_size_;
     std::vector<INT> memberships_;
+    std::vector<INT> reference_memberships_;
     InitCentroidsFunction init_centroids_;
 };
 

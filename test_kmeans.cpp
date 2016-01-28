@@ -54,6 +54,16 @@ int main(int argc, char **argv) {
           );
   kmeans_gpu_64.initialize();
 
+  bm64.setVerificationReference(kmeans_naive_64);
+
+  int is_kmeans_gpu_64_correct = bm64.verify(kmeans_gpu_64);
+  if (is_kmeans_gpu_64_correct) {
+      std::cout << "GPU assisted is correct" << std::endl;
+  }
+  else {
+      std::cout << "GPU assisted is wrong!!!" << std::endl;
+  }
+
   cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
   cle::ClusteringBenchmarkStats bs_gpu_64 = bm64.run(kmeans_gpu_64);
 
@@ -65,16 +75,6 @@ int main(int argc, char **argv) {
   bs_naive_64.print_times();
   bs_gpu_64.print_times();
 
-  // bool are_equal = std::equal(memberships_naive.begin(), memberships_naive.end(),
-  //         memberships_gpu.begin());
-  //
-  // if (are_equal == true) {
-  //     std::cout << "Naive and GPU cluster memberships are identical" << std::endl;
-  // }
-  // else {
-  //     std::cout << "Naive and GPU cluster memberships are different; something is wrong!!!" << std::endl;
-  // }
-  //
   // std::cout << "Point: Naive | GPU" << std::endl;
   // uint32_t num_diff = 0;
   // for (uint32_t p = 0; p < points_x.size(); ++p) {
