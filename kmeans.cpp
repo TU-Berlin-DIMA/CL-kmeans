@@ -15,12 +15,12 @@
 #include <CL/cl.hpp>
 #endif
 
-cle::Kmeans_GPU::Kmeans_GPU(cl::Context const& context, cl::CommandQueue const& queue) :
+cle::KmeansGPU::KmeansGPU(cl::Context const& context, cl::CommandQueue const& queue) :
     context_(context), queue_(queue)
 {}
 
 
-int cle::Kmeans_GPU::initialize() {
+int cle::KmeansGPU::initialize() {
 
     cl_int err = CL_SUCCESS;
 
@@ -51,18 +51,19 @@ int cle::Kmeans_GPU::initialize() {
     return 1;
 }
 
-int cle::Kmeans_GPU::finalize() {
+int cle::KmeansGPU::finalize() {
     return 1;
 }
 
-int cle::Kmeans_GPU::operator() (
+int cle::KmeansGPU::operator() (
         uint32_t const max_iterations,
         std::vector<double> const& points_x,
         std::vector<double> const& points_y,
         std::vector<double>& centroids_x,
         std::vector<double>& centroids_y,
         std::vector<uint64_t>& cluster_size,
-        std::vector<uint64_t>& memberships
+        std::vector<uint64_t>& memberships,
+        KmeansStats& stats
         ) {
 
     uint32_t iterations;

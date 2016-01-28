@@ -38,7 +38,7 @@ TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY} Helpers CLExt)
 ADD_EXECUTABLE(test_csv test_csv.cpp)
 TARGET_LINK_LIBRARIES(test_csv Helpers)
 
-ADD_EXECUTABLE(test_kmeans test_kmeans.cpp kmeans.cpp)
+ADD_EXECUTABLE(test_kmeans test_kmeans.cpp kmeans.cpp clustering_benchmark.cpp)
 TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY} Helpers CLExt)
 
 # Install OpenCL kernel source files
