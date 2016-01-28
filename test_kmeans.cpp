@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
   constexpr uint64_t num_clusters = 9;
   uint64_t num_points = points_x.size();
 
-  cle::ClusteringBenchmark<double, uint64_t> bm64(
+  cle::ClusteringBenchmark64 bm64(
           num_runs, num_points, max_iterations,
           std::move(points_x), std::move(points_y));
   bm64.initialize(num_clusters, cle::KmeansInitializer::first_x);

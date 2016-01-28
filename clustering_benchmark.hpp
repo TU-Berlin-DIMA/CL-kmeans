@@ -86,6 +86,9 @@ private:
     InitCentroidsFunction init_centroids_;
 };
 
+using ClusteringBenchmark32 = ClusteringBenchmark<float, uint32_t>;
+using ClusteringBenchmark64 = ClusteringBenchmark<double, uint64_t>;
+
 }
 
 extern template class cle::ClusteringBenchmark<float, uint32_t>;
