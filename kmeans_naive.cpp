@@ -23,7 +23,7 @@ void cle::KmeansNaive<FP, INT>::operator() (
     assert(cluster_size.size() == centroids_x.size());
 
     bool did_changes;
-    uint64_t iterations;
+    uint32_t iterations;
 
     iterations = 0;
     did_changes = true;
@@ -31,12 +31,12 @@ void cle::KmeansNaive<FP, INT>::operator() (
         did_changes = false;
 
         // Phase 1: assign points to clusters
-        for (size_t p = 0; p != points_x.size(); ++p) {
-            double min_distance = std::numeric_limits<double>::max();
-            size_t min_centroid;
+        for (INT p = 0; p != points_x.size(); ++p) {
+            FP min_distance = std::numeric_limits<double>::max();
+            INT min_centroid;
 
-            for (size_t c = 0; c != centroids_x.size(); ++c) {
-                double distance =
+            for (INT c = 0; c != centroids_x.size(); ++c) {
+                FP distance =
                     gaussian_distance(
                             points_x[p], points_y[p],
                             centroids_x[c], centroids_y[c]
@@ -59,15 +59,15 @@ void cle::KmeansNaive<FP, INT>::operator() (
         std::fill(centroids_x.begin(), centroids_x.end(), 0);
         std::fill(centroids_y.begin(), centroids_y.end(), 0);
 
-        for (size_t p = 0; p != points_x.size(); ++p) {
-            size_t c = memberships[p];
+        for (INT p = 0; p != points_x.size(); ++p) {
+            INT c = memberships[p];
 
             cluster_size[c] += 1;
             centroids_x[c] += points_x[p];
             centroids_y[c] += points_y[p];
         }
 
-        for (size_t c = 0; c != centroids_x.size(); ++c) {
+        for (INT c = 0; c != centroids_x.size(); ++c) {
             centroids_x[c] = centroids_x[c] / cluster_size[c];
             centroids_y[c] = centroids_y[c] / cluster_size[c];
         }
