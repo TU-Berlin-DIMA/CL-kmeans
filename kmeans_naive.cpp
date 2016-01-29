@@ -1,6 +1,8 @@
 #include "kmeans.hpp"
 
 #include <cassert>
+#include <algorithm>
+#include <limits>
 
 template <typename FP, typename INT>
 int cle::KmeansNaive<FP, INT>::initialize() { return 1; }
@@ -34,7 +36,7 @@ void cle::KmeansNaive<FP, INT>::operator() (
 
         // Phase 1: assign points to clusters
         for (INT p = 0; p != points_x.size(); ++p) {
-            FP min_distance = std::numeric_limits<double>::max();
+            FP min_distance = std::numeric_limits<FP>::max();
             INT min_centroid;
 
             for (INT c = 0; c != centroids_x.size(); ++c) {
