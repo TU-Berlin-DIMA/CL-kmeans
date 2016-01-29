@@ -1,5 +1,7 @@
 #include "kmeans.hpp"
 
+#include <cassert>
+
 template <typename FP, typename INT>
 int cle::KmeansNaive<FP, INT>::initialize() { return 1; }
 
@@ -79,11 +81,11 @@ void cle::KmeansNaive<FP, INT>::operator() (
 }
 
 template <typename FP, typename INT>
-double cle::KmeansNaive<FP, INT>::gaussian_distance(
+FP cle::KmeansNaive<FP, INT>::gaussian_distance(
         FP a_x, FP a_y, FP b_x, FP b_y) {
 
-    double t_x = b_x - a_x;
-    double t_y = b_y - a_y;
+    FP t_x = b_x - a_x;
+    FP t_y = b_y - a_y;
 
     return t_x * t_x + t_y * t_y;
 }

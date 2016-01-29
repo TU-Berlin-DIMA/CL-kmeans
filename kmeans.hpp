@@ -46,8 +46,29 @@ public:
                       std::vector<INT>& memberships,
                       KmeansStats& stats);
 private:
-    double gaussian_distance(FP a_x, FP a_y, FP b_x, FP b_y);
+    FP gaussian_distance(FP a_x, FP a_y, FP b_x, FP b_y);
 
+};
+
+class KmeansSIMD32 {
+public:
+    int initialize();
+    int finalize();
+
+    void operator() (
+            uint32_t const max_iterations,
+            std::vector<float> const& points_x,
+            std::vector<float> const& points_y,
+            std::vector<float>& centroids_x,
+            std::vector<float>& centroids_y,
+            std::vector<uint32_t>& cluster_size,
+            std::vector<uint32_t>& memberships,
+            KmeansStats& stats);
+
+private:
+    float gaussian_distance(
+            float a_x, float a_y,
+            float b_x, float b_y);
 };
 
 class KmeansGPUAssisted {
