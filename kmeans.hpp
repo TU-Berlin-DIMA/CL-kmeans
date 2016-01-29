@@ -16,19 +16,20 @@ namespace cle {
 
 using KmeansStats = struct { uint32_t iterations; };
 
+template <typename FP>
 class KmeansInitializer {
 public:
-    static void random(
-            std::vector<double> const& points_x,
-            std::vector<double> const& points_y,
-            std::vector<double>& centroids_x,
-            std::vector<double>& centroids_y);
+    static void forgy(
+            std::vector<FP> const& points_x,
+            std::vector<FP> const& points_y,
+            std::vector<FP>& centroids_x,
+            std::vector<FP>& centroids_y);
 
     static void first_x(
-            std::vector<double> const &points_x,
-            std::vector<double> const& points_y,
-            std::vector<double>& centroids_x,
-            std::vector<double>& centroids_y);
+            std::vector<FP> const &points_x,
+            std::vector<FP> const& points_y,
+            std::vector<FP>& centroids_x,
+            std::vector<FP>& centroids_y);
 };
 
 template <typename FP, typename INT>
@@ -64,11 +65,6 @@ public:
             std::vector<uint32_t>& cluster_size,
             std::vector<uint32_t>& memberships,
             KmeansStats& stats);
-
-private:
-    float gaussian_distance(
-            float a_x, float a_y,
-            float b_x, float b_y);
 };
 
 class KmeansGPUAssisted {
@@ -101,10 +97,16 @@ private:
     std::vector<size_t> max_work_item_sizes_;
 };
 
+using KmeansInitializer32 = KmeansInitializer<float>;
+using KmeansInitializer64 = KmeansInitializer<double>;
+
 using KmeansNaive32 = KmeansNaive<float, uint32_t>;
 using KmeansNaive64 = KmeansNaive<double, uint64_t>;
 
 }
+
+extern template class cle::KmeansInitializer<float>;
+extern template class cle::KmeansInitializer<double>;
 
 extern template class cle::KmeansNaive<float, uint32_t>;
 extern template class cle::KmeansNaive<double, uint64_t>;
