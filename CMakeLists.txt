@@ -15,7 +15,7 @@ SET(CMAKE_C_COMPILER clang)
 SET(CMAKE_CXX_COMPILER clang++)
 SET(CMAKE_C_FLAGS "-std=c99 -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
 SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -march=haswell -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 
 FIND_PACKAGE(Boost REQUIRED)
@@ -38,7 +38,7 @@ TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY} Helpers CLExt)
 ADD_EXECUTABLE(test_csv test_csv.cpp)
 TARGET_LINK_LIBRARIES(test_csv Helpers)
 
-ADD_EXECUTABLE(test_kmeans test_kmeans.cpp kmeans_initializer.cpp kmeans_naive.cpp kmeans_gpu_assisted.cpp clustering_benchmark.cpp)
+ADD_EXECUTABLE(test_kmeans test_kmeans.cpp kmeans_initializer.cpp kmeans_naive.cpp kmeans_simd.cpp kmeans_gpu_assisted.cpp clustering_benchmark.cpp)
 TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY} Helpers CLExt)
 
 # Install OpenCL kernel source files
