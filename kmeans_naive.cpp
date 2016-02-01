@@ -26,11 +26,8 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
     assert(memberships.size() == points_x.size());
     assert(cluster_size.size() == centroids_x.size());
 
-    bool did_changes;
-    uint32_t iterations;
-
-    iterations = 0;
-    did_changes = true;
+    uint32_t iterations = 0;
+    bool did_changes = true;
     while (did_changes == true && iterations < max_iterations) {
         did_changes = false;
 
