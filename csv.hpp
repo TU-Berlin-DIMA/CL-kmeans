@@ -63,7 +63,7 @@ public:
     }
 
     template <typename T, typename Alloc>
-    int read_csv_dynamic(char const *file_name, std::vector<std::vector<T, Alloc>>& vectors, size_t const batch_size = 10) {
+    int read_csv(char const *file_name, std::vector<std::vector<T, Alloc>>& vectors, size_t const batch_size = 10) {
 
         size_t file_size = 0;
         char const * mapped = NULL;

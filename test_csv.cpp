@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     std::vector<std::vector<double>> array;
 
     timer.start();
-    csv.read_csv_dynamic(file_name, array);
+    csv.read_csv(file_name, array);
     duration = timer.stop<std::chrono::microseconds>();
 
     std::cout << "Array runtime: " << duration << " µs" << std::endl;
