@@ -344,13 +344,13 @@ private:
         return 1;
     }
 
-    template <typename T>
-    void tune_vectors(size_t avg_size, std::vector<T>& vec) {
+    template <typename T, typename Alloc>
+    void tune_vectors(size_t avg_size, std::vector<T, Alloc>& vec) {
         vec.reserve(avg_size / sizeof(T));
     }
 
-    template <typename T, typename ... Ts>
-    void tune_vectors(size_t avg_size, std::vector<T>& vec, Ts& ... other) {
+    template <typename T, typename ... Ts, typename Alloc>
+    void tune_vectors(size_t avg_size, std::vector<T, Alloc>& vec, Ts& ... other) {
         vec.reserve(avg_size / sizeof(T));
 
         tune_vectors(avg_size, other ...);
@@ -359,7 +359,7 @@ private:
     template <typename T, typename Alloc>
     void tune_vectors(size_t avg_size,
             std::vector<std::vector<T, Alloc>>& vectors) {
-        for (std::vector<T>& v : vectors) {
+        for (std::vector<T, Alloc>& v : vectors) {
             tune_vectors(avg_size, v);
         }
 
