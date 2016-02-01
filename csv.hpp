@@ -8,7 +8,6 @@
 #include <cstring>
 #include <sstream>
 #include <cassert>
-#include <array>
 #include <type_traits>
 
 #include <sys/mman.h>
@@ -63,32 +62,50 @@ public:
         return 1;
     }
 
-    template <typename T, size_t size>
-    int read_csv(char const *file_name, std::array<std::vector<T>, size>& vectors) {
+    template <typename T, typename Alloc>
+    int read_csv_dynamic(char const *file_name, std::vector<std::vector<T, Alloc>>& vectors) {
+
+        constexpr size_t batch_size = 10;
 
         size_t file_size = 0;
         char const * mapped = NULL;
         size_t file_offset = 0;
         size_t chars_tokenized = 0;
-        CToken tokens[size];
+        size_t tokens_tokenized = 0;
+        size_t current_column;
+        std::vector<CToken> tokens(batch_size);
         std::stringstream ssbuf;
 
         open_file(file_name, mapped, file_size);
 
+        // Find and set number of columns
+        size_t num_columns = line_size(&mapped[0], file_size, delimiter_);
+        vectors.resize(num_columns);
+
+        // TODO: Preallocate memory
+
         // Process file
         file_offset = 0;
+        current_column = 0;
         while (file_offset < file_size) {
-            chars_tokenized = tokenize(&mapped[file_offset], file_size, tokens,
-                    size, delimiter_);
+            tokenize(&mapped[file_offset], file_size, tokens,
+                    delimiter_, tokens_tokenized, chars_tokenized);
 
-            if (chars_tokenized != 0) {
-                parse_line(ssbuf, tokens, vectors);
-            }
+            parse_line(ssbuf, tokens, vectors,
+                    current_column, tokens_tokenized);
 
             file_offset += chars_tokenized;
         }
 
         close_file(mapped, file_size);
+
+        assert(vectors.size() > 0);
+        {
+            size_t common_length = vectors[0].size();
+            for (auto const& v : vectors) {
+                assert(v.size() == common_length);
+            }
+        }
 
         return 1;
     }
@@ -179,6 +196,56 @@ private:
         return offset;
     }
 
+    void tokenize(char const *buffer, size_t buffer_size,
+            std::vector<CToken>& tokens, const char delimiter,
+            size_t& tokens_tokenized, size_t& chars_tokenized) {
+
+        size_t offset = 0;
+        size_t begin_offset = 0;
+        size_t t = 0;
+        while (offset < buffer_size && t < tokens.size()) {
+            char const& c = buffer[offset];
+
+            if (c == delimiter || c == '\n') {
+                std::get<0>(tokens[t]) = &buffer[begin_offset];
+                std::get<1>(tokens[t]) = offset - begin_offset;
+                begin_offset = offset + 1;
+
+                ++t;
+            }
+
+            ++offset;
+        }
+
+        if (offset == buffer_size && t < tokens.size()) {
+            std::get<0>(tokens[t]) = &buffer[begin_offset];
+            std::get<1>(tokens[t]) = offset - begin_offset;
+        }
+
+        tokens_tokenized = t;
+        chars_tokenized = offset;
+    }
+
+    size_t line_size(char const *buffer, size_t buffer_size,
+            char delimiter) {
+
+        size_t column = 0;
+        for (size_t offset = 0; offset < buffer_size; ++offset) {
+            char const& c = buffer[offset];
+
+            if (c == delimiter) {
+                ++column;
+            }
+            else if (c == '\n') {
+                ++column;
+
+                break;
+            }
+        }
+
+        return column;
+    }
+
     template <size_t depth = 0, typename T>
     int parse_line(std::stringstream& ssbuf, CToken const *tokens,
             std::vector<T>& vec) {
@@ -239,36 +306,39 @@ private:
         return 1;
     }
 
-    template <typename T, size_t size>
-    int parse_line(std::stringstream& ssbuf, CToken const *tokens,
-            std::array<std::vector<T>, size>& vectors) {
+    template <typename T, typename Alloc>
+    int parse_line(std::stringstream& ssbuf, std::vector<CToken> const& tokens,
+            std::vector<std::vector<T, Alloc>>& vectors,
+            size_t& current_column, const size_t num_tokens) {
 
         T v;
         char const * token_begin;
         char const * token_last;
         size_t token_size;
 
-        for (size_t i = 0; i != size; ++i) {
+        for (size_t i = 0; i != num_tokens; ++i) {
             token_begin = std::get<0>(tokens[i]);
             token_size = std::get<1>(tokens[i]);
             token_last = &token_begin[token_size];
 
             if (std::is_same<double, T>::value) {
                 boost::spirit::qi::parse(token_begin, token_last, boost::spirit::qi::double_, v);
-                vectors[i].push_back(v);
+                vectors[current_column].push_back(v);
             }
             else {
 #ifdef PARSE_WITH_BOOST
                 v = boost::lexical_cast<T>(token_begin, token_size);
-                vectors[i].push_back(v);
+                vectors[current_column].push_back(v);
 #else
                 ssbuf.write(token_begin, token_size);
                 ssbuf >> v;
-                vectors[i].push_back(v);
+                vectors[current_column].push_back(v);
                 ssbuf.clear();
                 ssbuf.str("");
 #endif
             }
+
+            current_column = (current_column + 1) % vectors.size();
         }
 
         return 1;

@@ -7,6 +7,7 @@
 #include <vector>
 #include <cstdint>
 #include <chrono>
+#include <algorithm>
 
 int main(int argc, char **argv) {
     char *file_name = argv[1];
@@ -30,10 +31,10 @@ int main(int argc, char **argv) {
     // cle::Utils::print_vector(a);
     // cle::Utils::print_vector(b);
 
-    std::array<std::vector<double>, 2> array;
+    std::vector<std::vector<double>> array;
 
     timer.start();
-    csv.read_csv(file_name, array);
+    csv.read_csv_dynamic(file_name, array);
     duration = timer.stop<std::chrono::microseconds>();
 
     std::cout << "Array runtime: " << duration << " µs" << std::endl;
@@ -42,4 +43,13 @@ int main(int argc, char **argv) {
     //     cle::Utils::print_vector(v);
     // }
 
+    if (
+            not std::equal(a.cbegin(), a.cend(), array[0].cbegin())
+            ||
+            not std::equal(b.cbegin(), b.cend(), array[1].cbegin())
+       ) {
+
+        std::cout << "Mismatch between read_csv and read_csv_dynamic!!"
+            << std::endl;
+    }
 }
