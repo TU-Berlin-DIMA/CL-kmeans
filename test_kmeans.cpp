@@ -22,8 +22,10 @@ int main(int argc, char **argv) {
   char *input_path = argv[1];
 
   cle::CSV csv;
-  std::vector<float, boost::alignment::
-    aligned_allocator<float, 256>> points_x_32, points_y_32;
+  std::vector<
+      std::vector<
+      float, cle::AlignedAllocatorFP32>
+      > points_32;
   std::vector<double> points_x_64, points_y_64;
 
   cle::CLInitializer clinit;
@@ -34,7 +36,7 @@ int main(int argc, char **argv) {
       return 0;
   }
 
-  csv.read_csv(input_path, points_x_32, points_y_32);
+  csv.read_csv(input_path, points_32);
 
   csv.read_csv(input_path, points_x_64, points_y_64);
   std::cout << "Read " << input_path << std::endl;
@@ -44,19 +46,19 @@ int main(int argc, char **argv) {
   constexpr uint32_t num_runs = 5;
   constexpr uint32_t max_iterations = 100;
   constexpr uint64_t num_clusters = 9;
-  uint64_t num_points = points_x_32.size();
+  uint64_t num_points = points_32[0].size();
 
-  cle::ClusteringBenchmark32 bm32(
+  cle::ClusteringBenchmark32Aligned bm32(
           num_runs, num_points, max_iterations,
-          std::move(points_x_32), std::move(points_y_32));
-  bm32.initialize(num_clusters, cle::KmeansInitializer32::first_x);
+          std::move(points_32[0]), std::move(points_32[1]));
+  bm32.initialize(num_clusters, cle::KmeansInitializer32Aligned::first_x);
 
   cle::ClusteringBenchmark64 bm64(
           num_runs, num_points, max_iterations,
           std::move(points_x_64), std::move(points_y_64));
   bm64.initialize(num_clusters, cle::KmeansInitializer64::first_x);
 
-  cle::KmeansNaive32 kmeans_naive_32;
+  cle::KmeansNaive32Aligned kmeans_naive_32;
   kmeans_naive_32.initialize();
 
   cle::KmeansNaive64 kmeans_naive_64;

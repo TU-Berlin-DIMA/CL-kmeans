@@ -4,21 +4,21 @@
 #include <algorithm>
 #include <limits>
 
-template <typename FP, typename INT>
-int cle::KmeansNaive<FP, INT>::initialize() { return 1; }
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+int cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::initialize() { return 1; }
 
-template <typename FP, typename INT>
-int cle::KmeansNaive<FP, INT>::finalize() { return 1; }
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+int cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::finalize() { return 1; }
 
-template <typename FP, typename INT>
-void cle::KmeansNaive<FP, INT>::operator() (
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
         uint32_t const max_iterations,
-        std::vector<FP> const& points_x,
-        std::vector<FP> const& points_y,
-        std::vector<FP>& centroids_x,
-        std::vector<FP>& centroids_y,
-        std::vector<INT>& cluster_size,
-        std::vector<INT>& memberships,
+        std::vector<FP, AllocFP> const& points_x,
+        std::vector<FP, AllocFP> const& points_y,
+        std::vector<FP, AllocFP>& centroids_x,
+        std::vector<FP, AllocFP>& centroids_y,
+        std::vector<INT, AllocINT>& cluster_size,
+        std::vector<INT, AllocINT>& memberships,
         KmeansStats& stats) {
 
     assert(points_x.size() == points_y.size());
@@ -82,8 +82,8 @@ void cle::KmeansNaive<FP, INT>::operator() (
     stats.iterations = iterations;
 }
 
-template <typename FP, typename INT>
-FP cle::KmeansNaive<FP, INT>::gaussian_distance(
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+FP cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::gaussian_distance(
         FP a_x, FP a_y, FP b_x, FP b_y) {
 
     FP t_x = b_x - a_x;
@@ -93,5 +93,7 @@ FP cle::KmeansNaive<FP, INT>::gaussian_distance(
 }
 
 
-template class cle::KmeansNaive<float, uint32_t>;
-template class cle::KmeansNaive<double, uint64_t>;
+template class cle::KmeansNaive<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
+template class cle::KmeansNaive<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
+template class cle::KmeansNaive<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
+template class cle::KmeansNaive<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;

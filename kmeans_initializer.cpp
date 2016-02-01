@@ -2,12 +2,12 @@
 
 #include <random>
 
-template <typename FP>
-void cle::KmeansInitializer<FP>::forgy(
-        std::vector<FP> const& points_x,
-        std::vector<FP> const& points_y,
-        std::vector<FP>& centroids_x,
-        std::vector<FP>& centroids_y) {
+template <typename FP, typename Alloc>
+void cle::KmeansInitializer<FP, Alloc>::forgy(
+        std::vector<FP, Alloc> const& points_x,
+        std::vector<FP, Alloc> const& points_y,
+        std::vector<FP, Alloc>& centroids_x,
+        std::vector<FP, Alloc>& centroids_y) {
 
     std::random_device rand;
     const size_t num_points = points_x.size();
@@ -21,12 +21,12 @@ void cle::KmeansInitializer<FP>::forgy(
     }
 }
 
-template <typename FP>
-void cle::KmeansInitializer<FP>::first_x(
-        std::vector<FP> const &points_x,
-        std::vector<FP> const& points_y,
-        std::vector<FP>& centroids_x,
-        std::vector<FP>& centroids_y) {
+template <typename FP, typename Alloc>
+void cle::KmeansInitializer<FP, Alloc>::first_x(
+        std::vector<FP, Alloc> const &points_x,
+        std::vector<FP, Alloc> const& points_y,
+        std::vector<FP, Alloc>& centroids_x,
+        std::vector<FP, Alloc>& centroids_y) {
 
     const size_t num_clusters = centroids_x.size();
 
@@ -36,5 +36,7 @@ void cle::KmeansInitializer<FP>::first_x(
     }
 }
 
-template class cle::KmeansInitializer<float>;
-template class cle::KmeansInitializer<double>;
+template class cle::KmeansInitializer<float, std::allocator<float>>;
+template class cle::KmeansInitializer<double, std::allocator<double>>;
+template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32>;
+template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64>;
