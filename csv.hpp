@@ -80,7 +80,9 @@ public:
         size_t num_columns = line_size(&mapped[0], file_size, delimiter_);
         vectors.resize(num_columns);
 
-        // TODO: Preallocate memory
+        // Preallocate memory
+        tune_vectors((file_size + num_columns) / num_columns,
+                vectors);
 
         // Process file
         file_offset = 0;
@@ -354,8 +356,9 @@ private:
         tune_vectors(avg_size, other ...);
     }
 
-    template <typename T, size_t size>
-    void tune_vectors(size_t avg_size, std::array<std::vector<T>, size>& vectors) {
+    template <typename T, typename Alloc>
+    void tune_vectors(size_t avg_size,
+            std::vector<std::vector<T, Alloc>>& vectors) {
         for (std::vector<T>& v : vectors) {
             tune_vectors(avg_size, v);
         }
