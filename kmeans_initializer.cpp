@@ -23,16 +23,17 @@ void cle::KmeansInitializer<FP, Alloc>::forgy(
 
 template <typename FP, typename Alloc>
 void cle::KmeansInitializer<FP, Alloc>::first_x(
-        std::vector<FP, Alloc> const &points_x,
+        std::vector<FP, Alloc> const& points_x,
         std::vector<FP, Alloc> const& points_y,
         std::vector<FP, Alloc>& centroids_x,
         std::vector<FP, Alloc>& centroids_y) {
 
     const size_t num_clusters = centroids_x.size();
+    const size_t num_points = points_x.size();
 
     for (size_t c = 0; c != num_clusters; ++c) {
-        centroids_x[c] = points_x[c];
-        centroids_y[c] = points_y[c];
+        centroids_x[c] = points_x[c % num_points];
+        centroids_y[c] = points_y[c % num_points];
     }
 }
 
