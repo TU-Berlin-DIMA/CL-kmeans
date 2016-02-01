@@ -61,7 +61,7 @@ void cle::KmeansSIMD32::operator() (
     while (did_changes != 0 && iterations < max_iterations) {
         did_changes = 0;
 
-        for (uint32_t p = 0; p < num_points; p += vec_size) {
+        for (uint32_t p = 0; p + vec_size - 1 < num_points; p += vec_size) {
             __m256 min_distance;
             __m256i min_centroid_id;
 
