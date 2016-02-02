@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 
   constexpr uint32_t num_runs = 5;
   constexpr uint32_t max_iterations = 100;
-  constexpr uint64_t num_clusters = 9;
+  constexpr uint64_t num_clusters = 10;
   uint64_t num_points = points_32[0].size();
 
   cle::ClusteringBenchmark32Aligned bm32(
@@ -91,6 +91,8 @@ int main(int argc, char **argv) {
       std::cout << "GPU assisted is wrong!!!" << std::endl;
   }
 
+  cle::ClusteringBenchmarkStats bs_naive_32 = bm32.run(kmeans_naive_32);
+  cle::ClusteringBenchmarkStats bs_simd_32 = bm32.run(kmeans_simd_32);
   cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
   cle::ClusteringBenchmarkStats bs_gpu_64 = bm64.run(kmeans_gpu_64);
 
@@ -101,6 +103,8 @@ int main(int argc, char **argv) {
 
   bm64.finalize();
 
+  bs_naive_32.print_times();
+  bs_simd_32.print_times();
   bs_naive_64.print_times();
   bs_gpu_64.print_times();
 
