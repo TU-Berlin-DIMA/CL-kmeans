@@ -76,11 +76,19 @@ public:
     }
 
     T* data() {
-        raw_.data();
+        return raw_.data();
+    }
+
+    T const* data() const {
+        return raw_.data();
     }
 
     std::vector<T, Talloc>& get_data() {
-        return &raw_;
+        return raw_;
+    }
+
+    std::vector<T, Talloc> const& get_data() const {
+        return raw_;
     }
 
     std::vector<T, Talloc>&& move_data() {
@@ -96,7 +104,19 @@ public:
                 << std::endl;
         }
 #endif
-        return &raw_[y_dim_ * y + x];
+        return raw_[y_dim_ * y + x];
+    }
+
+    inline T const& operator() (INT const x, INT const y) const {
+#ifdef MATRIX_BOUNDSCHECK
+        if (x >= x_dim_ || y >= y_dim_) {
+            std::cerr << "Warning: Matrix out of bounds access: ("
+                << x << "," << y << ") in ("
+                << x_dim_ << "," << y_dim_ << ") matrix"
+                << std::endl;
+        }
+#endif
+        return raw_[y_dim_ * y + x];
     }
 
     inline INT size() const {
