@@ -19,8 +19,8 @@ namespace cle {
 class Utils {
 
 public:
-    template <typename T>
-    static void print_vector(std::vector<T> const& vec) {
+    template <typename T, typename Alloc>
+    static void print_vector(std::vector<T, Alloc> const& vec) {
         for_each(vec.begin(), vec.end(), [](T x){ std::cout << x << " "; });
         std::cout << std::endl;
     }
