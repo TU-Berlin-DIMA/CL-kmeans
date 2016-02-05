@@ -43,20 +43,20 @@ cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::ClusteringBench
         num_clusters_(0),
         max_iterations_(max_iterations),
         points_(std::move(points)),
-        memberships_(num_points)
+        labels_(num_points)
 {}
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
 int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::initialize(
-        const INT num_clusters, const INT num_dimensions,
+        const INT num_clusters, const INT num_features,
         InitCentroidsFunction init_centroids
         ) {
 
     num_clusters_ = num_clusters;
     init_centroids_ = init_centroids;
 
-    centroids_.resize(num_clusters, num_dimensions);
-    cluster_size_.resize(num_clusters);
+    centroids_.resize(num_clusters, num_features);
+    cluster_mass_.resize(num_clusters);
 
     return 1;
 }
@@ -84,8 +84,8 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
                 max_iterations_,
                 points_,
                 centroids_,
-                cluster_size_,
-                memberships_,
+                cluster_mass_,
+                labels_,
                 bs.kmeans_stats[r]
          );
         bs.microseconds[r] = timer.stop<std::chrono::microseconds>();
@@ -100,7 +100,7 @@ int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerifica
 
     cle::KmeansStats stats;
 
-    reference_memberships_.resize(num_points_);
+    reference_labels_.resize(num_points_);
 
     init_centroids_(
             points_,
@@ -111,8 +111,8 @@ int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerifica
             max_iterations_,
             points_,
             centroids_,
-            cluster_size_,
-            reference_memberships_,
+            cluster_mass_,
+            reference_labels_,
             stats
        );
 
@@ -134,15 +134,15 @@ int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(Clus
             max_iterations_,
             points_,
             centroids_,
-            cluster_size_,
-            memberships_,
+            cluster_mass_,
+            labels_,
             stats
        );
 
     is_correct = std::equal(
-            reference_memberships_.begin(),
-            reference_memberships_.end(),
-            memberships_.begin());
+            reference_labels_.begin(),
+            reference_labels_.end(),
+            labels_.begin());
 
     return is_correct;
 }
@@ -151,8 +151,8 @@ template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool CO
 void cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::print_labels() {
 
     std::cout << "Point Label" << std::endl;
-    for (INT i = 0; i < memberships_.size(); ++i) {
-        std::cout << i << " " << memberships_[i] << std::endl;
+    for (INT i = 0; i < labels_.size(); ++i) {
+        std::cout << i << " " << labels_[i] << std::endl;
     }
 }
 

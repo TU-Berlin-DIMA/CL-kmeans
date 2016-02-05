@@ -70,7 +70,7 @@ public:
 
     int initialize(
             const INT num_clusters,
-            const INT num_dimensions,
+            const INT num_features,
             InitCentroidsFunction init_centroids
             );
     int finalize();
@@ -87,9 +87,9 @@ private:
     const uint32_t max_iterations_;
     cle::Matrix<FP, AllocFP, INT, COL_MAJOR> const points_;
     cle::Matrix<FP, AllocFP, INT, COL_MAJOR> centroids_;
-    std::vector<INT, AllocINT> cluster_size_;
-    std::vector<INT, AllocINT> memberships_;
-    std::vector<INT, AllocINT> reference_memberships_;
+    std::vector<INT, AllocINT> cluster_mass_;
+    std::vector<INT, AllocINT> labels_;
+    std::vector<INT, AllocINT> reference_labels_;
     InitCentroidsFunction init_centroids_;
 };
 

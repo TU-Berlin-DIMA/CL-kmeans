@@ -24,12 +24,12 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
         uint32_t const max_iterations,
         cle::Matrix<FP, AllocFP, INT, true> const& points,
         cle::Matrix<FP, AllocFP, INT, true>& centroids,
-        std::vector<INT, AllocINT>& cluster_size,
-        std::vector<INT, AllocINT>& memberships,
+        std::vector<INT, AllocINT>& cluster_mass,
+        std::vector<INT, AllocINT>& labels,
         KmeansStats& stats) {
 
-    assert(memberships.size() == points.rows());
-    assert(cluster_size.size() == centroids.rows());
+    assert(labels.size() == points.rows());
+    assert(cluster_mass.size() == centroids.rows());
 
     uint32_t iterations = 0;
     bool did_changes = true;
@@ -54,29 +54,29 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
                 }
             }
 
-            if (min_centroid != memberships[p]) {
-                memberships[p] = min_centroid;
+            if (min_centroid != labels[p]) {
+                labels[p] = min_centroid;
                 did_changes = true;
             }
         }
 
         // Phase 2: calculate new clusters
         // Arithmetic mean of all points assigned to cluster
-        std::fill(cluster_size.begin(), cluster_size.end(), 0);
+        std::fill(cluster_mass.begin(), cluster_mass.end(), 0);
         std::fill(centroids.begin(), centroids.end(), 0);
 
         for (INT p = 0; p < points.rows(); ++p) {
-            INT c = memberships[p];
+            INT c = labels[p];
 
-            cluster_size[c] += 1;
+            cluster_mass[c] += 1;
             for (INT d = 0; d < points.cols(); ++d) {
                 centroids(c, d) += points(p, d);
             }
         }
 
-        for (INT d = 0; d < centroids.cols(); ++d) {
+        for (INT f = 0; f < centroids.cols(); ++f) {
             for (INT c = 0; c < centroids.rows(); ++c) {
-                centroids(c, d) = centroids(c, d) / cluster_size[c];
+                centroids(c, f) = centroids(c, f) / cluster_mass[c];
             }
         }
 

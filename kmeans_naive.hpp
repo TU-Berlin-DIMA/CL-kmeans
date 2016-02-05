@@ -27,8 +27,8 @@ public:
             uint32_t const max_iterations,
             cle::Matrix<FP, AllocFP, INT, true> const& points,
             cle::Matrix<FP, AllocFP, INT, true>& centroids,
-            std::vector<INT, AllocINT>& cluster_size,
-            std::vector<INT, AllocINT>& memberships,
+            std::vector<INT, AllocINT>& cluster_mass,
+            std::vector<INT, AllocINT>& labels,
             KmeansStats& stats
             );
 };
