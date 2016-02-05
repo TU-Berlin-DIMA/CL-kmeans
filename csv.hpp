@@ -10,6 +10,8 @@
 #ifndef CSV_HPP
 #define CSV_HPP
 
+#include "matrix.hpp"
+
 #include <vector>
 #include <tuple>
 #include <iostream>
@@ -113,6 +115,29 @@ public:
             size_t common_length = vectors[0].size();
             for (auto const& v : vectors) {
                 assert(v.size() == common_length);
+            }
+        }
+
+        return 1;
+    }
+
+    template <typename T, typename Alloc, typename INT>
+    int read_csv(char const *file_name, Matrix<T, Alloc, INT, true>& matrix,
+            size_t const batch_size = 10) {
+
+
+        std::vector<std::vector<T, Alloc>> tmp_data;
+        int ret = read_csv(file_name, tmp_data, batch_size);
+
+        if (ret <= 0) {
+            return ret;
+        }
+
+        matrix.resize(tmp_data[0].size(), tmp_data.size());
+
+        for (INT y = 0; y < tmp_data.size(); ++y) {
+            for (INT x = 0; x < tmp_data[y].size(); ++x) {
+                matrix(x, y) = tmp_data[y][x];
             }
         }
 
