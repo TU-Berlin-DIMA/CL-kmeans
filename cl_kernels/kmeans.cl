@@ -1,3 +1,12 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/.
+ * 
+ * 
+ * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ */
+
 #pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
 
 double gaussian_distance(double p_x, double p_y, double q_x, double q_y) {
