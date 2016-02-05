@@ -8,9 +8,7 @@
  */
 
 #include "kmeans_gpu_assisted.hpp"
-
 #include "cle/common.hpp"
-
 #include "kmeans_cl_api.hpp"
 
 #include <cstdint>
@@ -24,14 +22,15 @@
 #include <CL/cl.hpp>
 #endif
 
-cle::KmeansGPUAssisted::KmeansGPUAssisted(
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::KmeansGPUAssisted(
         cl::Context const& context, cl::CommandQueue const& queue)
     :
         context_(context), queue_(queue)
 {}
 
-
-int cle::KmeansGPUAssisted::initialize() {
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
 
     cl_int err = CL_SUCCESS;
 
@@ -62,63 +61,52 @@ int cle::KmeansGPUAssisted::initialize() {
     return 1;
 }
 
-int cle::KmeansGPUAssisted::finalize() {
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::finalize() {
     return 1;
 }
 
-int cle::KmeansGPUAssisted::operator() (
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
         uint32_t const max_iterations,
-        std::vector<double> const& points_x,
-        std::vector<double> const& points_y,
-        std::vector<double>& centroids_x,
-        std::vector<double>& centroids_y,
-        std::vector<uint64_t>& cluster_size,
-        std::vector<uint64_t>& memberships,
+        cle::Matrix<FP, AllocFP, INT, true> const& points,
+        cle::Matrix<FP, AllocFP, INT, true>& centroids,
+        std::vector<INT, AllocINT>& cluster_size,
+        std::vector<INT, AllocINT>& memberships,
         KmeansStats& stats
         ) {
+
+    assert(points.cols() == centroids.cols());
+    assert(points.rows() == memberships.size());
 
     uint32_t iterations;
     bool did_changes;
 
     size_t global_size = this->max_work_group_size_ * this->max_work_item_sizes_[0];
-    const size_t num_points = points_x.size();
-    const size_t num_clusters = centroids_x.size();
     std::vector<cl_char> h_did_changes(global_size);
 
     cle::TypedBuffer<cl_char> d_did_changes(this->context_, CL_MEM_READ_WRITE, global_size);
-    cle::TypedBuffer<cl_double> d_points_x(this->context_, CL_MEM_READ_ONLY, num_points);
-    cle::TypedBuffer<cl_double> d_points_y(this->context_, CL_MEM_READ_ONLY, num_points);
-    cle::TypedBuffer<cl_double> d_centroids_x(this->context_, CL_MEM_READ_ONLY, num_clusters);
-    cle::TypedBuffer<cl_double> d_centroids_y(this->context_, CL_MEM_READ_ONLY, num_clusters);
-    cle::TypedBuffer<cl_ulong> d_memberships(this->context_, CL_MEM_READ_WRITE, num_points);
+    cle::TypedBuffer<cl_double> d_points(this->context_, CL_MEM_READ_ONLY, points.size());
+    cle::TypedBuffer<cl_double> d_centroids(this->context_, CL_MEM_READ_ONLY, centroids.size());
+    cle::TypedBuffer<cl_ulong> d_memberships(this->context_, CL_MEM_READ_WRITE, points.rows());
 
 
     // copy points (x,y) host -> device
     cle_sanitize_val_return(
             this->queue_.enqueueWriteBuffer(
-                d_points_x,
+                d_points,
                 CL_FALSE,
                 0,
-                d_points_x.bytes(),
-                points_x.data()
+                d_points.bytes(),
+                points.data()
                 ));
 
     cle_sanitize_val_return(
-            this->queue_.enqueueWriteBuffer(
-                d_points_y,
-                CL_FALSE,
-                0,
-                d_points_y.bytes(),
-                points_y.data()
-                ));
-
-    cle_sanitize_val_return(
-            this->queue_.enqueueWriteBuffer(
+            this->queue_.enqueueFillBuffer(
                 d_memberships,
-                CL_FALSE,
                 0,
-                d_memberships.bytes(),
-                memberships.data()
+                0,
+                d_memberships.bytes()
                 ));
 
     iterations = 0;
@@ -136,20 +124,11 @@ int cle::KmeansGPUAssisted::operator() (
 
         cle_sanitize_val_return(
                 this->queue_.enqueueWriteBuffer(
-                    d_centroids_x,
+                    d_centroids,
                     CL_FALSE,
                     0,
-                    d_centroids_x.bytes(),
-                    centroids_x.data()
-                    ));
-
-        cle_sanitize_val_return(
-                this->queue_.enqueueWriteBuffer(
-                    d_centroids_y,
-                    CL_FALSE,
-                    0,
-                    d_centroids_y.bytes(),
-                    centroids_y.data()
+                    d_centroids.bytes(),
+                    centroids.data()
                     ));
 
         // execute kernel
@@ -160,10 +139,11 @@ int cle::KmeansGPUAssisted::operator() (
                     cl::NDRange(this->max_work_group_size_)
                     ),
                 d_did_changes,
-                d_points_x,
-                d_points_y,
-                d_centroids_x,
-                d_centroids_y,
+                points.cols(),
+                points.rows(),
+                centroids.rows(),
+                d_points,
+                d_centroids,
                 d_memberships
                 );
 
@@ -195,28 +175,34 @@ int cle::KmeansGPUAssisted::operator() (
 
         if (did_changes == true) {
             // Initialize to zero
-            std::fill(centroids_x.begin(), centroids_x.end(), 0);
-            std::fill(centroids_y.begin(), centroids_y.end(), 0);
+            std::fill(centroids.begin(), centroids.end(), 0);
             std::fill(cluster_size.begin(), cluster_size.end(), 0);
 
             // Calculate new centroids
-            for (uint32_t p = 0; p < num_points; ++p) {
-                uint32_t c = memberships[p];
+            for (INT p = 0; p < points.rows(); ++p) {
+                INT c = memberships[p];
+                assert(c < centroids.rows());
 
-                centroids_x[c] += points_x[p];
-                centroids_y[c] += points_y[p];
+                for (INT f = 0; f < points.cols(); ++f) {
+                    centroids(c, f) += points(p, f);
+                }
                 ++cluster_size[c];
             }
 
-            for (uint32_t c = 0; c < num_clusters; ++c) {
-                centroids_x[c] = centroids_x[c] / cluster_size[c];
-                centroids_y[c] = centroids_y[c] / cluster_size[c];
+            for (INT f = 0; f < centroids.cols(); ++f) {
+                for (INT c = 0; c < centroids.rows(); ++c) {
+                    centroids(c, f) = centroids(c, f) / cluster_size[c];
+                }
             }
         }
 
         ++iterations;
     }
-    std::cout << "iters: " << iterations << std::endl;
+
+    stats.iterations = iterations;
 
     return 1;
 }
+
+template class cle::KmeansGPUAssisted<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
+template class cle::KmeansGPUAssisted<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;

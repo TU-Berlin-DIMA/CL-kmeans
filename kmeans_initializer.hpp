@@ -11,41 +11,38 @@
 #define KMEANS_INITIALIZER_HPP
 
 #include "kmeans_common.hpp"
-
-#include <vector>
+#include "matrix.hpp"
 
 namespace cle {
 
-template <typename FP, typename Alloc>
+template <typename FP, typename Alloc, typename INT>
 class KmeansInitializer {
 public:
     static void forgy(
-            std::vector<FP, Alloc> const& points_x,
-            std::vector<FP, Alloc> const& points_y,
-            std::vector<FP, Alloc>& centroids_x,
-            std::vector<FP, Alloc>& centroids_y);
+            cle::Matrix<FP, Alloc, INT, true> const& points,
+            cle::Matrix<FP, Alloc, INT, true>& centroids
+            );
 
     static void first_x(
-            std::vector<FP, Alloc> const &points_x,
-            std::vector<FP, Alloc> const& points_y,
-            std::vector<FP, Alloc>& centroids_x,
-            std::vector<FP, Alloc>& centroids_y);
+            cle::Matrix<FP, Alloc, INT, true> const& points,
+            cle::Matrix<FP, Alloc, INT, true>& centroids
+            );
 };
 
 using KmeansInitializer32 =
-    KmeansInitializer<float, std::allocator<float>>;
+    KmeansInitializer<float, std::allocator<float>, uint32_t>;
 using KmeansInitializer64 =
-    KmeansInitializer<double, std::allocator<double>>;
+    KmeansInitializer<double, std::allocator<double>, uint64_t>;
 using KmeansInitializer32Aligned =
-    KmeansInitializer<float, AlignedAllocatorFP32>;
+    KmeansInitializer<float, AlignedAllocatorFP32, uint32_t>;
 using KmeansInitializer64Aligned =
-    KmeansInitializer<double, AlignedAllocatorFP64>;
+    KmeansInitializer<double, AlignedAllocatorFP64, uint64_t>;
 
 }
 
-extern template class cle::KmeansInitializer<float, std::allocator<float>>;
-extern template class cle::KmeansInitializer<double, std::allocator<double>>;
-extern template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32>;
-extern template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64>;
+extern template class cle::KmeansInitializer<float, std::allocator<float>, uint32_t>;
+extern template class cle::KmeansInitializer<double, std::allocator<double>, uint64_t>;
+extern template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32, uint32_t>;
+extern template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64, uint64_t>;
 
 #endif /* KMEANS_INITIALIZER_HPP */

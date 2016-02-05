@@ -13,6 +13,7 @@
 #include "clustering_benchmark.hpp"
 
 #include "kmeans.hpp"
+#include "matrix.hpp"
 
 #include <iostream>
 #include <vector>
@@ -31,11 +32,8 @@ int main(int argc, char **argv) {
   char *input_path = argv[1];
 
   cle::CSV csv;
-  std::vector<
-      std::vector<
-      float, cle::AlignedAllocatorFP32>
-      > points_32;
-  std::vector<double> points_x_64, points_y_64;
+  cle::Matrix<float, cle::AlignedAllocatorFP32, uint32_t, true> points_32;
+  cle::Matrix<double, cle::AlignedAllocatorFP64, uint64_t, true> points_64;
 
   cle::CLInitializer clinit;
   if (clinit.choose_platform_interactive() < 0) {
@@ -46,37 +44,37 @@ int main(int argc, char **argv) {
   }
 
   csv.read_csv(input_path, points_32);
+  csv.read_csv(input_path, points_64);
 
-  csv.read_csv(input_path, points_x_64, points_y_64);
   std::cout << "Read " << input_path << std::endl;
-  uint64_t bytes_read = (points_x_64.size() + points_y_64.size()) * sizeof(double);
+  uint64_t bytes_read = points_64.size() * sizeof(double);
   std::cout << "Read " << bytes_read / 1024 / 1024 << " MiB" << std::endl;
 
   constexpr uint32_t num_runs = 5;
   constexpr uint32_t max_iterations = 100;
   constexpr uint64_t num_clusters = 10;
-  uint64_t num_points = points_32[0].size();
+  uint64_t num_points = points_32.rows();
 
   cle::ClusteringBenchmark32Aligned bm32(
           num_runs, num_points, max_iterations,
-          std::move(points_32[0]), std::move(points_32[1]));
-  bm32.initialize(num_clusters, cle::KmeansInitializer32Aligned::first_x);
+          std::move(points_32));
+  bm32.initialize(num_clusters, points_32.cols(), cle::KmeansInitializer32Aligned::first_x);
 
-  cle::ClusteringBenchmark64 bm64(
+  cle::ClusteringBenchmark64Aligned bm64(
           num_runs, num_points, max_iterations,
-          std::move(points_x_64), std::move(points_y_64));
-  bm64.initialize(num_clusters, cle::KmeansInitializer64::first_x);
+          std::move(points_64));
+  bm64.initialize(num_clusters, points_64.cols(), cle::KmeansInitializer64Aligned::first_x);
 
   cle::KmeansNaive32Aligned kmeans_naive_32;
   kmeans_naive_32.initialize();
 
-  cle::KmeansNaive64 kmeans_naive_64;
+  cle::KmeansNaive64Aligned kmeans_naive_64;
   kmeans_naive_64.initialize();
 
   cle::KmeansSIMD32 kmeans_simd_32;
   kmeans_simd_32.initialize();
 
-  cle::KmeansGPUAssisted kmeans_gpu_64(
+  cle::KmeansGPUAssisted64Aligned kmeans_gpu_64(
           clinit.get_context(), clinit.get_commandqueue()
           );
   kmeans_gpu_64.initialize();
@@ -84,13 +82,13 @@ int main(int argc, char **argv) {
   bm32.setVerificationReference(kmeans_naive_32);
   bm64.setVerificationReference(kmeans_naive_64);
 
-  int is_kmeans_simd_32_correct = bm32.verify(kmeans_simd_32);
-  if (is_kmeans_simd_32_correct) {
-      std::cout << "SIMD 32 is correct" << std::endl;
-  }
-  else {
-      std::cout << "SIMD 32 is wrong!!!" << std::endl;
-  }
+  // int is_kmeans_simd_32_correct = bm32.verify(kmeans_simd_32);
+  // if (is_kmeans_simd_32_correct) {
+  //     std::cout << "SIMD 32 is correct" << std::endl;
+  // }
+  // else {
+  //     std::cout << "SIMD 32 is wrong!!!" << std::endl;
+  // }
 
   int is_kmeans_gpu_64_correct = bm64.verify(kmeans_gpu_64);
   if (is_kmeans_gpu_64_correct) {
@@ -101,7 +99,9 @@ int main(int argc, char **argv) {
   }
 
   cle::ClusteringBenchmarkStats bs_naive_32 = bm32.run(kmeans_naive_32);
-  cle::ClusteringBenchmarkStats bs_simd_32 = bm32.run(kmeans_simd_32);
+  // bm32.print_labels();
+
+  // cle::ClusteringBenchmarkStats bs_simd_32 = bm32.run(kmeans_simd_32);
   cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
   cle::ClusteringBenchmarkStats bs_gpu_64 = bm64.run(kmeans_gpu_64);
 
@@ -110,10 +110,11 @@ int main(int argc, char **argv) {
   kmeans_simd_32.finalize();
   kmeans_gpu_64.finalize();
 
+  bm32.finalize();
   bm64.finalize();
 
   bs_naive_32.print_times();
-  bs_simd_32.print_times();
+  // bs_simd_32.print_times();
   bs_naive_64.print_times();
   bs_gpu_64.print_times();
 

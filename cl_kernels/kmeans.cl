@@ -7,28 +7,23 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
-
-double gaussian_distance(double p_x, double p_y, double q_x, double q_y) {
-    double t_x = q_x - p_x;
-    double t_y = q_y - p_y;
-
-    return t_x * t_x + t_y * t_y;
+ulong ccoord2ind(ulong dim, ulong row, ulong col) {
+    return dim * col + row;
 }
 
+ulong rcoord2ind(ulong dim, ulong row, ulong col) {
+    return dim * row + col;
+}
 
 __kernel
 void kmeans_with_host(
             __global char *g_did_changes,
-            __global double const *const g_points_x,
-            __global double const *const g_points_y,
-            __global double const *const g_centroids_x,
-            __global double const *const g_centroids_y,
+            __global double const *const g_points,
+            __global double const *const g_centroids,
             __global ulong *const g_memberships,
-            __local double *const l_centroids_x,
-            __local double *const l_centroids_y,
-            __local double *const l_old_centroids_x,
-            __local double *const l_old_centroids_y,
+            __local double *const l_centroids,
+            __local double *const l_old_centroids,
+            const ulong NUM_FEATURES,
             const ulong NUM_POINTS,
             const ulong NUM_CLUSTERS
        ) {
@@ -46,8 +41,10 @@ void kmeans_with_host(
     // Read to local memory
     for (ulong i = 0; i < NUM_CLUSTERS; i += WORK_GROUP_SIZE) {
         if (i + lid < NUM_CLUSTERS) {
-            l_old_centroids_x[i + lid] = g_centroids_x[i + lid];
-            l_old_centroids_y[i + lid] = g_centroids_y[i + lid];
+            for (ulong f = 0; f < NUM_FEATURES; ++f) {
+                l_old_centroids[ccoord2ind(NUM_FEATURES, i + lid, f)]
+                    = g_centroids[ccoord2ind(NUM_FEATURES, i + lid, f)];
+            }
         }
     }
 	barrier(CLK_LOCAL_MEM_FENCE);
@@ -59,15 +56,19 @@ void kmeans_with_host(
 
         if (p < NUM_POINTS) {
             // Phase 1
-            double point_x = g_points_x[p];
-            double point_y = g_points_y[p];
             ulong membership = g_memberships[p];
 
             ulong min_c;
             double min_dist = DBL_MAX;
 
             for (ulong c = 0; c < NUM_CLUSTERS; ++c) {
-                double dist = gaussian_distance(point_x, point_y, l_old_centroids_x[c], l_old_centroids_y[c]);
+                double dist = 0;
+                for (ulong f = 0; f < NUM_FEATURES; ++f) {
+                    double point = g_points[ccoord2ind(NUM_FEATURES, p, f)];
+                    double difference = point - l_old_centroids[ccoord2ind(NUM_FEATURES, c, f)];
+                    dist += difference * difference;
+                }
+
                 if (dist < min_dist) {
                     min_dist = dist;
                     min_c = c;

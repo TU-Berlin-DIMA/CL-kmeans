@@ -12,9 +12,9 @@
 
 #include "timer.hpp"
 #include "kmeans.hpp"
+#include "matrix.hpp"
 
 #include <vector>
-#include <iostream>
 #include <memory>
 #include <functional>
 #include <cstdint>
@@ -34,16 +34,15 @@ private:
     const uint32_t num_runs_;
 };
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+template <typename FP, typename INT, typename AllocFP, typename AllocINT,
+         bool COL_MAJOR>
 class ClusteringBenchmark {
 public:
     using ClusteringFunction = std::function<
         void(
             uint32_t,
-            std::vector<FP, AllocFP> const&,
-            std::vector<FP, AllocFP> const&,
-            std::vector<FP, AllocFP>&,
-            std::vector<FP, AllocFP>&,
+            cle::Matrix<FP, AllocFP, INT, COL_MAJOR> const&,
+            cle::Matrix<FP, AllocFP, INT, COL_MAJOR>&,
             std::vector<INT, AllocINT>&,
             std::vector<INT, AllocINT>&,
             cle::KmeansStats&
@@ -51,30 +50,27 @@ public:
 
     using InitCentroidsFunction = std::function<
         void(
-            std::vector<FP, AllocFP> const&,
-            std::vector<FP, AllocFP> const&,
-            std::vector<FP, AllocFP>&,
-            std::vector<FP, AllocFP>&
+            cle::Matrix<FP, AllocFP, INT, COL_MAJOR> const&,
+            cle::Matrix<FP, AllocFP, INT, COL_MAJOR>&
             )>;
 
     ClusteringBenchmark(
             const uint32_t num_runs,
             const INT num_points,
             const uint32_t max_iterations,
-            std::vector<FP, AllocFP>&& points_x,
-            std::vector<FP, AllocFP>&& points_y
+            cle::Matrix<FP, AllocFP, INT, COL_MAJOR>&& points
             );
 
     ClusteringBenchmark(
             const uint32_t,
             const INT,
             const uint32_t,
-            std::vector<FP, AllocFP>&,
-            std::vector<FP, AllocFP>&
+            cle::Matrix<FP, AllocFP, INT, COL_MAJOR>&
             ) = delete;
 
     int initialize(
             const INT num_clusters,
+            const INT num_dimensions,
             InitCentroidsFunction init_centroids
             );
     int finalize();
@@ -82,32 +78,31 @@ public:
     ClusteringBenchmarkStats run(ClusteringFunction f);
     int setVerificationReference(ClusteringFunction reference);
     int verify(ClusteringFunction f);
+    void print_labels();
 
 private:
     const uint32_t num_runs_;
     const INT num_points_;
     INT num_clusters_;
     const uint32_t max_iterations_;
-    std::vector<FP, AllocFP> const points_x_;
-    std::vector<FP, AllocFP> const points_y_;
-    std::vector<FP, AllocFP> centroids_x_;
-    std::vector<FP, AllocFP> centroids_y_;
+    cle::Matrix<FP, AllocFP, INT, COL_MAJOR> const points_;
+    cle::Matrix<FP, AllocFP, INT, COL_MAJOR> centroids_;
     std::vector<INT, AllocINT> cluster_size_;
     std::vector<INT, AllocINT> memberships_;
     std::vector<INT, AllocINT> reference_memberships_;
     InitCentroidsFunction init_centroids_;
 };
 
-using ClusteringBenchmark32 = ClusteringBenchmark<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
-using ClusteringBenchmark64 = ClusteringBenchmark<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
-using ClusteringBenchmark32Aligned = ClusteringBenchmark<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32>;
-using ClusteringBenchmark64Aligned = ClusteringBenchmark<double, uint64_t, AlignedAllocatorFP64, AlignedAllocatorINT64>;
+using ClusteringBenchmark32 = ClusteringBenchmark<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>, true>;
+using ClusteringBenchmark64 = ClusteringBenchmark<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>, true>;
+using ClusteringBenchmark32Aligned = ClusteringBenchmark<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32, true>;
+using ClusteringBenchmark64Aligned = ClusteringBenchmark<double, uint64_t, AlignedAllocatorFP64, AlignedAllocatorINT64, true>;
 
 }
 
-extern template class cle::ClusteringBenchmark<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
-extern template class cle::ClusteringBenchmark<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
-extern template class cle::ClusteringBenchmark<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
-extern template class cle::ClusteringBenchmark<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;
+extern template class cle::ClusteringBenchmark<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>, true>;
+extern template class cle::ClusteringBenchmark<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>, true>;
+extern template class cle::ClusteringBenchmark<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32, true>;
+extern template class cle::ClusteringBenchmark<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64, true>;
 
 #endif /* CLUSTERING_BENCHMARK_HPP */

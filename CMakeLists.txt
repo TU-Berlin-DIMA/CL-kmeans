@@ -23,14 +23,13 @@ SET(CMAKE_CXX_COMPILER clang++)
 SET(CMAKE_C_FLAGS "-std=c99 -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
 SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -march=haswell -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG -DMATRIX_BOUNDSCHECK")
 
 FIND_PACKAGE(Boost REQUIRED)
 
 FIND_PACKAGE(OpenCL REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIR})
 
-ADD_LIBRARY(Helpers STATIC common.cpp)
 ADD_LIBRARY(CLExt SHARED cle/kernel.cpp cle/initializer.cpp cle/string.cpp)
 
 ADD_EXECUTABLE(join join.c)
@@ -40,13 +39,13 @@ ADD_EXECUTABLE(test_prefix_sum test_prefix_sum.c)
 TARGET_LINK_LIBRARIES(test_prefix_sum ${OpenCL_LIBRARY})
 
 ADD_EXECUTABLE(test_prefix_sum_cpp test_prefix_sum.cpp)
-TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY} Helpers CLExt)
+TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY} CLExt)
 
 ADD_EXECUTABLE(test_csv test_csv.cpp)
-TARGET_LINK_LIBRARIES(test_csv Helpers)
+TARGET_LINK_LIBRARIES(test_csv)
 
 ADD_EXECUTABLE(test_kmeans test_kmeans.cpp kmeans_initializer.cpp kmeans_naive.cpp kmeans_simd.cpp kmeans_gpu_assisted.cpp clustering_benchmark.cpp)
-TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY} Helpers CLExt)
+TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY} CLExt)
 
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})

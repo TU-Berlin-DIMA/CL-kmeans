@@ -11,42 +11,34 @@
 
 #include <random>
 
-template <typename FP, typename Alloc>
-void cle::KmeansInitializer<FP, Alloc>::forgy(
-        std::vector<FP, Alloc> const& points_x,
-        std::vector<FP, Alloc> const& points_y,
-        std::vector<FP, Alloc>& centroids_x,
-        std::vector<FP, Alloc>& centroids_y) {
+template <typename FP, typename Alloc, typename INT>
+void cle::KmeansInitializer<FP, Alloc, INT>::forgy(
+        cle::Matrix<FP, Alloc, INT, true> const& points,
+        cle::Matrix<FP, Alloc, INT, true>& centroids) {
 
     std::random_device rand;
-    const size_t num_points = points_x.size();
-    const size_t num_clusters = centroids_x.size();
 
-
-    for (size_t c = 0; c != num_clusters; ++c) {
-        size_t random_point = rand() % num_points;
-        centroids_x[c] = points_x[random_point];
-        centroids_y[c] = points_y[random_point];
+    for (INT c = 0; c != centroids.rows(); ++c) {
+        INT random_point = rand() % points.rows();
+        for (INT d = 0; d < centroids.cols(); ++d) {
+            centroids(c, d) = points(random_point, d);
+        }
     }
 }
 
-template <typename FP, typename Alloc>
-void cle::KmeansInitializer<FP, Alloc>::first_x(
-        std::vector<FP, Alloc> const& points_x,
-        std::vector<FP, Alloc> const& points_y,
-        std::vector<FP, Alloc>& centroids_x,
-        std::vector<FP, Alloc>& centroids_y) {
+template <typename FP, typename Alloc, typename INT>
+void cle::KmeansInitializer<FP, Alloc, INT>::first_x(
+        cle::Matrix<FP, Alloc, INT, true> const& points,
+        cle::Matrix<FP, Alloc, INT, true>& centroids) {
 
-    const size_t num_clusters = centroids_x.size();
-    const size_t num_points = points_x.size();
-
-    for (size_t c = 0; c != num_clusters; ++c) {
-        centroids_x[c] = points_x[c % num_points];
-        centroids_y[c] = points_y[c % num_points];
+    for (INT d = 0; d < centroids.cols(); ++d) {
+        for (INT c = 0; c != centroids.rows(); ++c) {
+            centroids(c, d) = points(c % points.rows(), d);
+        }
     }
 }
 
-template class cle::KmeansInitializer<float, std::allocator<float>>;
-template class cle::KmeansInitializer<double, std::allocator<double>>;
-template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32>;
-template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64>;
+template class cle::KmeansInitializer<float, std::allocator<float>, uint32_t>;
+template class cle::KmeansInitializer<double, std::allocator<double>, uint64_t>;
+template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32, uint32_t>;
+template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64, uint64_t>;

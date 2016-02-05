@@ -11,6 +11,7 @@
 #define KMEANS_NAIVE_HPP
 
 #include "kmeans_common.hpp"
+#include "matrix.hpp"
 
 #include <vector>
 
@@ -22,17 +23,14 @@ public:
     int initialize();
     int finalize();
 
-    void operator() (uint32_t const max_iterations,
-                      std::vector<FP, AllocFP> const& points_x,
-                      std::vector<FP, AllocFP> const& points_y,
-                      std::vector<FP, AllocFP>& centroids_x,
-                      std::vector<FP, AllocFP>& centroids_y,
-                      std::vector<INT, AllocINT>& cluster_size,
-                      std::vector<INT, AllocINT>& memberships,
-                      KmeansStats& stats);
-private:
-    FP gaussian_distance(FP a_x, FP a_y, FP b_x, FP b_y);
-
+    void operator() (
+            uint32_t const max_iterations,
+            cle::Matrix<FP, AllocFP, INT, true> const& points,
+            cle::Matrix<FP, AllocFP, INT, true>& centroids,
+            std::vector<INT, AllocINT>& cluster_size,
+            std::vector<INT, AllocINT>& memberships,
+            KmeansStats& stats
+            );
 };
 
 using KmeansNaive32 =

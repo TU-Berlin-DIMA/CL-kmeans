@@ -12,6 +12,7 @@
 
 #include "kmeans_cl_api.hpp"
 #include "kmeans_common.hpp"
+#include "matrix.hpp"
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -21,6 +22,7 @@
 
 namespace cle {
 
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 class KmeansGPUAssisted {
 public:
     KmeansGPUAssisted(
@@ -33,12 +35,10 @@ public:
 
     int operator() (
             uint32_t const max_iterations,
-            std::vector<double> const& points_x,
-            std::vector<double> const& points_y,
-            std::vector<double>& centroids_x,
-            std::vector<double>& centroids_y,
-            std::vector<uint64_t>& cluster_size,
-            std::vector<uint64_t>& memberships,
+            cle::Matrix<FP, AllocFP, INT, true> const& points,
+            cle::Matrix<FP, AllocFP, INT, true>& centroids,
+            std::vector<INT, AllocINT>& cluster_size,
+            std::vector<INT, AllocINT>& memberships,
             KmeansStats& stats
             );
 
@@ -51,6 +51,12 @@ private:
     std::vector<size_t> max_work_item_sizes_;
 };
 
+// using KmeansGPUAssisted32Aligned = KmeansGPUAssisted<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32>;
+using KmeansGPUAssisted64Aligned = KmeansGPUAssisted<double, uint64_t, AlignedAllocatorFP64, AlignedAllocatorINT64>;
+
 }
+
+// extern template class cle::KmeansGPUAssisted<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
+extern template class cle::KmeansGPUAssisted<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;
 
 #endif /* KMEANS_GPU_ASSISTED_HPP */
