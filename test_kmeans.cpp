@@ -74,6 +74,11 @@ int main(int argc, char **argv) {
   cle::KmeansSIMD32 kmeans_simd_32;
   kmeans_simd_32.initialize();
 
+  cle::KmeansGPUAssisted32Aligned kmeans_gpu_32(
+          clinit.get_context(), clinit.get_commandqueue()
+          );
+  kmeans_gpu_32.initialize();
+
   cle::KmeansGPUAssisted64Aligned kmeans_gpu_64(
           clinit.get_context(), clinit.get_commandqueue()
           );
@@ -89,17 +94,26 @@ int main(int argc, char **argv) {
   // else {
   //     std::cout << "SIMD 32 is wrong!!!" << std::endl;
   // }
+  //
+  int is_kmeans_gpu_32_correct = bm32.verify(kmeans_gpu_32);
+  if (is_kmeans_gpu_32_correct) {
+      std::cout << "GPU assisted 32 is correct" << std::endl;
+  }
+  else {
+      std::cout << "GPU assisted 32 is wrong!!!" << std::endl;
+  }
 
   int is_kmeans_gpu_64_correct = bm64.verify(kmeans_gpu_64);
   if (is_kmeans_gpu_64_correct) {
-      std::cout << "GPU assisted is correct" << std::endl;
+      std::cout << "GPU assisted 64 is correct" << std::endl;
   }
   else {
-      std::cout << "GPU assisted is wrong!!!" << std::endl;
+      std::cout << "GPU assisted 64 is wrong!!!" << std::endl;
   }
 
   cle::ClusteringBenchmarkStats bs_naive_32 = bm32.run(kmeans_naive_32);
   // bm32.print_labels();
+  cle::ClusteringBenchmarkStats bs_gpu_32 = bm32.run(kmeans_gpu_32);
 
   // cle::ClusteringBenchmarkStats bs_simd_32 = bm32.run(kmeans_simd_32);
   cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
@@ -108,6 +122,7 @@ int main(int argc, char **argv) {
   kmeans_naive_32.finalize();
   kmeans_naive_64.finalize();
   kmeans_simd_32.finalize();
+  kmeans_gpu_32.finalize();
   kmeans_gpu_64.finalize();
 
   bm32.finalize();
@@ -115,6 +130,7 @@ int main(int argc, char **argv) {
 
   bs_naive_32.print_times();
   // bs_simd_32.print_times();
+  bs_naive_32.print_times();
   bs_naive_64.print_times();
   bs_gpu_64.print_times();
 

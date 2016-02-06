@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <cassert>
+#include <type_traits>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -23,12 +24,24 @@
 
 namespace cle {
 
+    template <typename CL_FP, typename CL_INT>
     class Kmeans_With_Host_Kernel {
     public:
         cl_int initialize(cl::Context& context) {
             cl_int error_code = CL_SUCCESS;
 
-            cl::Program program = make_program(context, PROGRAM_FILE, error_code);
+            std::string defines;
+            if (std::is_same<cl_float, CL_FP>::value) {
+                defines = "-DTYPE32";
+            }
+            else if (std::is_same<cl_double, CL_FP>::value) {
+                defines = "-DTYPE64";
+            }
+            else {
+                assert(false);
+            }
+
+            cl::Program program = make_program(context, PROGRAM_FILE, defines, error_code);
             if (error_code != CL_SUCCESS) {
                 return error_code;
             }
@@ -55,12 +68,12 @@ namespace cle {
         void operator() (
                 cl::EnqueueArgs const& args,
                 TypedBuffer<cl_char>& did_changes,
-                cl_ulong num_features,
-                cl_ulong num_points,
-                cl_ulong num_clusters,
-                TypedBuffer<cl_double>& points,
-                TypedBuffer<cl_double>& centroids,
-                TypedBuffer<cl_ulong>& memberships
+                CL_INT num_features,
+                CL_INT num_points,
+                CL_INT num_clusters,
+                TypedBuffer<CL_FP>& points,
+                TypedBuffer<CL_FP>& centroids,
+                TypedBuffer<CL_INT>& memberships
                 ) {
 
             // assert did_changes.size() == #global work items
@@ -89,19 +102,19 @@ namespace cle {
         }
 
     private:
-        typedef cl::make_kernel<
+        using Base_Kernel = cl::make_kernel<
             cl::Buffer&,
             cl::Buffer&,
             cl::Buffer&,
             cl::Buffer&,
             cl::LocalSpaceArg,
             cl::LocalSpaceArg,
-            cl_ulong,
-            cl_ulong,
-            cl_ulong
-                > Base_Kernel;
+            CL_INT,
+            CL_INT,
+            CL_INT
+                >;
 
-        typedef std::function<Base_Kernel::type_> Kernel_Functor;
+        using Kernel_Functor = std::function<typename Base_Kernel::type_>;
 
         static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("kmeans.cl");
         static constexpr const char* KERNEL_NAME = "kmeans_with_host";

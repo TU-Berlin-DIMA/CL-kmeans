@@ -33,7 +33,7 @@ namespace cle {
         cl_int initialize(cl::Context& context) {
             cl_int error_code = CL_SUCCESS;
 
-            cl::Program program = make_program(context, PROGRAM_FILE, error_code);
+            cl::Program program = make_program(context, PROGRAM_FILE, "", error_code);
             if (error_code != CL_SUCCESS) {
                 return error_code;
             }

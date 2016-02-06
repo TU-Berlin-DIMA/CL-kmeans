@@ -15,6 +15,7 @@
 #include <cstddef> // size_t
 #include <vector>
 #include <algorithm> // std::any_of
+#include <type_traits>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -86,9 +87,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
     std::vector<cl_char> h_did_changes(global_size);
 
     cle::TypedBuffer<cl_char> d_did_changes(this->context_, CL_MEM_READ_WRITE, global_size);
-    cle::TypedBuffer<cl_double> d_points(this->context_, CL_MEM_READ_ONLY, points.size());
-    cle::TypedBuffer<cl_double> d_centroids(this->context_, CL_MEM_READ_ONLY, centroids.size());
-    cle::TypedBuffer<cl_ulong> d_memberships(this->context_, CL_MEM_READ_WRITE, points.rows());
+    cle::TypedBuffer<CL_FP> d_points(this->context_, CL_MEM_READ_ONLY, points.size());
+    cle::TypedBuffer<CL_FP> d_centroids(this->context_, CL_MEM_READ_ONLY, centroids.size());
+    cle::TypedBuffer<CL_INT> d_memberships(this->context_, CL_MEM_READ_WRITE, points.rows());
 
 
     // copy points (x,y) host -> device
