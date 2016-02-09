@@ -50,7 +50,7 @@ public:
         x_dim_ = other.x_dim_;
         y_dim_ = other.y_dim_;
 
-        return this;
+        return *this;
     }
 
     Matrix<T, Talloc, INT, COL_MAJOR>& operator= (Matrix<T, Talloc, INT, COL_MAJOR>& other) {
@@ -58,7 +58,7 @@ public:
         x_dim_ = other.x_dim_;
         y_dim_ = other.y_dim_;
 
-        return this;
+        return *this;
     }
 
     inline iterator begin() {
