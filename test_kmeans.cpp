@@ -15,6 +15,12 @@
 #include "kmeans.hpp"
 #include "matrix.hpp"
 
+#include "SystemConfig.h"
+
+#ifdef ARMADILLO_FOUND
+#include "kmeans_armadillo.hpp"
+#endif
+
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -54,6 +60,11 @@ int main(int argc, char **argv) {
   constexpr uint32_t max_iterations = 100;
   constexpr uint64_t num_clusters = 10;
   uint64_t num_points = points_32.rows();
+
+#ifdef ARMADILLO_FOUND
+  cle::KmeansArmadillo32Aligned kmeans_armadillo_32;
+  kmeans_armadillo_32.initialize(points_32);
+#endif
 
   cle::ClusteringBenchmark32Aligned bm32(
           num_runs, num_points, max_iterations,
@@ -120,6 +131,12 @@ int main(int argc, char **argv) {
   // cle::ClusteringBenchmarkStats bs_simd_32 = bm32.run(kmeans_simd_32);
   // cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
   cle::ClusteringBenchmarkStats bs_gpu_64 = bm64.run(kmeans_gpu_64);
+
+#ifdef ARMADILLO_FOUND
+  cle::ClusteringBenchmarkStats bs_armadillo_32 = bm32.run(kmeans_armadillo_32);
+  kmeans_armadillo_32.finalize();
+  bs_armadillo_32.print_times();
+#endif
 
   kmeans_naive_32.finalize();
   kmeans_naive_64.finalize();

@@ -53,6 +53,12 @@ TARGET_LINK_LIBRARIES(test_csv)
 ADD_EXECUTABLE(test_kmeans test_kmeans.cpp kmeans_initializer.cpp kmeans_naive.cpp kmeans_simd.cpp kmeans_gpu_assisted.cpp clustering_benchmark.cpp)
 TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY} CLExt)
 
+IF(ARMADILLO_FOUND)
+    TARGET_SOURCES(test_kmeans PRIVATE kmeans_armadillo.cpp)
+    TARGET_LINK_LIBRARIES(test_kmeans ${ARMADILLO_LIBRARIES})
+ENDIF(ARMADILLO_FOUND)
+
+
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})
 
