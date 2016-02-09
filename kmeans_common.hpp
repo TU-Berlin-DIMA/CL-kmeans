@@ -18,13 +18,13 @@ namespace cle {
 
 using KmeansStats = struct { uint32_t iterations; };
 using AlignedAllocatorFP32 =
-    boost::alignment::aligned_allocator<float, 256>;
+    boost::alignment::aligned_allocator<float, 32>;
 using AlignedAllocatorINT32 =
-    boost::alignment::aligned_allocator<uint32_t, 256>;
+    boost::alignment::aligned_allocator<uint32_t, 32>;
 using AlignedAllocatorFP64 =
-    boost::alignment::aligned_allocator<double, 256>;
+    boost::alignment::aligned_allocator<double, 32>;
 using AlignedAllocatorINT64 =
-    boost::alignment::aligned_allocator<uint64_t, 256>;
+    boost::alignment::aligned_allocator<uint64_t, 32>;
 
 }
 
