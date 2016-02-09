@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
   uint64_t bytes_read = points_64.size() * sizeof(double);
   std::cout << "Read " << bytes_read / 1024 / 1024 << " MiB" << std::endl;
 
-  constexpr uint32_t num_runs = 5;
+  constexpr uint32_t num_runs = 3;
   constexpr uint32_t max_iterations = 100;
   constexpr uint64_t num_clusters = 10;
   uint64_t num_points = points_32.rows();
@@ -95,28 +95,30 @@ int main(int argc, char **argv) {
   //     std::cout << "SIMD 32 is wrong!!!" << std::endl;
   // }
   //
-  int is_kmeans_gpu_32_correct = bm32.verify(kmeans_gpu_32);
-  if (is_kmeans_gpu_32_correct) {
+  uint64_t is_kmeans_gpu_32_correct = bm32.verify(kmeans_gpu_32);
+  if (is_kmeans_gpu_32_correct == 0) {
       std::cout << "GPU assisted 32 is correct" << std::endl;
   }
   else {
-      std::cout << "GPU assisted 32 is wrong!!!" << std::endl;
+      std::cout << "GPU assisted 32 is wrong with " << is_kmeans_gpu_32_correct
+          << " mislabeled points!!!" << std::endl;
   }
 
-  int is_kmeans_gpu_64_correct = bm64.verify(kmeans_gpu_64);
-  if (is_kmeans_gpu_64_correct) {
+  uint64_t is_kmeans_gpu_64_correct = bm64.verify(kmeans_gpu_64);
+  if (is_kmeans_gpu_64_correct == 0) {
       std::cout << "GPU assisted 64 is correct" << std::endl;
   }
   else {
-      std::cout << "GPU assisted 64 is wrong!!!" << std::endl;
+      std::cout << "GPU assisted 64 is wrong with " << is_kmeans_gpu_64_correct
+          << " mislabeled points!!!" << std::endl;
   }
 
-  cle::ClusteringBenchmarkStats bs_naive_32 = bm32.run(kmeans_naive_32);
+  // cle::ClusteringBenchmarkStats bs_naive_32 = bm32.run(kmeans_naive_32);
   // bm32.print_labels();
   cle::ClusteringBenchmarkStats bs_gpu_32 = bm32.run(kmeans_gpu_32);
 
   // cle::ClusteringBenchmarkStats bs_simd_32 = bm32.run(kmeans_simd_32);
-  cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
+  // cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
   cle::ClusteringBenchmarkStats bs_gpu_64 = bm64.run(kmeans_gpu_64);
 
   kmeans_naive_32.finalize();
@@ -128,10 +130,10 @@ int main(int argc, char **argv) {
   bm32.finalize();
   bm64.finalize();
 
-  bs_naive_32.print_times();
+  // bs_naive_32.print_times();
   // bs_simd_32.print_times();
-  bs_naive_32.print_times();
-  bs_naive_64.print_times();
+  bs_gpu_32.print_times();
+  // bs_naive_64.print_times();
   bs_gpu_64.print_times();
 
   // std::cout << "Point: Naive | GPU" << std::endl;

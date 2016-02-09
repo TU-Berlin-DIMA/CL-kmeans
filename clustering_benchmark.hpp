@@ -77,7 +77,7 @@ public:
 
     ClusteringBenchmarkStats run(ClusteringFunction f);
     int setVerificationReference(ClusteringFunction reference);
-    int verify(ClusteringFunction f);
+    uint64_t verify(ClusteringFunction f);
     void print_labels();
 
 private:

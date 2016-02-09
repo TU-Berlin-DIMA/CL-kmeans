@@ -120,10 +120,9 @@ int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerifica
 }
 
 template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(ClusteringFunction f) {
+uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(ClusteringFunction f) {
 
     cle::KmeansStats stats;
-    int is_correct;
 
     init_centroids_(
             points_,
@@ -139,12 +138,14 @@ int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(Clus
             stats
        );
 
-    is_correct = std::equal(
-            reference_labels_.begin(),
-            reference_labels_.end(),
-            labels_.begin());
+    uint64_t counter = 0;
+    for (INT l = 0; l < labels_.size(); ++l) {
+        if (reference_labels_[l] != labels_[l]) {
+            ++counter;
+        }
+    }
 
-    return is_correct;
+    return counter;
 }
 
 template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
