@@ -22,13 +22,19 @@ SET(CMAKE_C_COMPILER clang)
 SET(CMAKE_CXX_COMPILER clang++)
 SET(CMAKE_C_FLAGS "-std=c99 -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
 SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2  -ffp-contract=fast -march=haswell -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2  -ffp-contract=fast -march=haswell -Wall -Wextra -DUNIX")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG -DMATRIX_BOUNDSCHECK")
 
 FIND_PACKAGE(Boost REQUIRED)
 
 FIND_PACKAGE(OpenCL REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIR})
+
+FIND_PACKAGE(Armadillo)
+
+CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/SystemConfig.h.in"
+    "${PROJECT_BINARY_DIR}/SystemConfig.h")
+INCLUDE_DIRECTORIES("${PROJECT_BINARY_DIR}")
 
 ADD_LIBRARY(CLExt SHARED cle/kernel.cpp cle/initializer.cpp cle/string.cpp)
 
