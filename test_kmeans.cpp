@@ -95,6 +95,11 @@ int main(int argc, char **argv) {
           );
   kmeans_gpu_64.initialize();
 
+  cle::LloydGPUFeatureSum32Aligned lloyd_gpu_feature_sum_32(
+          clinit.get_context(), clinit.get_commandqueue()
+          );
+  lloyd_gpu_feature_sum_32.initialize();
+
   bm32.setVerificationReference(kmeans_naive_32);
   bm64.setVerificationReference(kmeans_naive_64);
 
@@ -124,9 +129,22 @@ int main(int argc, char **argv) {
           << " mislabeled points!!!" << std::endl;
   }
 
+  uint64_t is_lloyd_gpu_feature_sum_32_correct =
+      bm32.verify(lloyd_gpu_feature_sum_32);
+  if (is_lloyd_gpu_feature_sum_32_correct == 0) {
+      std::cout << "Lloyd GPU feature sum 32 is correct" << std::endl;
+  }
+  else {
+      std::cout << "Lloyd GPU feature sum 32 is wrong with "
+          << is_lloyd_gpu_feature_sum_32_correct
+          << " mislabeled points!!!" << std::endl;
+  }
+
   // cle::ClusteringBenchmarkStats bs_naive_32 = bm32.run(kmeans_naive_32);
   // bm32.print_labels();
   cle::ClusteringBenchmarkStats bs_gpu_32 = bm32.run(kmeans_gpu_32);
+  cle::ClusteringBenchmarkStats bs_lloyd_gpu_feature_sum_32 =
+      bm32.run(lloyd_gpu_feature_sum_32);
 
   // cle::ClusteringBenchmarkStats bs_simd_32 = bm32.run(kmeans_simd_32);
   // cle::ClusteringBenchmarkStats bs_naive_64 = bm64.run(kmeans_naive_64);
@@ -143,6 +161,7 @@ int main(int argc, char **argv) {
   kmeans_simd_32.finalize();
   kmeans_gpu_32.finalize();
   kmeans_gpu_64.finalize();
+  lloyd_gpu_feature_sum_32.finalize();
 
   bm32.finalize();
   bm64.finalize();
@@ -152,6 +171,7 @@ int main(int argc, char **argv) {
   bs_gpu_32.print_times();
   // bs_naive_64.print_times();
   bs_gpu_64.print_times();
+  bs_lloyd_gpu_feature_sum_32.print_times();
 
   // std::cout << "Point: Naive | GPU" << std::endl;
   // uint32_t num_diff = 0;

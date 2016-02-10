@@ -14,5 +14,6 @@
 #include "kmeans_naive.hpp"
 #include "kmeans_simd.hpp"
 #include "kmeans_gpu_assisted.hpp"
+#include "lloyd_gpu_feature_sum.hpp"
 
 #endif /* KMEANS_HPP */
