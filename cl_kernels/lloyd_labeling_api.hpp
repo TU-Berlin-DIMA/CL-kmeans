@@ -7,10 +7,10 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifndef KMEANS_CL_API_HPP
-#define KMEANS_CL_API_HPP
+#ifndef LLOYD_LABELING_API_HPP
+#define LLOYD_LABELING_API_HPP
 
-#include "cle/common.hpp"
+#include "../cle/common.hpp"
 
 #include <functional>
 #include <cassert>
@@ -25,7 +25,7 @@
 namespace cle {
 
     template <typename CL_FP, typename CL_INT>
-    class Kmeans_With_Host_Kernel {
+    class LloydLabelingAPI {
     public:
         cl_int initialize(cl::Context& context) {
             cl_int error_code = CL_SUCCESS;
@@ -116,11 +116,11 @@ namespace cle {
 
         using Kernel_Functor = std::function<typename Base_Kernel::type_>;
 
-        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("kmeans.cl");
-        static constexpr const char* KERNEL_NAME = "kmeans_with_host";
+        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling.cl");
+        static constexpr const char* KERNEL_NAME = "lloyd_labeling";
 
         Kernel_Functor kernel_functor_;
     };
 }
 
-#endif /* KMEANS_CL_API_HPP */
+#endif /* LLOYD_LABELING_API_HPP */

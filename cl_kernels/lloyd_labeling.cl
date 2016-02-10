@@ -28,7 +28,7 @@ CL_INT rcoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
 }
 
 __kernel
-void kmeans_with_host(
+void lloyd_labeling(
             __global char *g_did_changes,
             __global CL_FP const *const g_points,
             __global CL_FP const *const g_centroids,

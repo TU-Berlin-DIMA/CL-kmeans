@@ -10,7 +10,7 @@
 #ifndef LLOYD_GPU_FEATURE_SUM_HPP
 #define LLOYD_GPU_FEATURE_SUM_HPP
 
-#include "kmeans_cl_api.hpp"
+#include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
 
@@ -55,7 +55,7 @@ private:
     using CL_INT = typename std::conditional<
         std::is_same<INT, uint32_t>::value, cl_uint, cl_ulong>::type;
 
-    cle::Kmeans_With_Host_Kernel<CL_FP, CL_INT> labeling_kernel_;
+    cle::LloydLabelingAPI<CL_FP, CL_INT> labeling_kernel_;
     cle::LloydFeatureSumAPI<CL_FP, CL_INT> feature_sum_kernel_;
     cle::MassSumGlobalAtomicAPI<CL_FP, CL_INT> mass_sum_kernel_;
     cl::Context context_;

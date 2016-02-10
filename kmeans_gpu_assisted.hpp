@@ -10,7 +10,7 @@
 #ifndef KMEANS_GPU_ASSISTED_HPP
 #define KMEANS_GPU_ASSISTED_HPP
 
-#include "kmeans_cl_api.hpp"
+#include "cl_kernels/lloyd_labeling_api.hpp"
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
 
@@ -51,7 +51,7 @@ private:
     using CL_INT = typename std::conditional<
         std::is_same<INT, uint32_t>::value, cl_uint, cl_ulong>::type;
 
-    cle::Kmeans_With_Host_Kernel<CL_FP, CL_INT> kmeans_kernel_;
+    cle::LloydLabelingAPI<CL_FP, CL_INT> labeling_kernel_;
     cl::Context context_;
     cl::CommandQueue queue_;
 

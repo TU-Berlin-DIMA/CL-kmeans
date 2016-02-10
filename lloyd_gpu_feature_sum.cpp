@@ -10,7 +10,7 @@
 #include "lloyd_gpu_feature_sum.hpp"
 
 #include "cle/common.hpp"
-#include "kmeans_cl_api.hpp"
+#include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
 

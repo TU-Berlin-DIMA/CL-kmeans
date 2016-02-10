@@ -8,8 +8,9 @@
  */
 
 #include "kmeans_gpu_assisted.hpp"
+
 #include "cle/common.hpp"
-#include "kmeans_cl_api.hpp"
+#include "cl_kernels/lloyd_labeling_api.hpp"
 
 #include <cstdint>
 #include <cstddef> // size_t
@@ -36,7 +37,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
     cl_int err = CL_SUCCESS;
 
     // Create kernel
-    err = this->kmeans_kernel_.initialize(this->context_);
+    err = this->labeling_kernel_.initialize(this->context_);
     if (err != CL_SUCCESS) {
         return err;
     }
@@ -133,7 +134,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                     ));
 
         // execute kernel
-        kmeans_kernel_(
+        labeling_kernel_(
                 cl::EnqueueArgs(
                     this->queue_,
                     cl::NDRange(global_size),
