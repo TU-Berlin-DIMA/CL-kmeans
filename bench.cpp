@@ -316,7 +316,21 @@ public:
                     break;
             }
 
-            bs.print_times();
+            std::cout << name << " ";
+            std::cout << (options.type64() ? "64-bit" : "32-bit");
+            std::cout << " ";
+            if (options.verify()) {
+                if (verify_res == 0) {
+                    std::cout << "correct";
+                }
+                else {
+                    std::cout << verify_res << "incorrect labels";
+                }
+            }
+            else {
+                bs.print_times();
+            }
+            std::cout << std::endl;
         }
 
         kmeans_naive.finalize();
