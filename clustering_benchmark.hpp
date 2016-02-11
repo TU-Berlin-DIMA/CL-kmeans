@@ -31,7 +31,7 @@ public:
     std::vector<cle::KmeansStats> kmeans_stats;
 
 private:
-    const uint32_t num_runs_;
+    uint32_t num_runs_;
 };
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT,
