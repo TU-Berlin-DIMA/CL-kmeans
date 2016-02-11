@@ -5,4 +5,7 @@
 
 #define CL_KERNELS_PATH "${CL_KERNELS_PATH}"
 
+#define TEST_KMEANS_NAME "${TEST_KMEANS_NAME}"
+#define BENCH_NAME "${BENCH_NAME}"
+
 #endif /* CMAKE_CONFIG_H */

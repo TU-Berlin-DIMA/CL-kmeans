@@ -25,16 +25,16 @@ SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -ffp-contract=fast -march=haswell -fopenmp -Wall -Wextra -DUNIX")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG -DMATRIX_BOUNDSCHECK")
 
-FIND_PACKAGE(Boost REQUIRED)
+FIND_PACKAGE(Boost 1.49 REQUIRED COMPONENTS program_options)
+INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
 FIND_PACKAGE(OpenCL REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIR})
 
 FIND_PACKAGE(Armadillo)
-
-CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/SystemConfig.h.in"
-    "${PROJECT_BINARY_DIR}/SystemConfig.h")
-INCLUDE_DIRECTORIES("${PROJECT_BINARY_DIR}")
+IF(ARMADILLO_FOUND)
+    INCLUDE_DIRECTORIES(${ARMADILLO_INCLUDE_DIRS})
+ENDIF(ARMADILLO_FOUND)
 
 ADD_LIBRARY(CLExt SHARED cle/kernel.cpp cle/initializer.cpp cle/string.cpp)
 
@@ -50,6 +50,7 @@ TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY} CLExt)
 ADD_EXECUTABLE(test_csv test_csv.cpp)
 TARGET_LINK_LIBRARIES(test_csv)
 
+SET(TEST_KMEANS_NAME "test_kmeans")
 ADD_EXECUTABLE(test_kmeans test_kmeans.cpp)
 TARGET_SOURCES(test_kmeans PRIVATE clustering_benchmark.cpp)
 TARGET_SOURCES(test_kmeans PRIVATE kmeans_initializer.cpp)
@@ -58,13 +59,29 @@ TARGET_SOURCES(test_kmeans PRIVATE kmeans_simd.cpp)
 TARGET_SOURCES(test_kmeans PRIVATE kmeans_gpu_assisted.cpp)
 TARGET_SOURCES(test_kmeans PRIVATE lloyd_gpu_feature_sum.cpp)
 TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY} CLExt)
-
 IF(ARMADILLO_FOUND)
     TARGET_SOURCES(test_kmeans PRIVATE kmeans_armadillo.cpp)
     TARGET_LINK_LIBRARIES(test_kmeans ${ARMADILLO_LIBRARIES})
 ENDIF(ARMADILLO_FOUND)
 
+SET(BENCH_NAME "bench")
+ADD_EXECUTABLE(bench bench.cpp)
+TARGET_SOURCES(bench PRIVATE clustering_benchmark.cpp)
+TARGET_SOURCES(bench PRIVATE kmeans_initializer.cpp)
+TARGET_SOURCES(bench PRIVATE kmeans_naive.cpp)
+TARGET_SOURCES(bench PRIVATE kmeans_simd.cpp)
+TARGET_SOURCES(bench PRIVATE kmeans_gpu_assisted.cpp)
+TARGET_SOURCES(bench PRIVATE lloyd_gpu_feature_sum.cpp)
+TARGET_LINK_LIBRARIES(bench ${OpenCL_LIBRARY} CLExt)
+IF(ARMADILLO_FOUND)
+    TARGET_SOURCES(bench PRIVATE kmeans_armadillo.cpp)
+    TARGET_LINK_LIBRARIES(bench ${ARMADILLO_LIBRARIES})
+ENDIF(ARMADILLO_FOUND)
+TARGET_LINK_LIBRARIES(bench ${Boost_LIBRARIES})
 
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})
 
+CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/SystemConfig.h.in"
+    "${PROJECT_BINARY_DIR}/SystemConfig.h")
+INCLUDE_DIRECTORIES("${PROJECT_BINARY_DIR}")
