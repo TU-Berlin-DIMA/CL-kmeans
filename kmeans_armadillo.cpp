@@ -13,6 +13,12 @@
 #include <memory> // std::move
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+char const* cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::name() const {
+
+    return "Kmeans_Armadillo";
+}
+
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 int cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::initialize(
         cle::Matrix<FP, AllocFP, INT, true> const& points) {
 
@@ -36,11 +42,11 @@ int cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::finalize() {
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 void cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::operator() (
         uint32_t const max_iterations,
-        cle::Matrix<FP, AllocFP, INT, true> const& points,
+        cle::Matrix<FP, AllocFP, INT, true> const&,
         cle::Matrix<FP, AllocFP, INT, true>& centroids,
-        std::vector<INT, AllocINT>& cluster_size,
-        std::vector<INT, AllocINT>& memberships,
-        KmeansStats& stats) {
+        std::vector<INT, AllocINT>&,
+        std::vector<INT, AllocINT>&,
+        KmeansStats&) {
 
 
     // No data copy, reference existing centroids

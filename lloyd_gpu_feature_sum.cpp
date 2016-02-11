@@ -34,6 +34,12 @@ cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::LloydGPUFeatureSum(
 {}
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+char const* cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::name() const {
+
+    return "Lloyd_GPU_Feature_Sum";
+}
+
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::initialize() {
 
     cl_int err = CL_SUCCESS;

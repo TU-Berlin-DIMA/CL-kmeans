@@ -32,6 +32,12 @@ cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::KmeansGPUAssisted(
 {}
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+char const* cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::name() const {
+
+    return "Lloyd_GPU_Assisted";
+}
+
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
 
     cl_int err = CL_SUCCESS;

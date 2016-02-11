@@ -14,6 +14,13 @@
 #include <limits>
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+char const* cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::name() const {
+
+    return "Lloyd_Naive";
+}
+
+
+template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 int cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::initialize() { return 1; }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>

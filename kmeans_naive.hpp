@@ -20,6 +20,8 @@ namespace cle {
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 class KmeansNaive {
 public:
+    char const* name() const;
+
     int initialize();
     int finalize();
 

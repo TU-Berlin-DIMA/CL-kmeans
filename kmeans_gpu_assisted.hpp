@@ -33,6 +33,8 @@ public:
             cl::CommandQueue const& queue
             );
 
+    char const* name() const;
+
     int initialize();
     int finalize();
 

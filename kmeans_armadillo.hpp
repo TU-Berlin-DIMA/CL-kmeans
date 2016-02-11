@@ -20,17 +20,19 @@ namespace cle {
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 class KmeansArmadillo {
 public:
+    char const* name() const;
+
     int initialize(
             Matrix<FP, AllocFP, INT, true> const& points);
     int finalize();
 
     void operator() (
             uint32_t const max_iterations,
-            cle::Matrix<FP, AllocFP, INT, true> const& points,
+            cle::Matrix<FP, AllocFP, INT, true> const&,
             cle::Matrix<FP, AllocFP, INT, true>& centroids,
-            std::vector<INT, AllocINT>& cluster_mass,
-            std::vector<INT, AllocINT>& labels,
-            KmeansStats& stats
+            std::vector<INT, AllocINT>&,
+            std::vector<INT, AllocINT>&,
+            KmeansStats&
             );
 
 private:
