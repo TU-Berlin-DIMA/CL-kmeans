@@ -79,7 +79,12 @@ namespace cle {
             assert(labels.size() == num_points);
             assert(centroids.size() == num_clusters * num_features);
 
-            cl::LocalSpaceArg local_centroids = cl::Local(centroids.bytes());
+            const size_t local_size = args.local_[0];
+
+            cl::LocalSpaceArg local_centroids =
+                cl::Local(num_clusters * local_size * sizeof(CL_FP));
+            cl::LocalSpaceArg local_points =
+                cl::Local(local_size * local_size * sizeof(CL_FP));
 
             kernel_functor_(
                     args,
@@ -87,6 +92,7 @@ namespace cle {
                     centroids,
                     labels,
                     local_centroids,
+                    local_points,
                     num_features,
                     num_points,
                     num_clusters
@@ -100,6 +106,7 @@ namespace cle {
             cl::Buffer&,
             cl::Buffer&,
             cl::Buffer&,
+            cl::LocalSpaceArg,
             cl::LocalSpaceArg,
             CL_INT,
             CL_INT,

@@ -324,7 +324,7 @@ public:
                     std::cout << "correct";
                 }
                 else {
-                    std::cout << verify_res << "incorrect labels";
+                    std::cout << verify_res << " incorrect labels";
                 }
             }
             else {
