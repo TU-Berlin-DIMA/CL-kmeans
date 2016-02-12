@@ -19,12 +19,12 @@
 #endif
 #endif
 
-CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
-    return dim * col + row;
+CL_INT ccoord2ind(CL_INT rdim, CL_INT row, CL_INT col) {
+    return rdim * col + row;
 }
 
-CL_INT rcoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
-    return dim * row + col;
+CL_INT rcoord2ind(CL_INT cdim, CL_INT row, CL_INT col) {
+    return cdim * row + col;
 }
 
 __kernel
@@ -51,11 +51,11 @@ void lloyd_labeling(
     // Assume centroids fit into local memory
 
     // Read to local memory
-    for (CL_INT i = 0; i < NUM_CLUSTERS; i += WORK_GROUP_SIZE) {
+    for (CL_INT i = 0; i < NUM_CLUSTERS; i += get_local_size(0)) {
         if (i + lid < NUM_CLUSTERS) {
             for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-                l_old_centroids[ccoord2ind(NUM_FEATURES, i + lid, f)]
-                    = g_centroids[ccoord2ind(NUM_FEATURES, i + lid, f)];
+                l_old_centroids[ccoord2ind(NUM_CLUSTERS, i + lid, f)]
+                    = g_centroids[ccoord2ind(NUM_CLUSTERS, i + lid, f)];
             }
         }
     }
@@ -76,8 +76,8 @@ void lloyd_labeling(
             for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
                 CL_FP dist = 0;
                 for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-                    CL_FP point = g_points[ccoord2ind(NUM_FEATURES, p, f)];
-                    CL_FP difference = point - l_old_centroids[ccoord2ind(NUM_FEATURES, c, f)];
+                    CL_FP point = g_points[ccoord2ind(NUM_POINTS, p, f)];
+                    CL_FP difference = point - l_old_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
                     dist += difference * difference;
                 }
 
