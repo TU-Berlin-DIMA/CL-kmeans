@@ -60,6 +60,9 @@ public:
              "OpenCL device number")
             ("64bit", "Run in 64-bit mode (doubles and unsigned long longs)")
             ("verify", "Do verification pass")
+            ("verify-file",
+             po::value<std::string>(),
+             "Do verification pass with labels")
             ("armadillo", "Run Armadillo K-means")
             ("naive", "Run Naive Lloyd's")
             ("gpu-assisted", "Run GPU assisted Lloyd's")
@@ -119,6 +122,12 @@ public:
 
         if (vm.count("verify")) {
             verify_ = true;
+        }
+
+        if (vm.count("verify-file")) {
+            verify_ = true;
+            verify_labels_ = true;
+            labels_file_ = vm["verify-file"].as<std::string>();
         }
 
         if (vm.count("armadillo")) {
@@ -188,6 +197,14 @@ public:
         return verify_;
     }
 
+    bool verify_labels() const {
+        return verify_labels_;
+    }
+
+    std::string labels_file() const {
+        return labels_file_;
+    }
+
     std::set<Algorithm> algorithms() const {
         return algorithms_;
     }
@@ -201,6 +218,8 @@ private:
     std::string input_file_;
     bool type64_ = false;
     bool verify_ = false;
+    bool verify_labels_ = false;
+    std::string labels_file_;
     std::set<Algorithm> algorithms_;
 };
 
@@ -243,7 +262,13 @@ public:
         cle::KmeansNaive<FP, INT, AllocFP, AllocINT> kmeans_naive;
         kmeans_naive.initialize();
 
-        if (options.verify()) {
+        if (options.verify_labels()) {
+            cle::CSV csv;
+            std::vector<std::vector<INT, AllocINT>> reference_labels;
+            csv.read_csv(options.labels_file().c_str(), reference_labels);
+            bm.setVerificationReference(std::move(reference_labels[0]));
+        }
+        else if (options.verify()) {
             bm.setVerificationReference(kmeans_naive);
         }
 
@@ -258,12 +283,13 @@ public:
                     {
                         name = kmeans_armadillo.name();
                         if (options.verify()) {
-                            verify_res = bm.verify(kmeans_armadillo);
+                            std::cerr << "Notice: Verify not available"
+                                << " for armadillo"
+                                << std::endl;
                         }
                         else {
                             bs = bm.run(kmeans_armadillo);
                         }
-                        kmeans_armadillo.finalize();
                     }
 #endif
                     break;
@@ -333,6 +359,7 @@ public:
             std::cout << std::endl;
         }
 
+        kmeans_armadillo.finalize();
         kmeans_naive.finalize();
         bm.finalize();
 

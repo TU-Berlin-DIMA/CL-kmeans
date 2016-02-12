@@ -76,6 +76,7 @@ public:
     int finalize();
 
     ClusteringBenchmarkStats run(ClusteringFunction f);
+    void setVerificationReference(std::vector<INT, AllocINT>&& reference_labels);
     int setVerificationReference(ClusteringFunction reference);
     uint64_t verify(ClusteringFunction f);
     void print_labels();

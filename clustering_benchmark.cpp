@@ -95,6 +95,12 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
 }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
+void cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerificationReference(std::vector<INT, AllocINT>&& reference_labels) {
+
+    reference_labels_ = std::move(reference_labels);
+}
+
+template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
 int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerificationReference(
         ClusteringFunction ref) {
 
