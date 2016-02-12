@@ -66,7 +66,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
                 &this->max_work_group_size_
                 ));
 
-    return 1;
+        return 1;
 }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
@@ -140,7 +140,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                     ));
 
         // execute kernel
-        labeling_kernel_(
+        cl::Event labeling_event;
+        cle_sanitize_done_return(
+                labeling_kernel_(
                 cl::EnqueueArgs(
                     this->queue_,
                     cl::NDRange(global_size),
@@ -152,8 +154,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                 centroids.rows(),
                 d_points,
                 d_centroids,
-                d_memberships
-                );
+                d_memberships,
+                labeling_event
+                ));
 
         // copy did_changes device -> host
         cle_sanitize_val(

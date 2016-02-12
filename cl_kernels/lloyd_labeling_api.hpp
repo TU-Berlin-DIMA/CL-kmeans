@@ -15,6 +15,7 @@
 #include <functional>
 #include <cassert>
 #include <type_traits>
+#include <memory>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -46,7 +47,7 @@ namespace cle {
                 return error_code;
             }
 
-            kernel_functor_ = Base_Kernel(program,KERNEL_NAME, &error_code);
+            kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
             sanitize_make_kernel(error_code, context, program);
 
             return error_code;
@@ -65,7 +66,7 @@ namespace cle {
         *       cl_uint with total sum
         *
         */
-        void operator() (
+        cl_int operator() (
                 cl::EnqueueArgs const& args,
                 TypedBuffer<cl_char>& did_changes,
                 CL_INT num_features,
@@ -73,7 +74,8 @@ namespace cle {
                 CL_INT num_clusters,
                 TypedBuffer<CL_FP>& points,
                 TypedBuffer<CL_FP>& centroids,
-                TypedBuffer<CL_INT>& memberships
+                TypedBuffer<CL_INT>& memberships,
+                cl::Event& event
                 ) {
 
             // assert did_changes.size() == #global work items
@@ -85,41 +87,51 @@ namespace cle {
             cl::LocalSpaceArg local_centroids = cl::Local(centroid_bytes);
             cl::LocalSpaceArg local_old_centroids = cl::Local(centroid_bytes);
 
-            kernel_functor_(
-                    args,
-                    did_changes,
-                    points,
-                    centroids,
-                    memberships,
-                    local_centroids,
-                    local_old_centroids,
-                    num_features,
-                    num_points,
-                    num_clusters
-            );
+            cle_sanitize_val_return(
+                    kernel_->setArg(0, (cl::Buffer&)did_changes));
 
+            cle_sanitize_val_return(
+                    kernel_->setArg(1, (cl::Buffer&)points));
 
+            cle_sanitize_val_return(
+                    kernel_->setArg(2, (cl::Buffer&)centroids));
+
+            cle_sanitize_val_return(
+                    kernel_->setArg(3, (cl::Buffer&)memberships));
+
+            cle_sanitize_val_return(
+                    kernel_->setArg(4, local_centroids));
+
+            cle_sanitize_val_return(
+                    kernel_->setArg(5, local_old_centroids));
+
+            cle_sanitize_val_return(
+                    kernel_->setArg(6, num_features));
+
+            cle_sanitize_val_return(
+                    kernel_->setArg(7, num_points));
+
+            cle_sanitize_val_return(
+                    kernel_->setArg(8, num_clusters));
+
+            cle_sanitize_val_return(
+                    args.queue_.enqueueNDRangeKernel(
+                    *kernel_,
+                    args.offset_,
+                    args.global_,
+                    args.local_,
+                    &args.events_,
+                    &event
+                    ));
+
+            return 1;
         }
 
     private:
-        using Base_Kernel = cl::make_kernel<
-            cl::Buffer&,
-            cl::Buffer&,
-            cl::Buffer&,
-            cl::Buffer&,
-            cl::LocalSpaceArg,
-            cl::LocalSpaceArg,
-            CL_INT,
-            CL_INT,
-            CL_INT
-                >;
-
-        using Kernel_Functor = std::function<typename Base_Kernel::type_>;
-
         static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling.cl");
         static constexpr const char* KERNEL_NAME = "lloyd_labeling";
 
-        Kernel_Functor kernel_functor_;
+        std::shared_ptr<cl::Kernel> kernel_;
     };
 }
 

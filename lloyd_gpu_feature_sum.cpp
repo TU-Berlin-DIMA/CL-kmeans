@@ -156,7 +156,9 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                     ));
 
         // execute kernel
-        labeling_kernel_(
+        cl::Event labeling_event;
+        cle_sanitize_done_return(
+                labeling_kernel_(
                 cl::EnqueueArgs(
                     queue_,
                     cl::NDRange(global_size),
@@ -168,8 +170,9 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 centroids.rows(),
                 d_points,
                 d_centroids,
-                d_labels
-                );
+                d_labels,
+                labeling_event
+                ));
 
         // copy did_changes device -> host
         cle_sanitize_val(
@@ -190,32 +193,38 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
 
         if (did_changes == true) {
             // calculate sum of points per cluster
-            feature_sum_kernel_(
-                    cl::EnqueueArgs(
-                        queue_,
-                        cl::NDRange(global_size),
-                        cl::NDRange(max_work_group_size_)
-                        ),
-                    points.cols(),
-                    points.rows(),
-                    centroids.rows(),
-                    d_points,
-                    d_centroids,
-                    d_labels
-                    );
+            cl::Event feature_sum_event;
+            cle_sanitize_done_return(
+                    feature_sum_kernel_(
+                        cl::EnqueueArgs(
+                            queue_,
+                            cl::NDRange(global_size),
+                            cl::NDRange(max_work_group_size_)
+                            ),
+                        points.cols(),
+                        points.rows(),
+                        centroids.rows(),
+                        d_points,
+                        d_centroids,
+                        d_labels,
+                        feature_sum_event
+                        ));
 
             // calculate cluster mass
-            mass_sum_kernel_(
-                    cl::EnqueueArgs(
-                        queue_,
-                        cl::NDRange(global_size),
-                        cl::NDRange(max_work_group_size_)
-                        ),
-                    points.rows(),
-                    centroids.rows(),
-                    d_labels,
-                    d_mass
-                    );
+            cl::Event mass_sum_event;
+            cle_sanitize_done_return(
+                    mass_sum_kernel_(
+                        cl::EnqueueArgs(
+                            queue_,
+                            cl::NDRange(global_size),
+                            cl::NDRange(max_work_group_size_)
+                            ),
+                        points.rows(),
+                        centroids.rows(),
+                        d_labels,
+                        d_mass,
+                        mass_sum_event
+                        ));
 
             // copy centroids device -> host
             cle_sanitize_val(

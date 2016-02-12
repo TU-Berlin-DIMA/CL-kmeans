@@ -15,6 +15,7 @@
 #include <functional>
 #include <cassert>
 #include <type_traits>
+#include <memory>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -46,7 +47,7 @@ namespace cle {
                 return error_code;
             }
 
-            kernel_functor_ = Base_Kernel(program,KERNEL_NAME, &error_code);
+            kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
             sanitize_make_kernel(error_code, context, program);
 
             return error_code;
@@ -65,26 +66,41 @@ namespace cle {
         *       cl_uint with total sum
         *
         */
-        void operator() (
+        cl_int operator() (
                 cl::EnqueueArgs const& args,
                 CL_INT num_points,
                 CL_INT num_clusters,
                 TypedBuffer<CL_INT>& labels,
-                TypedBuffer<CL_INT>& mass
+                TypedBuffer<CL_INT>& mass,
+                cl::Event& event
                 ) {
 
             assert(labels.size() == num_points);
             assert(mass.size() == num_clusters);
 
-            kernel_functor_(
-                    args,
-                    labels,
-                    mass,
-                    num_points,
-                    num_clusters
-            );
+            cle_sanitize_val_return(
+                    kernel_->setArg(0, (cl::Buffer&)labels));
 
+            cle_sanitize_val_return(
+                    kernel_->setArg(1, (cl::Buffer&)mass));
 
+            cle_sanitize_val_return(
+                    kernel_->setArg(2, num_points));
+
+            cle_sanitize_val_return(
+                    kernel_->setArg(3, num_clusters));
+
+            cle_sanitize_val_return(
+                    args.queue_.enqueueNDRangeKernel(
+                    *kernel_,
+                    args.offset_,
+                    args.global_,
+                    args.local_,
+                    &args.events_,
+                    &event
+                    ));
+
+            return 1;
         }
 
     private:
@@ -101,6 +117,7 @@ namespace cle {
         static constexpr const char* KERNEL_NAME = "mass_sum_global_atomic";
 
         Kernel_Functor kernel_functor_;
+        std::shared_ptr<cl::Kernel> kernel_;
     };
 }
 
