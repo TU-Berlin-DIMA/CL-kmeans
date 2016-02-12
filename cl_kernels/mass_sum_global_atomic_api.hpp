@@ -104,19 +104,9 @@ namespace cle {
         }
 
     private:
-        using Base_Kernel = cl::make_kernel<
-            cl::Buffer&,
-            cl::Buffer&,
-            CL_INT,
-            CL_INT
-                >;
-
-        using Kernel_Functor = std::function<typename Base_Kernel::type_>;
-
         static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("mass_sum_global_atomic.cl");
         static constexpr const char* KERNEL_NAME = "mass_sum_global_atomic";
 
-        Kernel_Functor kernel_functor_;
         std::shared_ptr<cl::Kernel> kernel_;
     };
 }

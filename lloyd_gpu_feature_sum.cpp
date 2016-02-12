@@ -212,20 +212,20 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                         ));
 
             // calculate cluster mass
-            // cl::Event mass_sum_event;
-            // cle_sanitize_done_return(
-            //         mass_sum_kernel_(
-            //             cl::EnqueueArgs(
-            //                 queue_,
-            //                 cl::NDRange(global_size),
-            //                 cl::NDRange(max_work_group_size_)
-            //                 ),
-            //             points.rows(),
-            //             centroids.rows(),
-            //             d_labels,
-            //             d_mass,
-            //             mass_sum_event
-            //             ));
+            cl::Event mass_sum_event;
+            cle_sanitize_done_return(
+                    mass_sum_kernel_(
+                        cl::EnqueueArgs(
+                            queue_,
+                            cl::NDRange(global_size),
+                            cl::NDRange(max_work_group_size_)
+                            ),
+                        points.rows(),
+                        centroids.rows(),
+                        d_labels,
+                        d_mass,
+                        mass_sum_event
+                        ));
 
             // copy centroids device -> host
             cle_sanitize_val(
@@ -247,24 +247,6 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                         mass.data()
                         ));
 
-            cle_sanitize_val(
-                    queue_.enqueueReadBuffer(
-                        d_labels,
-                        CL_TRUE,
-                        0,
-                        d_labels.bytes(),
-                        labels.data()
-                        ));
-
-            for (INT c = 0; c < mass.size(); ++c) {
-                mass[c] = 0;
-            }
-            for (INT p = 0; p < points.rows(); ++p) {
-                INT l = labels[p];
-                assert(l < centroids.rows());
-                ++mass[l];
-            }
-
             // divide point sums by cluster mass
             for (INT f = 0; f < centroids.cols(); ++f) {
                 for (INT c = 0; c < centroids.rows(); ++c) {
@@ -275,6 +257,15 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
 
         ++iterations;
     }
+
+    cle_sanitize_val(
+            queue_.enqueueReadBuffer(
+                d_labels,
+                CL_TRUE,
+                0,
+                d_labels.bytes(),
+                labels.data()
+                ));
 
     stats.iterations = iterations;
 
