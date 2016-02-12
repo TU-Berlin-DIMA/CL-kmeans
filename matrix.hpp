@@ -12,6 +12,7 @@
 
 #include <vector>
 #include <memory>
+#include <limits>
 
 #ifdef MATRIX_BOUNDSCHECK
 #include <iostream>
@@ -70,7 +71,16 @@ public:
     }
 
     void resize(INT const x_dim, INT const y_dim) {
-        raw_.resize(x_dim * y_dim);
+        size_t total_size = (size_t) x_dim * y_dim;
+
+#ifdef MATRIX_BOUNDSCHECK
+        if (total_size > std::numeric_limits<INT>::max()) {
+            std::cerr << "Warning: Matrix size exceeds integer type max value"
+                << std::endl;
+        }
+#endif
+
+        raw_.resize(total_size);
         x_dim_ = x_dim;
         y_dim_ = y_dim;
     }
@@ -104,7 +114,7 @@ public:
                 << std::endl;
         }
 #endif
-        return raw_[y_dim_ * y + x];
+        return raw_[x_dim_ * y + x];
     }
 
     inline T const& operator() (INT const x, INT const y) const {
@@ -116,7 +126,7 @@ public:
                 << std::endl;
         }
 #endif
-        return raw_[y_dim_ * y + x];
+        return raw_[x_dim_ * y + x];
     }
 
     inline INT size() const {
