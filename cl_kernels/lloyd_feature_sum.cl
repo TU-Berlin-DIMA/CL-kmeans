@@ -32,17 +32,19 @@ CL_INT rcoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
 // Points block:   local_size x local_size
 __kernel
 void lloyd_feature_sum(
-            __global CL_FP const *const g_points,
-            __global CL_FP *const g_centroids,
-            __global CL_INT *const g_labels,
-            __local CL_FP *const l_centroids,
-            __local CL_FP *const l_points,
+            __global CL_FP const *const restrict g_points,
+            __global CL_FP *const restrict g_centroids,
+            __global CL_INT *const restrict g_labels,
+            __local CL_FP *const restrict l_centroids,
+            __local CL_FP *const restrict l_points,
             const CL_INT NUM_FEATURES,
             const CL_INT NUM_POINTS,
             const CL_INT NUM_CLUSTERS
        ) {
 
-    for (CL_INT x = 0; x < NUM_FEATURES; x += get_global_size(0)) {
+    CL_INT const start_offset = get_group_id(0) * get_local_size(0);
+
+    for (CL_INT x = start_offset; x < NUM_FEATURES; x += get_global_size(0)) {
         // Initialize centroids to zero
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             l_centroids[ccoord2ind(NUM_CLUSTERS, c, get_local_id(0))] = 0;
