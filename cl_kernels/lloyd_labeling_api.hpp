@@ -124,7 +124,7 @@ namespace cle {
                     &event
                     ));
 
-            return 1;
+            return CL_SUCCESS;
         }
 
     private:
