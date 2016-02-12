@@ -26,6 +26,14 @@ void mass_sum_global_atomic(
             const CL_INT NUM_CLUSTERS
        ) {
 
+    for (CL_INT r = 0; r < NUM_CLUSTERS; r += get_global_size(0)) {
+        CL_INT c = r + get_local_id(0);
+
+        if (c < NUM_CLUSTERS) {
+            g_mass[c] = 0;
+        }
+    }
+
     for (CL_INT r = 0; r < NUM_POINTS; r += get_global_size(0)) {
         // Current point ID
         CL_INT p = r + get_local_id(0);
