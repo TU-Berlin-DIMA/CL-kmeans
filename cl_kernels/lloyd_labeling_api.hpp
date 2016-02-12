@@ -83,9 +83,7 @@ namespace cle {
             assert(memberships.size() == num_points);
             assert(centroids.size() == num_clusters * num_features);
 
-            const size_t centroid_bytes = centroids.bytes();
-            cl::LocalSpaceArg local_centroids = cl::Local(centroid_bytes);
-            cl::LocalSpaceArg local_old_centroids = cl::Local(centroid_bytes);
+            cl::LocalSpaceArg local_centroids = cl::Local(centroids.bytes());
 
             cle_sanitize_val_return(
                     kernel_->setArg(0, (cl::Buffer&)did_changes));
@@ -103,16 +101,13 @@ namespace cle {
                     kernel_->setArg(4, local_centroids));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(5, local_old_centroids));
+                    kernel_->setArg(5, num_features));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(6, num_features));
+                    kernel_->setArg(6, num_points));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(7, num_points));
-
-            cle_sanitize_val_return(
-                    kernel_->setArg(8, num_clusters));
+                    kernel_->setArg(7, num_clusters));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(

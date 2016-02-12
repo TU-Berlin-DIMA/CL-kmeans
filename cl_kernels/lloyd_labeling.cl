@@ -34,7 +34,6 @@ void lloyd_labeling(
             __global CL_FP const *const g_centroids,
             __global CL_INT *const g_memberships,
             __local CL_FP *const l_centroids,
-            __local CL_FP *const l_old_centroids,
             const CL_INT NUM_FEATURES,
             const CL_INT NUM_POINTS,
             const CL_INT NUM_CLUSTERS
@@ -54,7 +53,7 @@ void lloyd_labeling(
     for (CL_INT i = 0; i < NUM_CLUSTERS; i += get_local_size(0)) {
         if (i + lid < NUM_CLUSTERS) {
             for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-                l_old_centroids[ccoord2ind(NUM_CLUSTERS, i + lid, f)]
+                l_centroids[ccoord2ind(NUM_CLUSTERS, i + lid, f)]
                     = g_centroids[ccoord2ind(NUM_CLUSTERS, i + lid, f)];
             }
         }
@@ -77,7 +76,7 @@ void lloyd_labeling(
                 CL_FP dist = 0;
                 for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
                     CL_FP point = g_points[ccoord2ind(NUM_POINTS, p, f)];
-                    CL_FP difference = point - l_old_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
+                    CL_FP difference = point - l_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
                     dist += difference * difference;
                 }
 
