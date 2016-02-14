@@ -34,6 +34,7 @@ __kernel
 void lloyd_feature_sum(
             __global CL_FP const *const restrict g_points,
             __global CL_FP *const restrict g_centroids,
+            __global CL_INT *const restrict g_mass,
             __global CL_INT *const restrict g_labels,
             __local CL_FP *const restrict l_centroids,
             __local CL_FP *const restrict l_points,
@@ -81,9 +82,16 @@ void lloyd_feature_sum(
         // Coalesc write back block of centroids
         for (CL_INT c = 0; c < NUM_CLUSTERS; c += get_local_size(0)) {
             if (c + get_local_id(0) < NUM_CLUSTERS) {
+
+                // Coalesced access to cluster mass
+                // Note: optimization potential to pre-load at beginning
+                // and re-use as we iterate over the features
+                CL_INT mass = g_mass[c + get_local_id(0)];
                 for (CL_INT w = 0; w < get_local_size(0) && x + w < NUM_FEATURES; ++w) {
-                    g_centroids[ccoord2ind(NUM_CLUSTERS, c + get_local_id(0), x + w)] =
-                        l_centroids[ccoord2ind(NUM_CLUSTERS, c + get_local_id(0), w)];
+                    CL_FP centroid = l_centroids[ccoord2ind(NUM_CLUSTERS, c + get_local_id(0), w)];
+                    centroid = centroid / mass;
+
+                    g_centroids[ccoord2ind(NUM_CLUSTERS, c + get_local_id(0), x + w)] = centroid;
                 }
             }
         }

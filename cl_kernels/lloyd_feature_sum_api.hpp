@@ -73,6 +73,7 @@ namespace cle {
                 CL_INT num_clusters,
                 TypedBuffer<CL_FP>& points,
                 TypedBuffer<CL_FP>& centroids,
+                TypedBuffer<CL_INT>& mass,
                 TypedBuffer<CL_INT>& labels,
                 cl::Event& event
                 ) {
@@ -80,6 +81,7 @@ namespace cle {
             assert(points.size() == num_points * num_features);
             assert(labels.size() == num_points);
             assert(centroids.size() == num_clusters * num_features);
+            assert(mass.size() == num_clusters);
 
             const size_t local_size = args.local_[0];
 
@@ -95,22 +97,25 @@ namespace cle {
                     kernel_->setArg(1, (cl::Buffer&)centroids));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(2, (cl::Buffer&)labels));
+                    kernel_->setArg(2, (cl::Buffer&)mass));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(3, local_centroids));
+                    kernel_->setArg(3, (cl::Buffer&)labels));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(4, local_points));
+                    kernel_->setArg(4, local_centroids));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(5, num_features));
+                    kernel_->setArg(5, local_points));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(6, num_points));
+                    kernel_->setArg(6, num_features));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(7, num_clusters));
+                    kernel_->setArg(7, num_points));
+
+            cle_sanitize_val_return(
+                    kernel_->setArg(8, num_clusters));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
