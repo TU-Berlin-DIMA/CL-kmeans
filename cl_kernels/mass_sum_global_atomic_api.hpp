@@ -47,7 +47,7 @@ namespace cle {
                 return error_code;
             }
 
-            kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
+            mass_sum_kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
             sanitize_make_kernel(error_code, context, program);
 
             return error_code;
@@ -79,20 +79,20 @@ namespace cle {
             assert(mass.size() == num_clusters);
 
             cle_sanitize_val_return(
-                    kernel_->setArg(0, (cl::Buffer&)labels));
+                    mass_sum_kernel_->setArg(0, (cl::Buffer&)labels));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(1, (cl::Buffer&)mass));
+                    mass_sum_kernel_->setArg(1, (cl::Buffer&)mass));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(2, num_points));
+                    mass_sum_kernel_->setArg(2, num_points));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(3, num_clusters));
+                    mass_sum_kernel_->setArg(3, num_clusters));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
-                    *kernel_,
+                    *mass_sum_kernel_,
                     args.offset_,
                     args.global_,
                     args.local_,
@@ -107,7 +107,7 @@ namespace cle {
         static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("mass_sum_global_atomic.cl");
         static constexpr const char* KERNEL_NAME = "mass_sum_global_atomic";
 
-        std::shared_ptr<cl::Kernel> kernel_;
+        std::shared_ptr<cl::Kernel> mass_sum_kernel_;
     };
 }
 

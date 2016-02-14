@@ -47,7 +47,7 @@ namespace cle {
                 return error_code;
             }
 
-            kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
+            labeling_kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
             sanitize_make_kernel(error_code, context, program);
 
             return error_code;
@@ -86,32 +86,32 @@ namespace cle {
             cl::LocalSpaceArg local_centroids = cl::Local(centroids.bytes());
 
             cle_sanitize_val_return(
-                    kernel_->setArg(0, (cl::Buffer&)did_changes));
+                    labeling_kernel_->setArg(0, (cl::Buffer&)did_changes));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(1, (cl::Buffer&)points));
+                    labeling_kernel_->setArg(1, (cl::Buffer&)points));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(2, (cl::Buffer&)centroids));
+                    labeling_kernel_->setArg(2, (cl::Buffer&)centroids));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(3, (cl::Buffer&)memberships));
+                    labeling_kernel_->setArg(3, (cl::Buffer&)memberships));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(4, local_centroids));
+                    labeling_kernel_->setArg(4, local_centroids));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(5, num_features));
+                    labeling_kernel_->setArg(5, num_features));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(6, num_points));
+                    labeling_kernel_->setArg(6, num_points));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(7, num_clusters));
+                    labeling_kernel_->setArg(7, num_clusters));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
-                    *kernel_,
+                    *labeling_kernel_,
                     args.offset_,
                     args.global_,
                     args.local_,
@@ -126,7 +126,7 @@ namespace cle {
         static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling.cl");
         static constexpr const char* KERNEL_NAME = "lloyd_labeling";
 
-        std::shared_ptr<cl::Kernel> kernel_;
+        std::shared_ptr<cl::Kernel> labeling_kernel_;
     };
 }
 

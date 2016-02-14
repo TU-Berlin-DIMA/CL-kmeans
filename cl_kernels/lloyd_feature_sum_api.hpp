@@ -47,7 +47,8 @@ namespace cle {
                 return error_code;
             }
 
-            kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
+            feature_sum_kernel_.reset(
+                    new cl::Kernel(program, KERNEL_NAME, &error_code));
             sanitize_make_kernel(error_code, context, program);
 
             return error_code;
@@ -91,35 +92,35 @@ namespace cle {
                 cl::Local(local_size * local_size * sizeof(CL_FP));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(0, (cl::Buffer&)points));
+                    feature_sum_kernel_->setArg(0, (cl::Buffer&)points));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(1, (cl::Buffer&)centroids));
+                    feature_sum_kernel_->setArg(1, (cl::Buffer&)centroids));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(2, (cl::Buffer&)mass));
+                    feature_sum_kernel_->setArg(2, (cl::Buffer&)mass));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(3, (cl::Buffer&)labels));
+                    feature_sum_kernel_->setArg(3, (cl::Buffer&)labels));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(4, local_centroids));
+                    feature_sum_kernel_->setArg(4, local_centroids));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(5, local_points));
+                    feature_sum_kernel_->setArg(5, local_points));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(6, num_features));
+                    feature_sum_kernel_->setArg(6, num_features));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(7, num_points));
+                    feature_sum_kernel_->setArg(7, num_points));
 
             cle_sanitize_val_return(
-                    kernel_->setArg(8, num_clusters));
+                    feature_sum_kernel_->setArg(8, num_clusters));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
-                    *kernel_,
+                    *feature_sum_kernel_,
                     args.offset_,
                     args.global_,
                     args.local_,
@@ -134,7 +135,7 @@ namespace cle {
         static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_feature_sum.cl");
         static constexpr const char* KERNEL_NAME = "lloyd_feature_sum";
 
-        std::shared_ptr<cl::Kernel> kernel_;
+        std::shared_ptr<cl::Kernel> feature_sum_kernel_;
     };
 }
 
