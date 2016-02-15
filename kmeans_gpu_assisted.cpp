@@ -55,18 +55,10 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
                 &device
                 ));
 
-    cle_sanitize_val_return(
-            device.getInfo(
-                CL_DEVICE_MAX_WORK_ITEM_SIZES,
-                &this->max_work_item_sizes_
-            ));
-    cle_sanitize_val_return(
-            device.getInfo(
-                CL_DEVICE_MAX_WORK_GROUP_SIZE,
-                &this->max_work_group_size_
-                ));
+    cle_sanitize_done_return(
+            cle::device_warp_size(device, warp_size_));
 
-        return 1;
+    return 1;
 }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
@@ -90,10 +82,11 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
     uint32_t iterations;
     bool did_changes;
 
-    size_t global_size = this->max_work_group_size_ * this->max_work_item_sizes_[0];
-    std::vector<cl_char> h_did_changes(global_size);
+    size_t global_size = cle::optimize_global_size(points.rows(), warp_size_);
 
-    cle::TypedBuffer<cl_char> d_did_changes(this->context_, CL_MEM_READ_WRITE, global_size);
+    std::vector<cl_char> h_did_changes(1);
+
+    cle::TypedBuffer<cl_char> d_did_changes(this->context_, CL_MEM_READ_WRITE, 1);
     cle::TypedBuffer<CL_FP> d_points(this->context_, CL_MEM_READ_ONLY, points.size());
     cle::TypedBuffer<CL_FP> d_centroids(this->context_, CL_MEM_READ_ONLY, centroids.size());
     cle::TypedBuffer<CL_INT> d_memberships(this->context_, CL_MEM_READ_WRITE, points.rows());
@@ -146,7 +139,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                 cl::EnqueueArgs(
                     this->queue_,
                     cl::NDRange(global_size),
-                    cl::NDRange(this->max_work_group_size_)
+                    cl::NDRange(warp_size_)
                     ),
                 d_did_changes,
                 points.cols(),

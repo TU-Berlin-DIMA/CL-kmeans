@@ -57,8 +57,7 @@ private:
     cl::Context context_;
     cl::CommandQueue queue_;
 
-    size_t max_work_group_size_;
-    std::vector<size_t> max_work_item_sizes_;
+    cl_uint warp_size_;
 };
 
 using KmeansGPUAssisted32Aligned = KmeansGPUAssisted<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32>;
