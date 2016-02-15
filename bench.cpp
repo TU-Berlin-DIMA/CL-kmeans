@@ -300,7 +300,7 @@ public:
                             verify_res = bm.verify(kmeans_naive);
                         }
                         else {
-                            bm.run(kmeans_naive);
+                            bs = bm.run(kmeans_naive);
                         }
                     }
                     break;
