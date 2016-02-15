@@ -36,7 +36,7 @@ IF(ARMADILLO_FOUND)
     INCLUDE_DIRECTORIES(${ARMADILLO_INCLUDE_DIRS})
 ENDIF(ARMADILLO_FOUND)
 
-ADD_LIBRARY(CLExt SHARED cle/kernel.cpp cle/initializer.cpp cle/string.cpp)
+ADD_LIBRARY(CLExt SHARED cle/kernel.cpp cle/initializer.cpp cle/optimization.cpp cle/string.cpp)
 
 ADD_EXECUTABLE(join join.c)
 TARGET_LINK_LIBRARIES(join ${OpenCL_LIBRARY})
