@@ -13,6 +13,8 @@
 #include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
+#include "cl_kernels/mass_sum_merge_api.hpp"
+#include "cl_kernels/aggregate_sum_api.hpp"
 
 #include <cstdint>
 #include <cstddef> // size_t
@@ -42,23 +44,21 @@ char const* cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::name() const {
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::initialize() {
 
-    cl_int err = CL_SUCCESS;
-
     // Create kernels
-    err = labeling_kernel_.initialize(context_);
-    if (err != CL_SUCCESS) {
-        return err;
-    }
+    cle_sanitize_done_return(
+            labeling_kernel_.initialize(context_));
 
-    err = feature_sum_kernel_.initialize(context_);
-    if (err != CL_SUCCESS) {
-        return err;
-    }
+    cle_sanitize_done_return(
+            feature_sum_kernel_.initialize(context_));
 
-    err = mass_sum_kernel_.initialize(context_);
-    if (err != CL_SUCCESS) {
-        return err;
-    }
+    cle_sanitize_done_return(
+            mass_sum_kernel_.initialize(context_));
+
+    cle_sanitize_done_return(
+            mass_sum_merge_kernel_.initialize(context_));
+
+    cle_sanitize_done_return(
+            aggregate_sum_kernel_.initialize(context_));
 
     cl::Device device;
     cle_sanitize_val_return(
@@ -67,17 +67,8 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::initialize() {
                 &device
                 ));
 
-    cle_sanitize_val_return(
-            device.getInfo(
-                CL_DEVICE_MAX_WORK_ITEM_SIZES,
-                &max_work_item_sizes_
-            ));
-
-    cle_sanitize_val_return(
-            device.getInfo(
-                CL_DEVICE_MAX_WORK_GROUP_SIZE,
-                &max_work_group_size_
-                ));
+    cle_sanitize_done_return(
+            cle::device_warp_size(device, warp_size_));
 
     return 1;
 }
@@ -104,14 +95,27 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     uint32_t iterations;
     bool did_changes;
 
-    size_t global_size = max_work_group_size_ * max_work_item_sizes_[0];
-    size_t constexpr local_size_feature_sum = 32;
-    std::vector<cl_char> h_did_changes(global_size);
+    uint64_t const labeling_global_size =
+        cle::optimize_global_size(points.rows(), warp_size_);
+    uint64_t const mass_sum_global_atomic_global_size =
+        cle::optimize_global_size(points.rows(), warp_size_);
+    uint64_t const mass_sum_merge_global_size =
+        cle::optimize_global_size(points.rows(), warp_size_);
+    uint64_t const mass_sum_merge_num_work_groups =
+        mass_sum_merge_global_size / warp_size_;
+    uint64_t const aggregate_sum_num_work_items =
+        mass_sum_merge_num_work_groups * centroids.rows();
+    uint64_t const aggregate_sum_global_size =
+        cle::optimize_global_size(aggregate_sum_num_work_items , warp_size_);
+    uint64_t const feature_sum_global_size =
+        cle::optimize_global_size(points.cols(), warp_size_);
 
-    cle::TypedBuffer<cl_char> d_did_changes(context_, CL_MEM_READ_WRITE, global_size);
+    std::vector<cl_char> h_did_changes(1);
+
+    cle::TypedBuffer<cl_char> d_did_changes(context_, CL_MEM_READ_WRITE, 1);
     cle::TypedBuffer<CL_FP> d_points(context_, CL_MEM_READ_ONLY, points.size());
     cle::TypedBuffer<CL_FP> d_centroids(context_, CL_MEM_READ_WRITE, centroids.size());
-    cle::TypedBuffer<CL_INT> d_mass(context_, CL_MEM_READ_WRITE, centroids.rows());
+    cle::TypedBuffer<CL_INT> d_mass(context_, CL_MEM_READ_WRITE, aggregate_sum_num_work_items);
     cle::TypedBuffer<CL_INT> d_labels(context_, CL_MEM_READ_WRITE, points.rows());
 
     // copy points (x,y) host -> device
@@ -162,8 +166,8 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 labeling_kernel_(
                 cl::EnqueueArgs(
                     queue_,
-                    cl::NDRange(global_size),
-                    cl::NDRange(max_work_group_size_)
+                    cl::NDRange(labeling_global_size),
+                    cl::NDRange(warp_size_)
                     ),
                 d_did_changes,
                 points.cols(),
@@ -195,19 +199,53 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
         if (did_changes == true) {
             // calculate cluster mass
             cl::Event mass_sum_event;
-            cle_sanitize_done_return(
-                    mass_sum_kernel_(
-                        cl::EnqueueArgs(
-                            queue_,
-                            cl::NDRange(global_size),
-                            cl::NDRange(max_work_group_size_)
-                            ),
-                        points.rows(),
-                        centroids.rows(),
-                        d_labels,
-                        d_mass,
-                        mass_sum_event
-                        ));
+            switch (mass_sum_strategy_) {
+                case MassSumStrategy::GlobalAtomic:
+                    cle_sanitize_done_return(
+                            mass_sum_kernel_(
+                                cl::EnqueueArgs(
+                                    queue_,
+                                    cl::NDRange(mass_sum_global_atomic_global_size),
+                                    cl::NDRange(warp_size_)
+                                    ),
+                                points.rows(),
+                                centroids.rows(),
+                                d_labels,
+                                d_mass,
+                                mass_sum_event
+                                ));
+                    break;
+
+                case MassSumStrategy::Merge:
+                    cle_sanitize_done_return(
+                            mass_sum_merge_kernel_(
+                                cl::EnqueueArgs(
+                                    queue_,
+                                    cl::NDRange(mass_sum_merge_global_size),
+                                    cl::NDRange(warp_size_)
+                                    ),
+                                points.rows(),
+                                centroids.rows(),
+                                d_labels,
+                                d_mass,
+                                mass_sum_event
+                                ));
+
+                    // aggregate masses calculated by individual work groups
+                    cle_sanitize_done_return(
+                            aggregate_sum_kernel_(
+                                cl::EnqueueArgs(
+                                    queue_,
+                                    cl::NDRange(aggregate_sum_global_size),
+                                    cl::NDRange(warp_size_)
+                                    ),
+                                centroids.rows(),
+                                mass_sum_merge_num_work_groups,
+                                d_mass,
+                                mass_sum_event
+                                ));
+                    break;
+            }
 
             // calculate sum of points per cluster
             cl::Event feature_sum_event;
@@ -215,8 +253,8 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                     feature_sum_kernel_(
                         cl::EnqueueArgs(
                             queue_,
-                            cl::NDRange(global_size),
-                            cl::NDRange(local_size_feature_sum)
+                            cl::NDRange(feature_sum_global_size),
+                            cl::NDRange(warp_size_)
                             ),
                         points.cols(),
                         points.rows(),

@@ -13,6 +13,8 @@
 #include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
+#include "cl_kernels/mass_sum_merge_api.hpp"
+#include "cl_kernels/aggregate_sum_api.hpp"
 
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
@@ -32,6 +34,11 @@ namespace cle {
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 class LloydGPUFeatureSum {
 public:
+    enum class MassSumStrategy {
+        GlobalAtomic,
+        Merge
+    };
+
     LloydGPUFeatureSum(
             cl::Context const& context,
             cl::CommandQueue const& queue
@@ -60,11 +67,13 @@ private:
     cle::LloydLabelingAPI<CL_FP, CL_INT> labeling_kernel_;
     cle::LloydFeatureSumAPI<CL_FP, CL_INT> feature_sum_kernel_;
     cle::MassSumGlobalAtomicAPI<CL_FP, CL_INT> mass_sum_kernel_;
+    cle::MassSumMergeAPI<CL_INT> mass_sum_merge_kernel_;
+    cle::AggregateSumAPI<CL_INT> aggregate_sum_kernel_;
     cl::Context context_;
     cl::CommandQueue queue_;
 
-    size_t max_work_group_size_;
-    std::vector<size_t> max_work_item_sizes_;
+    MassSumStrategy mass_sum_strategy_ = MassSumStrategy::Merge;
+    cl_uint warp_size_;
 };
 
 using LloydGPUFeatureSum32Aligned = LloydGPUFeatureSum<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32>;
