@@ -378,6 +378,7 @@ int main(int argc, char **argv) {
     }
 
     if (options.type64()) {
+#ifdef USE_ALIGNED_ALLOCATOR
         Bench<
             double,
             uint64_t,
@@ -385,13 +386,22 @@ int main(int argc, char **argv) {
             cle::AlignedAllocatorINT64,
             true
                 > bench;
-
+#else
+        Bench<
+            double,
+            uint64_t,
+            std::allocator<double>,
+            std::allocator<uint64_t>,
+            true
+                > bench;
+#endif
         ret = bench.run(options);
         if (ret < 0) {
             return ret;
         }
     }
     else {
+#ifdef USE_ALIGNED_ALLOCATOR
         Bench<
             float,
             uint32_t,
@@ -399,7 +409,15 @@ int main(int argc, char **argv) {
             cle::AlignedAllocatorINT32,
             true
                 > bench;
-
+#else
+        Bench<
+            float,
+            uint32_t,
+            std::allocator<float>,
+            std::allocator<uint32_t>,
+            true
+                > bench;
+#endif
         ret = bench.run(options);
         if (ret < 0) {
             return ret;

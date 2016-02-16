@@ -39,16 +39,20 @@ using KmeansNaive32 =
     KmeansNaive<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
 using KmeansNaive64 =
     KmeansNaive<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 using KmeansNaive32Aligned =
     KmeansNaive<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32>;
 using KmeansNaive64Aligned =
     KmeansNaive<double, uint64_t, AlignedAllocatorFP64, AlignedAllocatorINT64>;
+#endif
 
 }
 
 extern template class cle::KmeansNaive<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
 extern template class cle::KmeansNaive<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 extern template class cle::KmeansNaive<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
 extern template class cle::KmeansNaive<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;
+#endif
 
 #endif /* KMEANS_NAIVE_HPP */

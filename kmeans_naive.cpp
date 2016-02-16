@@ -95,5 +95,7 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
 
 template class cle::KmeansNaive<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
 template class cle::KmeansNaive<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 template class cle::KmeansNaive<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
 template class cle::KmeansNaive<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;
+#endif

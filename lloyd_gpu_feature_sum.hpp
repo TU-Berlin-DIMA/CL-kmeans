@@ -76,12 +76,20 @@ private:
     cl_uint warp_size_;
 };
 
+using LloydGPUFeatureSum32 = LloydGPUFeatureSum<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
+using LloydGPUFeatureSum64 = LloydGPUFeatureSum<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 using LloydGPUFeatureSum32Aligned = LloydGPUFeatureSum<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32>;
 using LloydGPUFeatureSum64Aligned = LloydGPUFeatureSum<double, uint64_t, AlignedAllocatorFP64, AlignedAllocatorINT64>;
+#endif
 
 }
 
+extern template class cle::LloydGPUFeatureSum<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
+extern template class cle::LloydGPUFeatureSum<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 extern template class cle::LloydGPUFeatureSum<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
 extern template class cle::LloydGPUFeatureSum<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;
+#endif
 
 #endif /* LLOYD_GPU_FEATURE_SUM_HPP */

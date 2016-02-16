@@ -8,4 +8,12 @@
 #define TEST_KMEANS_NAME "${TEST_KMEANS_NAME}"
 #define BENCH_NAME "${BENCH_NAME}"
 
+#define BOOST_MAJOR_VERSION ${Boost_MAJOR_VERSION}
+#define BOOST_MINOR_VERSION ${Boost_MINOR_VERSION}
+
+// Boost Alloc was introduced with Boost 1.56
+#if BOOST_MAJOR_VERSION >= 1 && BOOST_MINOR_VERSION >= 56
+#define USE_ALIGNED_ALLOCATOR
+#endif
+
 #endif /* CMAKE_CONFIG_H */

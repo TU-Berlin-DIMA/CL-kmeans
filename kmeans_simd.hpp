@@ -21,6 +21,7 @@ public:
     int initialize();
     int finalize();
 
+#ifdef USE_ALIGNED_ALLOCATOR
     void operator() (
             uint32_t const max_iterations,
             std::vector<float, AlignedAllocatorFP32> const& points_x,
@@ -30,6 +31,17 @@ public:
             std::vector<uint32_t, AlignedAllocatorINT32>& cluster_size,
             std::vector<uint32_t, AlignedAllocatorINT32>& memberships,
             KmeansStats& stats);
+#else
+    void operator() (
+            uint32_t const max_iterations,
+            std::vector<float> const& points_x,
+            std::vector<float> const& points_y,
+            std::vector<float>& centroids_x,
+            std::vector<float>& centroids_y,
+            std::vector<uint32_t>& cluster_size,
+            std::vector<uint32_t>& memberships,
+            KmeansStats& stats);
+#endif
 };
 
 }

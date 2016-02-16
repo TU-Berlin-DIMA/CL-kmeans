@@ -33,16 +33,20 @@ using KmeansInitializer32 =
     KmeansInitializer<float, std::allocator<float>, uint32_t>;
 using KmeansInitializer64 =
     KmeansInitializer<double, std::allocator<double>, uint64_t>;
+#ifdef USE_ALIGNED_ALLOCATOR
 using KmeansInitializer32Aligned =
     KmeansInitializer<float, AlignedAllocatorFP32, uint32_t>;
 using KmeansInitializer64Aligned =
     KmeansInitializer<double, AlignedAllocatorFP64, uint64_t>;
+#endif
 
 }
 
 extern template class cle::KmeansInitializer<float, std::allocator<float>, uint32_t>;
 extern template class cle::KmeansInitializer<double, std::allocator<double>, uint64_t>;
+#ifdef USE_ALIGNED_ALLOCATOR
 extern template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32, uint32_t>;
 extern template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64, uint64_t>;
+#endif
 
 #endif /* KMEANS_INITIALIZER_HPP */

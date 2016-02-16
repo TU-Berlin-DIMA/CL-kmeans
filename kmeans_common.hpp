@@ -11,12 +11,18 @@
 #define KMEANS_COMMON_HPP
 
 #include <cstdint>
+#include <memory> // std::allocator
+#include <SystemConfig.h>
 
+#ifdef USE_ALIGNED_ALLOCATOR
 #include <boost/align/aligned_allocator.hpp>
+#endif
 
 namespace cle {
 
 using KmeansStats = struct { uint32_t iterations; };
+
+#ifdef USE_ALIGNED_ALLOCATOR
 using AlignedAllocatorFP32 =
     boost::alignment::aligned_allocator<float, 32>;
 using AlignedAllocatorINT32 =
@@ -25,6 +31,7 @@ using AlignedAllocatorFP64 =
     boost::alignment::aligned_allocator<double, 32>;
 using AlignedAllocatorINT64 =
     boost::alignment::aligned_allocator<uint64_t, 32>;
+#endif /* USE_ALIGNED_ALLOCATOR */
 
 }
 

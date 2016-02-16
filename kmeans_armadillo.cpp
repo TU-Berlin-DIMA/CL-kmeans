@@ -73,6 +73,17 @@ void cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::operator() (
 template class cle::KmeansArmadillo<
     float,
     uint32_t,
+    std::allocator<float>,
+    std::allocator<uint32_t>>;
+template class cle::KmeansArmadillo<
+    double,
+    uint64_t,
+    std::allocator<double>,
+    std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
+template class cle::KmeansArmadillo<
+    float,
+    uint32_t,
     cle::AlignedAllocatorFP32,
     cle::AlignedAllocatorINT32>;
 template class cle::KmeansArmadillo<
@@ -80,3 +91,4 @@ template class cle::KmeansArmadillo<
     uint64_t,
     cle::AlignedAllocatorFP64,
     cle::AlignedAllocatorINT64>;
+#endif

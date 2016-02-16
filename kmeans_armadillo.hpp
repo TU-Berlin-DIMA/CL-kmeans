@@ -39,6 +39,17 @@ private:
     arma::Mat<FP> points_;
 };
 
+using KmeansArmadillo32 = KmeansArmadillo<
+    float,
+    uint32_t,
+    std::allocator<float>,
+    std::allocator<uint32_t>>;
+using KmeansArmadillo64 = KmeansArmadillo<
+    double,
+    uint64_t,
+    std::allocator<double>,
+    std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 using KmeansArmadillo32Aligned = KmeansArmadillo<
     float,
     uint32_t,
@@ -49,8 +60,20 @@ using KmeansArmadillo64Aligned = KmeansArmadillo<
     uint64_t,
     AlignedAllocatorFP64,
     AlignedAllocatorINT64>;
+#endif
 }
 
+extern template class cle::KmeansArmadillo<
+    float,
+    uint32_t,
+    std::allocator<float>,
+    std::allocator<uint32_t>>;
+extern template class cle::KmeansArmadillo<
+    double,
+    uint64_t,
+    std::allocator<double>,
+    std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 extern template class cle::KmeansArmadillo<
     float,
     uint32_t,
@@ -61,5 +84,6 @@ extern template class cle::KmeansArmadillo<
     uint64_t,
     cle::AlignedAllocatorFP64,
     cle::AlignedAllocatorINT64>;
+#endif
 
 #endif /* KMEANS_ARMADILLO_HPP */

@@ -26,6 +26,8 @@
 #include <algorithm>
 #include <memory>
 
+#ifdef USE_ALIGNED_ALLOCATOR
+
 #include <boost/align/aligned_allocator.hpp>
 
 int main(int argc, char **argv) {
@@ -183,3 +185,9 @@ int main(int argc, char **argv) {
   // }
   // std::cout << "[" << num_diff << " / " << points_x.size() << "]" << std::endl;
 }
+
+#else
+
+int main() {}
+
+#endif /* USE_ALIGNED_ALLOCATOR */

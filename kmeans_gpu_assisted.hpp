@@ -60,12 +60,20 @@ private:
     cl_uint warp_size_;
 };
 
+using KmeansGPUAssisted32 = KmeansGPUAssisted<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
+using KmeansGPUAssisted64 = KmeansGPUAssisted<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 using KmeansGPUAssisted32Aligned = KmeansGPUAssisted<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32>;
 using KmeansGPUAssisted64Aligned = KmeansGPUAssisted<double, uint64_t, AlignedAllocatorFP64, AlignedAllocatorINT64>;
+#endif
 
 }
 
+extern template class cle::KmeansGPUAssisted<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
+extern template class cle::KmeansGPUAssisted<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
+#ifdef USE_ALIGNED_ALLOCATOR
 extern template class cle::KmeansGPUAssisted<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
 extern template class cle::KmeansGPUAssisted<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;
+#endif
 
 #endif /* KMEANS_GPU_ASSISTED_HPP */

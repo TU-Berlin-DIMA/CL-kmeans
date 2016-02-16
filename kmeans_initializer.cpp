@@ -40,5 +40,7 @@ void cle::KmeansInitializer<FP, Alloc, INT>::first_x(
 
 template class cle::KmeansInitializer<float, std::allocator<float>, uint32_t>;
 template class cle::KmeansInitializer<double, std::allocator<double>, uint64_t>;
+#ifdef USE_ALIGNED_ALLOCATOR
 template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32, uint32_t>;
 template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64, uint64_t>;
+#endif
