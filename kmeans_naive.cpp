@@ -46,7 +46,7 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
         // Phase 1: assign points to clusters
         for (INT p = 0; p != points.rows(); ++p) {
             FP min_distance = std::numeric_limits<FP>::max();
-            INT min_centroid;
+            INT min_centroid = 0;
 
             for (INT c = 0; c != centroids.rows(); ++c) {
                 FP distance = 0;

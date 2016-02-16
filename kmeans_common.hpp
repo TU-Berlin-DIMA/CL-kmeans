@@ -20,7 +20,10 @@
 
 namespace cle {
 
-using KmeansStats = struct { uint32_t iterations; };
+class KmeansStats {
+public:
+        uint32_t iterations;
+};
 
 #ifdef USE_ALIGNED_ALLOCATOR
 using AlignedAllocatorFP32 =

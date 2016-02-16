@@ -345,7 +345,7 @@ private:
             std::vector<std::vector<T, Alloc>>& vectors,
             size_t& current_column, const size_t num_tokens) {
 
-        T v;
+        T v = 0;
         char const * token_begin;
         char const * token_last;
         size_t token_size;
