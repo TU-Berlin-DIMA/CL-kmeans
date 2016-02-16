@@ -147,7 +147,7 @@ void cle::KmeansSIMD32::operator() (
 }
 
 #else
-#ifndef USE_ALINED_ALLOCATOR
+#if !defined(USE_ALINED_ALLOCATOR) && !defined(__AVX2__)
 int cle::KmeansSIMD32::initialize() { return 1; }
 int cle::KmeansSIMD32::finalize() { return 1; }
 
@@ -162,7 +162,7 @@ void cle::KmeansSIMD32::operator() (
             KmeansStats&) {}
 #endif
 
-#ifndef __AVX2__
+#if defined(__AVX2__) && !defined(USE_ALIGNED_ALLOCATOR)
 void cle::KmeansSIMD32::operator() (
         uint32_t const max_iterations,
         std::vector<float, AlignedAllocatorFP32> const&,
