@@ -359,7 +359,9 @@ public:
             std::cout << std::endl;
         }
 
+#ifdef ARMADILLO_FOUND
         kmeans_armadillo.finalize();
+#endif
         kmeans_naive.finalize();
         bm.finalize();
 
