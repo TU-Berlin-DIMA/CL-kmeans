@@ -9,7 +9,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 SET(CMAKE_EXPORT_COMPILE_COMMANDS 1) # For vim color_coded plugin
 PROJECT(cljoin_operators)
 
-SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+SET(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${PROJECT_SOURCE_DIR}/cmake")
 
 SET(CL_KERNELS_SOURCE_PATH "${PROJECT_SOURCE_DIR}/cl_kernels")
 SET(CL_KERNELS_INSTALL_PATH "${CMAKE_PREFIX_PATH}/opt/${PROJECT_NAME}")
@@ -31,7 +31,7 @@ FIND_PACKAGE(Boost 1.49 REQUIRED COMPONENTS program_options)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
 FIND_PACKAGE(OpenCL REQUIRED)
-INCLUDE_DIRECTORIES(${OpenCL_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${OPENCL_INCLUDE_DIRS})
 
 FIND_PACKAGE(Armadillo)
 IF(ARMADILLO_FOUND)
@@ -41,45 +41,54 @@ ENDIF(ARMADILLO_FOUND)
 ADD_LIBRARY(CLExt SHARED cle/kernel.cpp cle/initializer.cpp cle/optimization.cpp cle/string.cpp)
 
 ADD_EXECUTABLE(join join.c)
-TARGET_LINK_LIBRARIES(join ${OpenCL_LIBRARY})
+TARGET_LINK_LIBRARIES(join ${OPENCL_LIBRARIES})
 
 ADD_EXECUTABLE(test_prefix_sum test_prefix_sum.c)
-TARGET_LINK_LIBRARIES(test_prefix_sum ${OpenCL_LIBRARY})
+TARGET_LINK_LIBRARIES(test_prefix_sum ${OPENCL_LIBRARIES})
 
 ADD_EXECUTABLE(test_prefix_sum_cpp test_prefix_sum.cpp)
-TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OpenCL_LIBRARY} CLExt)
+TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OPENCL_LIBRARIES} CLExt)
 
 ADD_EXECUTABLE(test_csv test_csv.cpp)
 TARGET_LINK_LIBRARIES(test_csv)
 
 SET(TEST_KMEANS_NAME "test_kmeans")
-ADD_EXECUTABLE(test_kmeans test_kmeans.cpp)
-TARGET_SOURCES(test_kmeans PRIVATE clustering_benchmark.cpp)
-TARGET_SOURCES(test_kmeans PRIVATE kmeans_initializer.cpp)
-TARGET_SOURCES(test_kmeans PRIVATE kmeans_naive.cpp)
-TARGET_SOURCES(test_kmeans PRIVATE kmeans_simd.cpp)
-TARGET_SOURCES(test_kmeans PRIVATE kmeans_gpu_assisted.cpp)
-TARGET_SOURCES(test_kmeans PRIVATE lloyd_gpu_feature_sum.cpp)
-TARGET_LINK_LIBRARIES(test_kmeans ${OpenCL_LIBRARY} CLExt)
+SET(TEST_KMEANS_SOURCES
+    test_kmeans.cpp
+    clustering_benchmark.cpp
+    kmeans_initializer.cpp
+    kmeans_naive.cpp
+    kmeans_simd.cpp
+    kmeans_gpu_assisted.cpp
+    lloyd_gpu_feature_sum.cpp
+    )
 IF(ARMADILLO_FOUND)
-    TARGET_SOURCES(test_kmeans PRIVATE kmeans_armadillo.cpp)
+    LIST(APPEND TEST_KMEANS_SOURCES kmeans_armadillo.cpp)
+ENDIF(ARMADILLO_FOUND)
+ADD_EXECUTABLE(test_kmeans ${TEST_KMEANS_SOURCES})
+TARGET_LINK_LIBRARIES(test_kmeans ${OPENCL_LIBRARIES} CLExt)
+IF(ARMADILLO_FOUND)
     TARGET_LINK_LIBRARIES(test_kmeans ${ARMADILLO_LIBRARIES})
 ENDIF(ARMADILLO_FOUND)
 
 SET(BENCH_NAME "bench")
-ADD_EXECUTABLE(bench bench.cpp)
-TARGET_SOURCES(bench PRIVATE clustering_benchmark.cpp)
-TARGET_SOURCES(bench PRIVATE kmeans_initializer.cpp)
-TARGET_SOURCES(bench PRIVATE kmeans_naive.cpp)
-TARGET_SOURCES(bench PRIVATE kmeans_simd.cpp)
-TARGET_SOURCES(bench PRIVATE kmeans_gpu_assisted.cpp)
-TARGET_SOURCES(bench PRIVATE lloyd_gpu_feature_sum.cpp)
-TARGET_LINK_LIBRARIES(bench ${OpenCL_LIBRARY} CLExt)
+SET(BENCH_SOURCES
+    bench.cpp
+    clustering_benchmark.cpp
+    kmeans_initializer.cpp
+    kmeans_naive.cpp
+    kmeans_simd.cpp
+    kmeans_gpu_assisted.cpp
+    lloyd_gpu_feature_sum.cpp
+    )
 IF(ARMADILLO_FOUND)
-    TARGET_SOURCES(bench PRIVATE kmeans_armadillo.cpp)
+    LIST(APPEND BENCH_SOURCES kmeans_armadillo.cpp)
+ENDIF(ARMADILLO_FOUND)
+ADD_EXECUTABLE(bench ${BENCH_SOURCES})
+TARGET_LINK_LIBRARIES(bench ${OPENCL_LIBRARIES} ${Boost_LIBRARIES} CLExt)
+IF(ARMADILLO_FOUND)
     TARGET_LINK_LIBRARIES(bench ${ARMADILLO_LIBRARIES})
 ENDIF(ARMADILLO_FOUND)
-TARGET_LINK_LIBRARIES(bench ${Boost_LIBRARIES})
 
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})
