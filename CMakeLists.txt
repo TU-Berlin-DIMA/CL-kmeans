@@ -24,7 +24,7 @@ SET(CMAKE_C_COMPILER clang)
 SET(CMAKE_CXX_COMPILER clang++)
 SET(CMAKE_C_FLAGS "-std=c99 -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
 SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -ffp-contract=fast -march=haswell -fopenmp -Wall -Wextra -DUNIX")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -ffp-contract=fast -march=native -fopenmp -Wall -Wextra -DUNIX")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG -DMATRIX_BOUNDSCHECK")
 
 FIND_PACKAGE(Boost 1.49 REQUIRED COMPONENTS program_options)

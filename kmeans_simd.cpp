@@ -9,6 +9,8 @@
 
 #include "kmeans_simd.hpp"
 
+#ifdef __AVX2__
+
 #include <cassert>
 #include <algorithm>
 #include <limits>
@@ -143,3 +145,20 @@ void cle::KmeansSIMD32::operator() (
 
     stats.iterations = iterations;
 }
+
+#else
+
+int cle::KmeansSIMD32::initialize() { return 1; }
+int cle::KmeansSIMD32::finalize() { return 1; }
+
+void cle::KmeansSIMD32::operator() (
+        uint32_t const max_iterations,
+        std::vector<float, AlignedAllocatorFP32> const&,
+        std::vector<float, AlignedAllocatorFP32> const&,
+        std::vector<float, AlignedAllocatorFP32>&,
+        std::vector<float, AlignedAllocatorFP32>&,
+        std::vector<uint32_t, AlignedAllocatorINT32>&,
+        std::vector<uint32_t, AlignedAllocatorINT32>&,
+        KmeansStats&) {}
+
+#endif /* __AVX2__ */
