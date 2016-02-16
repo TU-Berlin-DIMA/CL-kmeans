@@ -238,6 +238,8 @@ public:
                 < 0) {
             return ret;
         }
+        cle_sanitize_done_return(
+                clinit.print_device_info());
 
         {
             cle::CSV csv;
