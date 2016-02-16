@@ -6,6 +6,8 @@
 # Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+SET(CMAKE_C_COMPILER clang)
+SET(CMAKE_CXX_COMPILER clang++)
 SET(CMAKE_EXPORT_COMPILE_COMMANDS 1) # For vim color_coded plugin
 PROJECT(cljoin_operators)
 
@@ -20,8 +22,6 @@ ELSEIF(CMAKE_BUILD_TYPE MATCHES Release OR NOT CMAKE_BUILD_TYPE)
     SET(CL_KERNELS_PATH ${CL_KERNELS_INSTALL_PATH})
 ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 
-SET(CMAKE_C_COMPILER clang)
-SET(CMAKE_CXX_COMPILER clang++)
 SET(CMAKE_C_FLAGS "-std=c99 -Wall -Wextra -DUNIX -DCL_KERNELS_PATH=\\\"${CL_KERNELS_PATH}\\\"")
 SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -ffp-contract=fast -march=native -fopenmp -Wall -Wextra -DUNIX")
