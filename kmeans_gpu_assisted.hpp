@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <type_traits>
+#include <memory>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>

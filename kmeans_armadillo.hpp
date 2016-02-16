@@ -14,6 +14,7 @@
 #include "matrix.hpp"
 
 #include <armadillo>
+#include <memory>
 
 namespace cle {
 

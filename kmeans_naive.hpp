@@ -14,6 +14,7 @@
 #include "matrix.hpp"
 
 #include <vector>
+#include <memory>
 
 namespace cle {
 

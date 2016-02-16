@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <type_traits>
 #include <vector>
+#include <memory>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
