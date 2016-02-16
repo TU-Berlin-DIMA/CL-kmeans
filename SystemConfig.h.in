@@ -2,6 +2,7 @@
 #define CMAKE_CONFIG_H
 
 #cmakedefine ARMADILLO_FOUND
+#cmakedefine CUDA_FOUND
 
 #define CL_KERNELS_PATH "${CL_KERNELS_PATH}"
 

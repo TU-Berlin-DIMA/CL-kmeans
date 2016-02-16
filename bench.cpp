@@ -27,6 +27,10 @@
 #include <set>
 #include <memory>
 
+#ifdef CUDA_FOUND
+#include <cuda_runtime.h>
+#endif
+
 // Suppress editor errors about BENCH_NAME not defined
 #ifndef BENCH_NAME
 #define BENCH_NAME ""
@@ -427,6 +431,10 @@ int main(int argc, char **argv) {
             return ret;
         }
     }
+
+#ifdef CUDA_FOUND
+    cudaDeviceReset();
+#endif
 
     return 0;
 }
