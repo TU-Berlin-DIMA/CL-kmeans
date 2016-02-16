@@ -52,32 +52,12 @@ TARGET_LINK_LIBRARIES(test_prefix_sum_cpp ${OPENCL_LIBRARIES} CLExt)
 ADD_EXECUTABLE(test_csv test_csv.cpp)
 TARGET_LINK_LIBRARIES(test_csv)
 
-SET(TEST_KMEANS_NAME "test_kmeans")
-SET(TEST_KMEANS_SOURCES
-    test_kmeans.cpp
-    clustering_benchmark.cpp
-    kmeans_initializer.cpp
-    kmeans_naive.cpp
-    kmeans_simd.cpp
-    kmeans_gpu_assisted.cpp
-    lloyd_gpu_feature_sum.cpp
-    )
-IF(ARMADILLO_FOUND)
-    LIST(APPEND TEST_KMEANS_SOURCES kmeans_armadillo.cpp)
-ENDIF(ARMADILLO_FOUND)
-ADD_EXECUTABLE(test_kmeans ${TEST_KMEANS_SOURCES})
-TARGET_LINK_LIBRARIES(test_kmeans ${OPENCL_LIBRARIES} CLExt)
-IF(ARMADILLO_FOUND)
-    TARGET_LINK_LIBRARIES(test_kmeans ${ARMADILLO_LIBRARIES})
-ENDIF(ARMADILLO_FOUND)
-
 SET(BENCH_NAME "bench")
 SET(BENCH_SOURCES
     bench.cpp
     clustering_benchmark.cpp
     kmeans_initializer.cpp
     kmeans_naive.cpp
-    kmeans_simd.cpp
     kmeans_gpu_assisted.cpp
     lloyd_gpu_feature_sum.cpp
     )
