@@ -24,7 +24,7 @@
  */
 __kernel
 void aggregate_sum_mass(
-        __global CL_INT *const restrict g_mass,
+        __global CL_TYPE *const restrict g_mass,
         CL_INT const NUM_CLUSTERS,
         CL_INT const NUM_BLOCKS
         ) {
@@ -33,7 +33,7 @@ void aggregate_sum_mass(
             cluster_offset < NUM_CLUSTERS;
             cluster_offset += get_global_size(0)) {
 
-        CL_INT mass = 0;
+        CL_TYPE mass = 0;
 
         for (CL_INT block = 0;
                 block < NUM_BLOCKS * NUM_CLUSTERS;

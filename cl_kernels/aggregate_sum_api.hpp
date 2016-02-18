@@ -25,7 +25,7 @@
 
 namespace cle {
 
-    template <typename CL_INT>
+    template <typename CL_TYPE, typename CL_INT>
     class AggregateSumAPI {
     public:
         cl_int initialize(cl::Context& context) {
@@ -41,6 +41,8 @@ namespace cle {
             else {
                 assert(false);
             }
+            defines += " -DCL_TYPE=";
+            defines += cle::OpenCLType::to_str<CL_TYPE>();
 
             cl::Program program = make_program(context, PROGRAM_FILE, defines, error_code);
             if (error_code != CL_SUCCESS) {
@@ -60,7 +62,7 @@ namespace cle {
                 cl::EnqueueArgs const& args,
                 CL_INT num_clusters,
                 CL_INT num_blocks,
-                TypedBuffer<CL_INT>& mass,
+                TypedBuffer<CL_TYPE>& mass,
                 cl::Event& event
                 ) {
 

@@ -7,8 +7,8 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifndef LLOYD_LABELING_API_HPP
-#define LLOYD_LABELING_API_HPP
+#ifndef LLOYD_MERGE_SUM_API_HPP
+#define LLOYD_MERGE_SUM_API_HPP
 
 #include "../cle/common.hpp"
 
@@ -26,16 +26,16 @@
 namespace cle {
 
     template <typename CL_FP, typename CL_INT>
-    class LloydLabelingAPI {
+    class LloydMergeSumAPI {
     public:
         cl_int initialize(cl::Context& context) {
             cl_int error_code = CL_SUCCESS;
 
             std::string defines;
-            if (std::is_same<cl_float, CL_FP>::value) {
+            if (std::is_same<cl_uint, CL_INT>::value) {
                 defines = "-DTYPE32";
             }
-            else if (std::is_same<cl_double, CL_FP>::value) {
+            else if (std::is_same<cl_ulong, CL_INT>::value) {
                 defines = "-DTYPE64";
             }
             else {
@@ -47,7 +47,7 @@ namespace cle {
                 return error_code;
             }
 
-            labeling_kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
+            lloyd_merge_sum_kernel_.reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
             sanitize_make_kernel(error_code, context, program);
 
             return error_code;
@@ -68,50 +68,57 @@ namespace cle {
         */
         cl_int operator() (
                 cl::EnqueueArgs const& args,
-                TypedBuffer<cl_char>& did_changes,
                 CL_INT num_features,
                 CL_INT num_points,
                 CL_INT num_clusters,
                 TypedBuffer<CL_FP>& points,
                 TypedBuffer<CL_FP>& centroids,
-                TypedBuffer<CL_INT>& memberships,
+                TypedBuffer<CL_INT>& mass,
+                TypedBuffer<CL_INT>& labels,
                 cl::Event& event
                 ) {
 
-            // assert did_changes.size() == #global work items
-            assert(points.size() == num_points * num_features);
-            assert(memberships.size() == num_points);
-            assert(centroids.size() >= num_clusters * num_features);
+            assert(labels.size() == num_points);
 
-            cl::LocalSpaceArg local_centroids = cl::Local(centroids.bytes());
+            // TODO
+            size_t const num_local_centroids = 1;
 
-            cle_sanitize_val_return(
-                    labeling_kernel_->setArg(0, (cl::Buffer&)did_changes));
+            cl::LocalSpaceArg local_points =
+                cl::Local(args.local_[0] * sizeof(CL_FP));
 
-            cle_sanitize_val_return(
-                    labeling_kernel_->setArg(1, (cl::Buffer&)points));
+            cl::LocalSpaceArg local_mass =
+                cl::Local(num_local_centroids * sizeof(CL_INT));
 
             cle_sanitize_val_return(
-                    labeling_kernel_->setArg(2, (cl::Buffer&)centroids));
+                    lloyd_merge_sum_kernel_->setArg(0, (cl::Buffer&)points));
 
             cle_sanitize_val_return(
-                    labeling_kernel_->setArg(3, (cl::Buffer&)memberships));
+                    lloyd_merge_sum_kernel_->setArg(1, (cl::Buffer&)centroids));
 
             cle_sanitize_val_return(
-                    labeling_kernel_->setArg(4, local_centroids));
+                    lloyd_merge_sum_kernel_->setArg(2, (cl::Buffer&)mass));
 
             cle_sanitize_val_return(
-                    labeling_kernel_->setArg(5, num_features));
+                    lloyd_merge_sum_kernel_->setArg(3, (cl::Buffer&)labels));
 
             cle_sanitize_val_return(
-                    labeling_kernel_->setArg(6, num_points));
+                    lloyd_merge_sum_kernel_->setArg(4, local_points));
 
             cle_sanitize_val_return(
-                    labeling_kernel_->setArg(7, num_clusters));
+                    lloyd_merge_sum_kernel_->setArg(5, local_mass));
+
+            cle_sanitize_val_return(
+                    lloyd_merge_sum_kernel_->setArg(6, num_features));
+
+            cle_sanitize_val_return(
+                    lloyd_merge_sum_kernel_->setArg(7, num_points));
+
+            cle_sanitize_val_return(
+                    lloyd_merge_sum_kernel_->setArg(8, num_clusters));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
-                    *labeling_kernel_,
+                    *lloyd_merge_sum_kernel_,
                     args.offset_,
                     args.global_,
                     args.local_,
@@ -123,11 +130,11 @@ namespace cle {
         }
 
     private:
-        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling.cl");
-        static constexpr const char* KERNEL_NAME = "lloyd_labeling";
+        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_merge_sum.cl");
+        static constexpr const char* KERNEL_NAME = "lloyd_merge_sum";
 
-        std::shared_ptr<cl::Kernel> labeling_kernel_;
+        std::shared_ptr<cl::Kernel> lloyd_merge_sum_kernel_;
     };
 }
 
-#endif /* LLOYD_LABELING_API_HPP */
+#endif /* LLOYD_MERGE_SUM_API_HPP */

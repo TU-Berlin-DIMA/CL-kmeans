@@ -12,6 +12,7 @@
 #include "cle/common.hpp"
 #include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
+#include "cl_kernels/lloyd_merge_sum_api.hpp"
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
 #include "cl_kernels/mass_sum_merge_api.hpp"
 #include "cl_kernels/aggregate_sum_api.hpp"
@@ -20,7 +21,6 @@
 #include <cstddef> // size_t
 #include <vector>
 #include <algorithm> // std::any_of
-#include <type_traits>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -52,13 +52,19 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::initialize() {
             feature_sum_kernel_.initialize(context_));
 
     cle_sanitize_done_return(
+            merge_sum_kernel_.initialize(context_));
+
+    cle_sanitize_done_return(
+            aggregate_centroid_kernel_.initialize(context_));
+
+    cle_sanitize_done_return(
             mass_sum_kernel_.initialize(context_));
 
     cle_sanitize_done_return(
             mass_sum_merge_kernel_.initialize(context_));
 
     cle_sanitize_done_return(
-            aggregate_sum_kernel_.initialize(context_));
+            aggregate_mass_kernel_.initialize(context_));
 
     cl::Device device;
     cle_sanitize_val_return(
@@ -103,19 +109,22 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
         cle::optimize_global_size(points.rows(), warp_size_);
     uint64_t const mass_sum_merge_num_work_groups =
         mass_sum_merge_global_size / warp_size_;
-    uint64_t const aggregate_sum_num_work_items =
+    uint64_t const aggregate_mass_num_work_items =
         mass_sum_merge_num_work_groups * centroids.rows();
-    uint64_t const aggregate_sum_global_size =
-        cle::optimize_global_size(aggregate_sum_num_work_items , warp_size_);
+    uint64_t const aggregate_mass_global_size =
+        cle::optimize_global_size(aggregate_mass_num_work_items , warp_size_);
     uint64_t const feature_sum_global_size =
         cle::optimize_global_size(points.cols(), warp_size_);
+    uint64_t const merge_sum_global_size = warp_size_ * 24;
+    uint64_t const aggregate_centroid_global_size = warp_size_ * 24;
+    uint64_t const centroid_merge_sum_num_blocks = (centroids.size() + merge_sum_global_size + - 1) / merge_sum_global_size;
 
     std::vector<cl_char> h_did_changes(1);
 
     cle::TypedBuffer<cl_char> d_did_changes(context_, CL_MEM_READ_WRITE, 1);
     cle::TypedBuffer<CL_FP> d_points(context_, CL_MEM_READ_ONLY, points.size());
-    cle::TypedBuffer<CL_FP> d_centroids(context_, CL_MEM_READ_WRITE, centroids.size());
-    cle::TypedBuffer<CL_INT> d_mass(context_, CL_MEM_READ_WRITE, aggregate_sum_num_work_items);
+    cle::TypedBuffer<CL_FP> d_centroids(context_, CL_MEM_READ_WRITE, centroids.size() * centroid_merge_sum_num_blocks);
+    cle::TypedBuffer<CL_INT> d_mass(context_, CL_MEM_READ_WRITE, aggregate_mass_num_work_items);
     cle::TypedBuffer<CL_INT> d_labels(context_, CL_MEM_READ_WRITE, points.rows());
 
     // copy points (x,y) host -> device
@@ -233,10 +242,10 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
 
                     // aggregate masses calculated by individual work groups
                     cle_sanitize_done_return(
-                            aggregate_sum_kernel_(
+                            aggregate_mass_kernel_(
                                 cl::EnqueueArgs(
                                     queue_,
-                                    cl::NDRange(aggregate_sum_global_size),
+                                    cl::NDRange(aggregate_mass_global_size),
                                     cl::NDRange(warp_size_)
                                     ),
                                 centroids.rows(),
@@ -249,22 +258,59 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
 
             // calculate sum of points per cluster
             cl::Event feature_sum_event;
-            cle_sanitize_done_return(
-                    feature_sum_kernel_(
-                        cl::EnqueueArgs(
-                            queue_,
-                            cl::NDRange(feature_sum_global_size),
-                            cl::NDRange(warp_size_)
-                            ),
-                        points.cols(),
-                        points.rows(),
-                        centroids.rows(),
-                        d_points,
-                        d_centroids,
-                        d_mass,
-                        d_labels,
-                        feature_sum_event
-                        ));
+            cl::Event merge_sum_event;
+            cl::Event aggregate_centroid_event;
+            switch (centroid_update_strategy_) {
+                case CentroidUpdateStrategy::FeatureSum:
+                    cle_sanitize_done_return(
+                            feature_sum_kernel_(
+                                cl::EnqueueArgs(
+                                    queue_,
+                                    cl::NDRange(feature_sum_global_size),
+                                    cl::NDRange(warp_size_)
+                                    ),
+                                points.cols(),
+                                points.rows(),
+                                centroids.rows(),
+                                d_points,
+                                d_centroids,
+                                d_mass,
+                                d_labels,
+                                feature_sum_event
+                                ));
+                    break;
+                case CentroidUpdateStrategy::MergeSum:
+                    cle_sanitize_done_return(
+                            merge_sum_kernel_(
+                                cl::EnqueueArgs(
+                                    queue_,
+                                    cl::NDRange(merge_sum_global_size),
+                                    cl::NDRange(warp_size_)
+                                    ),
+                                points.cols(),
+                                points.rows(),
+                                centroids.rows(),
+                                d_points,
+                                d_centroids,
+                                d_mass,
+                                d_labels,
+                                merge_sum_event
+                                ));
+
+                    cle_sanitize_done_return(
+                            aggregate_centroid_kernel_(
+                                cl::EnqueueArgs(
+                                    queue_,
+                                    cl::NDRange(aggregate_centroid_global_size),
+                                    cl::NDRange(warp_size_)
+                                    ),
+                                centroids.size(),
+                                centroid_merge_sum_num_blocks,
+                                d_centroids,
+                                aggregate_centroid_event
+                                ));
+                    break;
+            }
         }
 
         ++iterations;
