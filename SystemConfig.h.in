@@ -4,6 +4,8 @@
 #cmakedefine ARMADILLO_FOUND
 #cmakedefine CUDA_FOUND
 
+#cmakedefine MATRIX_BOUNDSCHECK
+
 #define CL_KERNELS_PATH "${CL_KERNELS_PATH}"
 
 #define TEST_KMEANS_NAME "${TEST_KMEANS_NAME}"
