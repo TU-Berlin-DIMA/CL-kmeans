@@ -25,6 +25,10 @@ CL_INT rcoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     return dim * row + col;
 }
 
+CL_INT div_round_up(CL_INT dividend, CL_INT divisor) {
+    return (dividend + divisor - 1) / divisor;
+}
+
 /*
  * Update centroids
  * 
@@ -39,40 +43,71 @@ void lloyd_merge_sum(
         __global CL_INT const *const restrict g_labels,
         __local CL_FP *const restrict l_points,
         __local CL_INT *const restrict l_mass,
+        __local CL_INT *const restrict l_labels,
         const CL_INT NUM_FEATURES,
         const CL_INT NUM_POINTS,
         const CL_INT NUM_CLUSTERS
        ) {
 
-    CL_INT const my_row = get_global_id(0) % NUM_CLUSTERS;
-    CL_INT const my_col = (get_global_id(0) / NUM_CLUSTERS) % NUM_FEATURES;
-    CL_INT const my_blk = (get_global_id(0) / NUM_CLUSTERS) / NUM_FEATURES;
-    CL_INT const blk_size = NUM_CLUSTERS * NUM_FEATURES;
-    CL_INT const num_blks = (blk_size + get_global_size(0) - 1) / get_global_size(0);
-    CL_INT const num_local_rows = (get_local_size(0) + NUM_CLUSTERS - 1) / NUM_CLUSTERS;
+    CL_INT const num_local_cols = max((CL_INT)1, (CL_INT)get_local_size(0) / NUM_CLUSTERS);
+    CL_INT const num_local_rows_points = get_local_size(0) / num_local_cols;
+    CL_INT const num_local_rows_clusters = min(NUM_CLUSTERS, num_local_rows_points);
 
-    if (my_col < NUM_FEATURES) {
-        CL_FP centroid = 0;
+    CL_INT const num_global_blocks = get_global_size(0) / (num_local_rows_points * num_local_cols);
+    CL_INT const g_block = (get_group_id(0) * get_local_size(0)) / (num_local_rows_points * num_local_cols);
 
-        for (CL_INT p = get_global_id(0); p < NUM_POINTS; p += blk_size) {
-            // p: Current point global index
+    CL_INT const num_tile_cols = div_round_up(NUM_FEATURES, num_local_cols);
+    CL_INT const num_tile_rows = div_round_up(NUM_CLUSTERS, num_local_rows_clusters);
 
-            if (my_row < NUM_CLUSTERS) {
-                l_points[get_local_id(0)] = g_points[p];
+    CL_INT const l_col = get_local_id(0) / num_local_rows_points;
+    CL_INT const l_row = get_local_id(0) % num_local_rows_points;
+
+    CL_INT const t_col = (get_global_id(0) / (num_local_cols * num_local_rows_clusters * num_tile_rows)) % num_tile_cols;
+    CL_INT const t_row = (get_global_id(0) / num_local_rows_clusters) % num_tile_rows;
+
+    CL_INT const b_col = l_col + num_local_cols * t_col;
+    CL_INT const b_row = l_row + num_local_rows_clusters * t_row;
+
+    if (b_col >= NUM_FEATURES) {
+        return;
+    }
+
+    CL_FP centroid = 0;
+
+    for (CL_INT p = num_local_rows_points * g_block; p < NUM_POINTS; p += num_local_rows_points * num_global_blocks) {
+        // p: Current point global index
+
+        if (p + l_row < NUM_POINTS) {
+            if (l_col == 0) {
+                l_labels[l_row] = g_labels[p + l_row];
             }
 
-            barrier(CLK_LOCAL_MEM_FENCE);
+            l_points[ccoord2ind(num_local_rows_points, l_row, l_col)] = g_points[ccoord2ind(NUM_POINTS, p + l_row, b_col)];
+        }
 
-            for (CL_INT r = 0; r < num_local_rows; ++r) {
-                centroid += l_points[ccoord2ind(num_local_rows, r, my_col)];
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        if (b_row < NUM_CLUSTERS && l_row < num_local_rows_clusters) {
+            for (CL_INT r = 0; r < num_local_rows_points && p + r < NUM_POINTS; ++r) {
+                if (l_labels[r] == b_row) {
+                    centroid += l_points[ccoord2ind(num_local_rows_points, r, l_col)];
+                }
             }
         }
+    }
 
-        // TODO: only 1 thread per centroid loads mass
-        // threads processing other features of same centroid use it
-        if (my_row < NUM_CLUSTERS) {
-            CL_INT mass = g_mass[my_col];
-            g_centroids[get_global_id(0)] = centroid / mass;
+    if (b_row < NUM_CLUSTERS && l_row < num_local_rows_clusters) {
+        if (l_col == 0) {
+            l_mass[l_row] = g_mass[b_row];
         }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (b_row < NUM_CLUSTERS && l_row < num_local_rows_clusters) {
+        CL_INT mass = l_mass[l_row];
+        CL_INT tile_ind = ccoord2ind(NUM_CLUSTERS, b_row, b_col);
+        CL_INT global_ind = tile_ind + NUM_CLUSTERS * NUM_FEATURES * g_block;
+        g_centroids[global_ind] = centroid / mass;
     }
 }

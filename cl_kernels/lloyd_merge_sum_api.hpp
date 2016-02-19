@@ -16,6 +16,7 @@
 #include <cassert>
 #include <type_traits>
 #include <memory>
+#include <algorithm>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -78,16 +79,20 @@ namespace cle {
                 cl::Event& event
                 ) {
 
+            assert(args.global_[0] >= num_features * num_clusters);
             assert(labels.size() == num_points);
-
-            // TODO
-            size_t const num_local_centroids = 1;
 
             cl::LocalSpaceArg local_points =
                 cl::Local(args.local_[0] * sizeof(CL_FP));
 
             cl::LocalSpaceArg local_mass =
-                cl::Local(num_local_centroids * sizeof(CL_INT));
+                cl::Local(get_num_local_rows_points(
+                            args.local_[0],
+                            num_clusters)
+                        * sizeof(CL_INT));
+
+            cl::LocalSpaceArg local_labels =
+                cl::Local(args.local_[0] * sizeof(CL_INT));
 
             cle_sanitize_val_return(
                     lloyd_merge_sum_kernel_->setArg(0, (cl::Buffer&)points));
@@ -108,13 +113,16 @@ namespace cle {
                     lloyd_merge_sum_kernel_->setArg(5, local_mass));
 
             cle_sanitize_val_return(
-                    lloyd_merge_sum_kernel_->setArg(6, num_features));
+                    lloyd_merge_sum_kernel_->setArg(6, local_labels));
 
             cle_sanitize_val_return(
-                    lloyd_merge_sum_kernel_->setArg(7, num_points));
+                    lloyd_merge_sum_kernel_->setArg(7, num_features));
 
             cle_sanitize_val_return(
-                    lloyd_merge_sum_kernel_->setArg(8, num_clusters));
+                    lloyd_merge_sum_kernel_->setArg(8, num_points));
+
+            cle_sanitize_val_return(
+                    lloyd_merge_sum_kernel_->setArg(9, num_clusters));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
@@ -127,6 +135,44 @@ namespace cle {
                     ));
 
             return CL_SUCCESS;
+        }
+
+        size_t get_num_local_cols(
+                size_t const local_size,
+                size_t const num_clusters
+                ) const {
+
+            return std::max((size_t)1, local_size / num_clusters);
+        }
+
+        size_t get_num_local_rows_points(
+                size_t const local_size,
+                size_t const num_clusters
+                ) const {
+
+            return local_size / get_num_local_cols(local_size, num_clusters);
+        }
+
+        size_t get_num_local_rows_clusters(
+                size_t const local_size,
+                size_t const num_clusters
+                ) const {
+
+            return std::min(
+                    num_clusters,
+                    get_num_local_rows_points(local_size, num_clusters));
+        }
+
+        size_t get_num_global_blocks(
+                size_t const global_size,
+                size_t const local_size,
+                size_t const num_features,
+                size_t const num_clusters
+                ) const {
+
+            return global_size / (
+                    get_num_local_rows_points(local_size, num_clusters)
+                    * get_num_local_cols(local_size, num_clusters));
         }
 
     private:

@@ -115,9 +115,17 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
         cle::optimize_global_size(aggregate_mass_num_work_items , warp_size_);
     uint64_t const feature_sum_global_size =
         cle::optimize_global_size(points.cols(), warp_size_);
-    uint64_t const merge_sum_global_size = warp_size_ * 24;
+    uint64_t const merge_sum_global_size = warp_size_ * 2;
+        // cle::optimize_global_size(points.size(), warp_size_);
     uint64_t const aggregate_centroid_global_size = warp_size_ * 24;
-    uint64_t const centroid_merge_sum_num_blocks = (centroids.size() + merge_sum_global_size + - 1) / merge_sum_global_size;
+    uint64_t const centroid_merge_sum_num_blocks =
+        merge_sum_kernel_.get_num_global_blocks(
+                merge_sum_global_size,
+                warp_size_,
+                centroids.cols(),
+                centroids.rows());
+    std::cout << "Global size: " << merge_sum_global_size << std::endl;
+    std::cout << "Num blocks: " << centroid_merge_sum_num_blocks << std::endl;
 
     std::vector<cl_char> h_did_changes(1);
 
@@ -141,7 +149,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     cle_sanitize_val_return(
             queue_.enqueueFillBuffer(
                 d_labels,
-                0,
+                std::numeric_limits<CL_INT>::max(),
                 0,
                 d_labels.bytes()
                 ));
