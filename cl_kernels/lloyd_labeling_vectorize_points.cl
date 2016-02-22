@@ -16,8 +16,8 @@
 #define CL_FPVEC float
 #define CL_INTVEC uint
 #define CL_SINTVEC int
-#define CL_VLOAD vload
-#define CL_VSTORE vstore
+#define CL_VLOAD vload1
+#define CL_VSTORE vstore1
 #endif
 
 #if VEC_LEN == 2
@@ -55,8 +55,6 @@
 #define CL_FPVEC double
 #define CL_INTVEC ulong
 #define CL_SINTVEC long
-#define CL_VLOAD vload
-#define CL_VSTORE vstore
 #endif
 
 #if VEC_LEN == 2
@@ -123,7 +121,11 @@ void lloyd_labeling_vectorize_points(
     for (CL_INT p = get_global_id(0) * VEC_LEN; p < NUM_POINTS; p += get_global_size(0) * VEC_LEN) {
 
         // Phase 1
+#if VEC_LEN == 1
+        CL_INTVEC label = g_labels[p];
+#else
         CL_INTVEC label = CL_VLOAD(0, &g_labels[p]);
+#endif
 
         CL_INTVEC min_c;
         CL_FPVEC min_dist = CL_FP_MAX;
@@ -134,7 +136,11 @@ void lloyd_labeling_vectorize_points(
 
 #pragma unroll FEATURES_UNROLL
             for (CL_INT f = 0; f < FEATURES_UNROLL; ++f) {
+#if VEC_LEN == 1
+                CL_FPVEC point = g_points[ccoord2ind(NUM_POINTS, p, f)];
+#else
                 CL_FPVEC point = CL_VLOAD(0, &g_points[ccoord2ind(NUM_POINTS, p, f)]);
+#endif
                 CL_FPVEC difference = point - l_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
                 dist += difference * difference;
             }
@@ -144,8 +150,13 @@ void lloyd_labeling_vectorize_points(
             min_c = select(min_c, c, is_dist_smaller);
         }
 
-        did_changes |= any(min_c != label);
+#if VEC_LEN == 1
+        g_labels[p] = min_c;
+        did_changes |= min_c != label;
+#else
         CL_VSTORE(min_c, 0, &g_labels[p]);
+        did_changes |= any(min_c != label);
+#endif
     }
 
     // Write back to global memory
