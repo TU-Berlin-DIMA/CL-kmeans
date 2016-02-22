@@ -74,7 +74,7 @@ void lloyd_labeling(
             min_c = (is_dist_smaller ? c : min_c);
         }
 
-        did_changes = (min_c != membership ? true : false);
+        did_changes |= (min_c != membership ? true : false);
 
         g_memberships[p] = min_c;
     }
