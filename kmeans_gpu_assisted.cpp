@@ -50,7 +50,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
             labeling_vp_clc_kernel_.initialize(context_, 1, 8));
 
     cle_sanitize_done_return(
-            labeling_vp_clcp_kernel_.initialize(context_, 1, 8));
+            labeling_vp_clcp_kernel_.initialize(context_, 4, 8));
 
     cl::Device device;
     cle_sanitize_val_return(
@@ -87,7 +87,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
     bool did_changes;
 
     size_t local_size = warp_size_ * 4;
-    size_t global_size = local_size * 90;
+    size_t global_size = local_size * 90 * 32;
 
     std::vector<cl_char> h_did_changes(1);
 
