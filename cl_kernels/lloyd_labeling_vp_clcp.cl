@@ -158,24 +158,22 @@ void lloyd_labeling_vp_clcp(
             for (CL_INT c = 0; c < CLUSTERS_UNROLL; ++c) {
                 CL_FPVEC dist = 0;
 
-                for (CL_INT g = 0; g < NUM_FEATURES; g += FEATURES_UNROLL) {
 #pragma unroll FEATURES_UNROLL
-                    for (CL_INT f = 0; f < FEATURES_UNROLL; ++f) {
-                        CL_FPVEC point =
-                            l_points[ccoord2ind(
-                                    get_local_size(0),
-                                    get_local_id(0),
-                                    g + f
-                                    )];
+                for (CL_INT f = 0; f < FEATURES_UNROLL; ++f) {
+                    CL_FPVEC point =
+                        l_points[ccoord2ind(
+                                get_local_size(0),
+                                get_local_id(0),
+                                f
+                                )];
 
-                        CL_FPVEC difference =
-                            point - l_centroids[
-                            ccoord2ind(NUM_CLUSTERS, d + c, g + f)
-                            ];
+                    CL_FPVEC difference =
+                        point - l_centroids[
+                        ccoord2ind(NUM_CLUSTERS, d + c, f)
+                        ];
 
                         dist += difference * difference;
                     }
-                }
 
                 CL_SINTVEC is_dist_smaller = isless(dist, min_dist);
                 min_dist = select(min_dist, dist, is_dist_smaller);

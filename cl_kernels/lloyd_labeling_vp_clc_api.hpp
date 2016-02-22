@@ -31,7 +31,7 @@ namespace cle {
     template <typename CL_FP, typename CL_INT>
     class LloydLabelingVpClcAPI {
     public:
-        cl_int initialize(cl::Context& context, int vector_length, int unroll_max = 16) {
+        cl_int initialize(cl::Context& context, int vector_length, unsigned int unroll_max = 16) {
             constexpr int num_tiles_variants = 10;
             vector_length_ = vector_length;
             unroll_max_ = unroll_max;
@@ -148,14 +148,14 @@ namespace cle {
             assert(labels.size() == num_points);
             assert(centroids.size() >= num_clusters * num_features);
             assert(num_points % vector_length_ == 0);
+            assert(num_features <= unroll_max_);
 
             cl::LocalSpaceArg local_centroids = cl::Local(centroids.bytes());
 
-            int cluster_unroll = num_clusters;
-            int feature_unroll = num_features;
+            unsigned int cluster_unroll = num_clusters;
+            unsigned int feature_unroll = num_features;
 
             cluster_unroll = std::min(cluster_unroll, unroll_max_);
-            feature_unroll = std::min(feature_unroll, unroll_max_);
 
             int num = 0;
             switch (cluster_unroll) {
@@ -262,7 +262,7 @@ namespace cle {
 
         std::vector<std::shared_ptr<cl::Kernel>> labeling_vp_clc_kernel_;
         int vector_length_;
-        int unroll_max_;
+        unsigned int unroll_max_;
     };
 }
 
