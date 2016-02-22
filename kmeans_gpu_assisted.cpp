@@ -12,6 +12,7 @@
 #include "cle/common.hpp"
 #include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_labeling_vp_clc_api.hpp"
+#include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
 
 #include <cstdint>
 #include <cstddef> // size_t
@@ -47,6 +48,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
 
     cle_sanitize_done_return(
             labeling_vp_clc_kernel_.initialize(context_, 1, 8));
+
+    cle_sanitize_done_return(
+            labeling_vp_clcp_kernel_.initialize(context_, 1, 8));
 
     cl::Device device;
     cle_sanitize_val_return(
@@ -140,7 +144,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                 cle_sanitize_done_return(
                         labeling_kernel_(
                             cl::EnqueueArgs(
-                                this->queue_,
+                                queue_,
                                 cl::NDRange(global_size),
                                 cl::NDRange(warp_size_)
                                 ),
@@ -171,6 +175,25 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                             d_memberships,
                             labeling_event
                             ));
+                break;
+            case LabelingStrategy::VpClcp:
+                cle_sanitize_done_return(
+                        labeling_vp_clcp_kernel_(
+                            cl::EnqueueArgs(
+                                queue_,
+                                cl::NDRange(global_size),
+                                cl::NDRange(local_size)
+                                ),
+                            d_did_changes,
+                            points.cols(),
+                            points.rows(),
+                            centroids.rows(),
+                            d_points,
+                            d_centroids,
+                            d_memberships,
+                            labeling_event
+                            ));
+                break;
         }
 
         // copy did_changes device -> host

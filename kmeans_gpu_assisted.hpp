@@ -12,6 +12,7 @@
 
 #include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_labeling_vp_clc_api.hpp"
+#include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
 
@@ -37,7 +38,8 @@ public:
 
     enum class LabelingStrategy {
         Plain,
-        VpClc
+        VpClc,
+        VpClcp
     };
 
     char const* name() const;
@@ -62,10 +64,11 @@ private:
 
     cle::LloydLabelingAPI<CL_FP, CL_INT> labeling_kernel_;
     cle::LloydLabelingVpClcAPI<CL_FP, CL_INT> labeling_vp_clc_kernel_;
+    cle::LloydLabelingVpClcpAPI<CL_FP, CL_INT> labeling_vp_clcp_kernel_;
     cl::Context context_;
     cl::CommandQueue queue_;
 
-    LabelingStrategy labeling_strategy_ = LabelingStrategy::VpClc;
+    LabelingStrategy labeling_strategy_ = LabelingStrategy::VpClcp;
 
     cl_uint warp_size_;
 };
