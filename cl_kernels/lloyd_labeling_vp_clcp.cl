@@ -161,21 +161,13 @@ void lloyd_labeling_vp_clcp(
                 for (CL_INT g = 0; g < NUM_FEATURES; g += FEATURES_UNROLL) {
 #pragma unroll FEATURES_UNROLL
                     for (CL_INT f = 0; f < FEATURES_UNROLL; ++f) {
-#if VEC_LEN == 1
                         CL_FPVEC point =
                             l_points[ccoord2ind(
                                     get_local_size(0),
                                     get_local_id(0),
                                     g + f
                                     )];
-#else
-                        CL_FPVEC point =
-                            l_points[ccoord2ind(
-                                    get_local_size(0),
-                                    get_local_id(0),
-                                    g + f
-                                    )];
-#endif
+
                         CL_FPVEC difference =
                             point - l_centroids[
                             ccoord2ind(NUM_CLUSTERS, d + c, g + f)
