@@ -11,6 +11,7 @@
 
 #include "cle/common.hpp"
 #include "cl_kernels/lloyd_labeling_api.hpp"
+#include "cl_kernels/lloyd_labeling_vectorize_points_api.hpp"
 
 #include <cstdint>
 #include <cstddef> // size_t
@@ -40,13 +41,12 @@ char const* cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::name() const {
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
 
-    cl_int err = CL_SUCCESS;
-
     // Create kernel
-    err = this->labeling_kernel_.initialize(this->context_);
-    if (err != CL_SUCCESS) {
-        return err;
-    }
+    cle_sanitize_done_return(
+            labeling_kernel_.initialize(context_));
+
+    cle_sanitize_done_return(
+            labeling_kernel_vec_.initialize(context_, 2));
 
     cl::Device device;
     cle_sanitize_val_return(
@@ -82,7 +82,8 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
     uint32_t iterations;
     bool did_changes;
 
-    size_t global_size = cle::optimize_global_size(points.rows(), warp_size_);
+    size_t local_size = warp_size_ * 4;
+    size_t global_size = local_size * 90;
 
     std::vector<cl_char> h_did_changes(1);
 
@@ -134,22 +135,43 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
 
         // execute kernel
         cl::Event labeling_event;
-        cle_sanitize_done_return(
-                labeling_kernel_(
-                cl::EnqueueArgs(
-                    this->queue_,
-                    cl::NDRange(global_size),
-                    cl::NDRange(warp_size_)
-                    ),
-                d_did_changes,
-                points.cols(),
-                points.rows(),
-                centroids.rows(),
-                d_points,
-                d_centroids,
-                d_memberships,
-                labeling_event
-                ));
+        switch (labeling_strategy_) {
+            case LabelingStrategy::Plain:
+                cle_sanitize_done_return(
+                        labeling_kernel_(
+                            cl::EnqueueArgs(
+                                this->queue_,
+                                cl::NDRange(global_size),
+                                cl::NDRange(warp_size_)
+                                ),
+                            d_did_changes,
+                            points.cols(),
+                            points.rows(),
+                            centroids.rows(),
+                            d_points,
+                            d_centroids,
+                            d_memberships,
+                            labeling_event
+                            ));
+                break;
+            case LabelingStrategy::VectorizePoints:
+                cle_sanitize_done_return(
+                        labeling_kernel_vec_(
+                            cl::EnqueueArgs(
+                                queue_,
+                                cl::NDRange(global_size),
+                                cl::NDRange(local_size)
+                                ),
+                            d_did_changes,
+                            points.cols(),
+                            points.rows(),
+                            centroids.rows(),
+                            d_points,
+                            d_centroids,
+                            d_memberships,
+                            labeling_event
+                            ));
+        }
 
         // copy did_changes device -> host
         cle_sanitize_val(
