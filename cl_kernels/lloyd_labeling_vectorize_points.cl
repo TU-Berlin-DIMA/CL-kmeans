@@ -130,24 +130,37 @@ void lloyd_labeling_vectorize_points(
         CL_INTVEC min_c;
         CL_FPVEC min_dist = CL_FP_MAX;
 
+        for (CL_INT d = 0; d < NUM_CLUSTERS; d += CLUSTERS_UNROLL) {
 #pragma unroll CLUSTERS_UNROLL
-        for (CL_INT c = 0; c < CLUSTERS_UNROLL; ++c) {
-            CL_FPVEC dist = 0;
+            for (CL_INT c = 0; c < CLUSTERS_UNROLL; ++c) {
+                CL_FPVEC dist = 0;
 
+                for (CL_INT g = 0; g < NUM_FEATURES; g += FEATURES_UNROLL) {
 #pragma unroll FEATURES_UNROLL
-            for (CL_INT f = 0; f < FEATURES_UNROLL; ++f) {
+                    for (CL_INT f = 0; f < FEATURES_UNROLL; ++f) {
 #if VEC_LEN == 1
-                CL_FPVEC point = g_points[ccoord2ind(NUM_POINTS, p, f)];
+                        CL_FPVEC point =
+                            g_points[ccoord2ind(NUM_POINTS, p, g + f)];
 #else
-                CL_FPVEC point = CL_VLOAD(0, &g_points[ccoord2ind(NUM_POINTS, p, f)]);
+                        CL_FPVEC point =
+                            CL_VLOAD(
+                                    0,
+                                    &g_points[ccoord2ind(NUM_POINTS, p, g + f)]
+                                    );
 #endif
-                CL_FPVEC difference = point - l_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
-                dist += difference * difference;
-            }
+                        CL_FPVEC difference =
+                            point - l_centroids[
+                            ccoord2ind(NUM_CLUSTERS, d + c, g + f)
+                            ];
 
-            CL_SINTVEC is_dist_smaller = isless(dist, min_dist);
-            min_dist = select(min_dist, dist, is_dist_smaller);
-            min_c = select(min_c, c, is_dist_smaller);
+                        dist += difference * difference;
+                    }
+                }
+
+                CL_SINTVEC is_dist_smaller = isless(dist, min_dist);
+                min_dist = select(min_dist, dist, is_dist_smaller);
+                min_c = select(min_c, d + c, is_dist_smaller);
+            }
         }
 
 #if VEC_LEN == 1

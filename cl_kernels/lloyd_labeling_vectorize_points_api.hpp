@@ -34,6 +34,7 @@ namespace cle {
         cl_int initialize(cl::Context& context, int vector_length, int unroll_max = 16) {
             constexpr int num_tiles_variants = 10;
             vector_length_ = vector_length;
+            unroll_max_ = unroll_max;
 
             cl_int error_code = CL_SUCCESS;
 
@@ -99,9 +100,6 @@ namespace cle {
                         break;
                 }
 
-                unroll_clusters = std::min(unroll_max, unroll_clusters);
-                unroll_features = std::min(unroll_max, unroll_features);
-
                 std::string unroll =
                     " -DCLUSTERS_UNROLL=" + std::to_string(unroll_clusters)
                     + " -DFEATURES_UNROLL=" + std::to_string(unroll_features);
@@ -153,10 +151,16 @@ namespace cle {
 
             cl::LocalSpaceArg local_centroids = cl::Local(centroids.bytes());
 
+            int cluster_unroll = num_clusters;
+            int feature_unroll = num_features;
+
+            cluster_unroll = std::min(cluster_unroll, unroll_max_);
+            feature_unroll = std::min(feature_unroll, unroll_max_);
+
             int num = 0;
-            switch (num_clusters) {
+            switch (cluster_unroll) {
                 case 2:
-                    switch (num_features) {
+                    switch (feature_unroll) {
                         case 2:
                             num = 0;
                             break;
@@ -174,7 +178,7 @@ namespace cle {
                     }
                     break;
                 case 4:
-                    switch (num_features) {
+                    switch (feature_unroll) {
                         case 2:
                             num = 4;
                             break;
@@ -189,7 +193,7 @@ namespace cle {
                     }
                     break;
                 case 8:
-                    switch (num_features) {
+                    switch (feature_unroll) {
                         case 2:
                             num = 7;
                             break;
@@ -201,7 +205,7 @@ namespace cle {
                     }
                     break;
                 case 16:
-                    switch (num_features) {
+                    switch (feature_unroll) {
                         case 2:
                             num = 9;
                             break;
@@ -258,6 +262,7 @@ namespace cle {
 
         std::vector<std::shared_ptr<cl::Kernel>> labeling_vectorize_points_kernel_;
         int vector_length_;
+        int unroll_max_;
     };
 }
 

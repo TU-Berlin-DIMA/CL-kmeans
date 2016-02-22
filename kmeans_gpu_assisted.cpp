@@ -46,7 +46,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
             labeling_kernel_.initialize(context_));
 
     cle_sanitize_done_return(
-            labeling_kernel_vec_.initialize(context_, 1));
+            labeling_kernel_vec_.initialize(context_, 1, 8));
 
     cl::Device device;
     cle_sanitize_val_return(
