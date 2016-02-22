@@ -93,7 +93,7 @@ CL_INT rcoord2ind(CL_INT cdim, CL_INT row, CL_INT col) {
 }
 
 __kernel
-void lloyd_labeling_vectorize_points(
+void lloyd_labeling_vp_clc(
             __global char *g_did_changes,
             __global CL_FP const *const restrict g_points,
             __global CL_FP const *const restrict g_centroids,

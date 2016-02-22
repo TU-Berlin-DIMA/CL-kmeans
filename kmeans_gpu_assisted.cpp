@@ -11,7 +11,7 @@
 
 #include "cle/common.hpp"
 #include "cl_kernels/lloyd_labeling_api.hpp"
-#include "cl_kernels/lloyd_labeling_vectorize_points_api.hpp"
+#include "cl_kernels/lloyd_labeling_vp_clc_api.hpp"
 
 #include <cstdint>
 #include <cstddef> // size_t
@@ -46,7 +46,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
             labeling_kernel_.initialize(context_));
 
     cle_sanitize_done_return(
-            labeling_kernel_vec_.initialize(context_, 1, 8));
+            labeling_vp_clc_kernel_.initialize(context_, 1, 8));
 
     cl::Device device;
     cle_sanitize_val_return(
@@ -154,9 +154,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                             labeling_event
                             ));
                 break;
-            case LabelingStrategy::VectorizePoints:
+            case LabelingStrategy::VpClc:
                 cle_sanitize_done_return(
-                        labeling_kernel_vec_(
+                        labeling_vp_clc_kernel_(
                             cl::EnqueueArgs(
                                 queue_,
                                 cl::NDRange(global_size),

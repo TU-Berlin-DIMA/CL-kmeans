@@ -11,7 +11,7 @@
 #define KMEANS_GPU_ASSISTED_HPP
 
 #include "cl_kernels/lloyd_labeling_api.hpp"
-#include "cl_kernels/lloyd_labeling_vectorize_points_api.hpp"
+#include "cl_kernels/lloyd_labeling_vp_clc_api.hpp"
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
 
@@ -37,7 +37,7 @@ public:
 
     enum class LabelingStrategy {
         Plain,
-        VectorizePoints
+        VpClc
     };
 
     char const* name() const;
@@ -61,11 +61,11 @@ private:
         std::is_same<INT, uint32_t>::value, cl_uint, cl_ulong>::type;
 
     cle::LloydLabelingAPI<CL_FP, CL_INT> labeling_kernel_;
-    cle::LloydLabelingVectorizePointsAPI<CL_FP, CL_INT> labeling_kernel_vec_;
+    cle::LloydLabelingVpClcAPI<CL_FP, CL_INT> labeling_vp_clc_kernel_;
     cl::Context context_;
     cl::CommandQueue queue_;
 
-    LabelingStrategy labeling_strategy_ = LabelingStrategy::VectorizePoints;
+    LabelingStrategy labeling_strategy_ = LabelingStrategy::VpClc;
 
     cl_uint warp_size_;
 };

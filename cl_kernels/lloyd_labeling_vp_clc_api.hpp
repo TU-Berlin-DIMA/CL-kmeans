@@ -7,8 +7,8 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifndef LLOYD_LABELING_VECTORIZE_POINTS_API_HPP
-#define LLOYD_LABELING_VECTORIZE_POINTS_API_HPP
+#ifndef LLOYD_LABELING_VP_CLC_API_HPP
+#define LLOYD_LABELING_VP_CLC_API_HPP
 
 #include "../cle/common.hpp"
 
@@ -29,7 +29,7 @@
 namespace cle {
 
     template <typename CL_FP, typename CL_INT>
-    class LloydLabelingVectorizePointsAPI {
+    class LloydLabelingVpClcAPI {
     public:
         cl_int initialize(cl::Context& context, int vector_length, int unroll_max = 16) {
             constexpr int num_tiles_variants = 10;
@@ -51,7 +51,7 @@ namespace cle {
 
             defines += " -DVEC_LEN=" + std::to_string(vector_length);
 
-            labeling_vectorize_points_kernel_.resize(num_tiles_variants);
+            labeling_vp_clc_kernel_.resize(num_tiles_variants);
 
             for (int i = 0; i < num_tiles_variants; ++i) {
                 int unroll_features;
@@ -111,7 +111,7 @@ namespace cle {
                     return error_code;
                 }
 
-                labeling_vectorize_points_kernel_[i].reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
+                labeling_vp_clc_kernel_[i].reset(new cl::Kernel(program, KERNEL_NAME, &error_code));
                 sanitize_make_kernel(error_code, context, program);
             }
 
@@ -220,32 +220,32 @@ namespace cle {
             assert(num != -1 /* unsupported num clusters or featurs */);
 
             cle_sanitize_val_return(
-                    labeling_vectorize_points_kernel_[num]->setArg(0, (cl::Buffer&)did_changes));
+                    labeling_vp_clc_kernel_[num]->setArg(0, (cl::Buffer&)did_changes));
 
             cle_sanitize_val_return(
-                    labeling_vectorize_points_kernel_[num]->setArg(1, (cl::Buffer&)points));
+                    labeling_vp_clc_kernel_[num]->setArg(1, (cl::Buffer&)points));
 
             cle_sanitize_val_return(
-                    labeling_vectorize_points_kernel_[num]->setArg(2, (cl::Buffer&)centroids));
+                    labeling_vp_clc_kernel_[num]->setArg(2, (cl::Buffer&)centroids));
 
             cle_sanitize_val_return(
-                    labeling_vectorize_points_kernel_[num]->setArg(3, (cl::Buffer&)labels));
+                    labeling_vp_clc_kernel_[num]->setArg(3, (cl::Buffer&)labels));
 
             cle_sanitize_val_return(
-                    labeling_vectorize_points_kernel_[num]->setArg(4, local_centroids));
+                    labeling_vp_clc_kernel_[num]->setArg(4, local_centroids));
 
             cle_sanitize_val_return(
-                    labeling_vectorize_points_kernel_[num]->setArg(5, num_features));
+                    labeling_vp_clc_kernel_[num]->setArg(5, num_features));
 
             cle_sanitize_val_return(
-                    labeling_vectorize_points_kernel_[num]->setArg(6, num_points));
+                    labeling_vp_clc_kernel_[num]->setArg(6, num_points));
 
             cle_sanitize_val_return(
-                    labeling_vectorize_points_kernel_[num]->setArg(7, num_clusters));
+                    labeling_vp_clc_kernel_[num]->setArg(7, num_clusters));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
-                    *(labeling_vectorize_points_kernel_[num]),
+                    *(labeling_vp_clc_kernel_[num]),
                     args.offset_,
                     args.global_,
                     args.local_,
@@ -257,13 +257,13 @@ namespace cle {
         }
 
     private:
-        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling_vectorize_points.cl");
-        static constexpr const char* KERNEL_NAME = "lloyd_labeling_vectorize_points";
+        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling_vp_clc.cl");
+        static constexpr const char* KERNEL_NAME = "lloyd_labeling_vp_clc";
 
-        std::vector<std::shared_ptr<cl::Kernel>> labeling_vectorize_points_kernel_;
+        std::vector<std::shared_ptr<cl::Kernel>> labeling_vp_clc_kernel_;
         int vector_length_;
         int unroll_max_;
     };
 }
 
-#endif /* LLOYD_LABELING_VECTORIZE_POINTS_API_HPP */
+#endif /* LLOYD_LABELING_VP_CLC_API_HPP */
