@@ -47,16 +47,18 @@ public:
         AggregateSumMass
     };
 
-    DataPoint(Type type, uint64_t nanoseconds);
-    DataPoint(Type type);
+    DataPoint(Type type, int iteration, uint64_t nanoseconds);
+    DataPoint(Type type, int iteration);
 
     Type get_type();
     char const* get_name();
+    int get_iteration();
     uint64_t get_nanoseconds();
     cl::Event& get_event();
 
 private:
     Type type_;
+    int iteration_;
     uint64_t nanoseconds_;
     bool has_event_;
     cl::Event event_;

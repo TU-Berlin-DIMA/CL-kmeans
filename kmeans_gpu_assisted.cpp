@@ -99,7 +99,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
 
 
     // copy points (x,y) host -> device
-    stats.data_points.emplace_back(cle::DataPoint::Type::H2DPoints);
+    stats.data_points.emplace_back(cle::DataPoint::Type::H2DPoints, -1);
     cle_sanitize_val_return(
             this->queue_.enqueueWriteBuffer(
                 d_points,
@@ -111,7 +111,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                 &stats.data_points.back().get_event()
                 ));
 
-    stats.data_points.emplace_back(cle::DataPoint::Type::FillLables);
+    stats.data_points.emplace_back(cle::DataPoint::Type::FillLables, -1);
     cle_sanitize_val_return(
             this->queue_.enqueueFillBuffer(
                 d_memberships,
@@ -128,7 +128,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
     while (did_changes == true && iterations < max_iterations) {
 
         // set did_changes to false on device
-        stats.data_points.emplace_back(cle::DataPoint::Type::FillChanges);
+        stats.data_points.emplace_back(
+                cle::DataPoint::Type::FillChanges,
+                iterations);
         cle_sanitize_val(
                 this->queue_.enqueueFillBuffer(
                     d_did_changes,
@@ -139,7 +141,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                     &stats.data_points.back().get_event()
                     ));
 
-        stats.data_points.emplace_back(cle::DataPoint::Type::H2DCentroids);
+        stats.data_points.emplace_back(
+                cle::DataPoint::Type::H2DCentroids,
+                iterations);
         cle_sanitize_val_return(
                 this->queue_.enqueueWriteBuffer(
                     d_centroids,
@@ -155,7 +159,8 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
         switch (labeling_strategy_) {
             case LabelingStrategy::Plain:
                 stats.data_points.emplace_back(
-                        cle::DataPoint::Type::LloydLabelingPlain);
+                        cle::DataPoint::Type::LloydLabelingPlain,
+                        iterations);
                 cle_sanitize_done_return(
                         labeling_kernel_(
                             cl::EnqueueArgs(
@@ -175,7 +180,8 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                 break;
             case LabelingStrategy::VpClc:
                 stats.data_points.emplace_back(
-                        cle::DataPoint::Type::LloydLabelingVpClc);
+                        cle::DataPoint::Type::LloydLabelingVpClc,
+                        iterations);
                 cle_sanitize_done_return(
                         labeling_vp_clc_kernel_(
                             cl::EnqueueArgs(
@@ -195,7 +201,8 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                 break;
             case LabelingStrategy::VpClcp:
                 stats.data_points.emplace_back(
-                        cle::DataPoint::Type::LloydLabelingVpClcp);
+                        cle::DataPoint::Type::LloydLabelingVpClcp,
+                        iterations);
                 cle_sanitize_done_return(
                         labeling_vp_clcp_kernel_(
                             cl::EnqueueArgs(
@@ -216,7 +223,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
         }
 
         // copy did_changes device -> host
-        stats.data_points.emplace_back(cle::DataPoint::Type::D2HChanges);
+        stats.data_points.emplace_back(
+                cle::DataPoint::Type::D2HChanges,
+                iterations);
         cle_sanitize_val(
                 this->queue_.enqueueReadBuffer(
                     d_did_changes,
@@ -228,7 +237,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                     &stats.data_points.back().get_event()
                     ));
 
-        stats.data_points.emplace_back(cle::DataPoint::Type::D2HLabels);
+        stats.data_points.emplace_back(
+                cle::DataPoint::Type::D2HLabels,
+                iterations);
         cle_sanitize_val(
                 this->queue_.enqueueReadBuffer(
                     d_memberships,
@@ -277,6 +288,7 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
 
             stats.data_points.emplace_back(
                     cle::DataPoint::Type::LloydCentroidsNaive,
+                    iterations,
                     centroids_cpu_time);
         }
 

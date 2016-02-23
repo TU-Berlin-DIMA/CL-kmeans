@@ -32,16 +32,18 @@ char const* cle_data_point_type_name[] = {
     "AggregateSumMass"
 };
 
-cle::DataPoint::DataPoint(Type type, uint64_t nanoseconds)
+cle::DataPoint::DataPoint(Type type, int iteration, uint64_t nanoseconds)
     :
         type_(type),
+        iteration_(iteration),
         nanoseconds_(nanoseconds),
         has_event_(false)
 {}
 
-cle::DataPoint::DataPoint(Type type)
+cle::DataPoint::DataPoint(Type type, int iteration)
     :
         type_(type),
+        iteration_(iteration),
         nanoseconds_(0),
         has_event_(true)
 {}
@@ -52,6 +54,10 @@ cle::DataPoint::Type cle::DataPoint::get_type() {
 
 char const* cle::DataPoint::get_name() {
     return cle_data_point_type_name[type_];
+}
+
+int cle::DataPoint::get_iteration() {
+    return iteration_;
 }
 
 uint64_t cle::DataPoint::get_nanoseconds() {
