@@ -41,10 +41,13 @@ public:
         LloydLabelingPlain,
         LloydLabelingVpClc,
         LloydLabelingVpClcp,
+        LloydMassSumGlobalAtomic,
+        LloydMassSumMerge,
         LloydCentroidsNaive,
         LloydCentroidsFeatureSum,
-        LloydCentroidsMassSum,
-        AggregateSumMass
+        LloydCentroidsMergeSum,
+        AggregateMass,
+        AggregateCentroids
     };
 
     DataPoint(Type type, int iteration, uint64_t nanoseconds);

@@ -115,7 +115,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
         cle::optimize_global_size(aggregate_mass_num_work_items , warp_size_);
     uint64_t const feature_sum_global_size =
         cle::optimize_global_size(points.cols(), warp_size_);
-    uint64_t const merge_sum_global_size = warp_size_ * 2;
+    uint64_t const merge_sum_global_size = warp_size_ * 24;
         // cle::optimize_global_size(points.size(), warp_size_);
     uint64_t const aggregate_centroid_global_size = warp_size_ * 24;
     uint64_t const centroid_merge_sum_num_blocks =
@@ -136,32 +136,47 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     cle::TypedBuffer<CL_INT> d_labels(context_, CL_MEM_READ_WRITE, points.rows());
 
     // copy points (x,y) host -> device
+    stats.data_points.emplace_back(
+            cle::DataPoint::Type::H2DPoints,
+            iterations);
     cle_sanitize_val_return(
             queue_.enqueueWriteBuffer(
                 d_points,
                 CL_FALSE,
                 0,
                 d_points.bytes(),
-                points.data()
+                points.data(),
+                NULL,
+                &stats.data_points.back().get_event()
                 ));
 
     // copy labels host -> device
+    stats.data_points.emplace_back(
+            cle::DataPoint::Type::FillLables,
+            iterations);
     cle_sanitize_val_return(
             queue_.enqueueFillBuffer(
                 d_labels,
                 std::numeric_limits<CL_INT>::max(),
                 0,
-                d_labels.bytes()
+                d_labels.bytes(),
+                NULL,
+                &stats.data_points.back().get_event()
                 ));
 
     // copy centroids host -> device
+    stats.data_points.emplace_back(
+            cle::DataPoint::Type::H2DCentroids,
+            iterations);
     cle_sanitize_val_return(
             queue_.enqueueWriteBuffer(
                 d_centroids,
                 CL_FALSE,
                 0,
                 d_centroids.bytes(),
-                centroids.data()
+                centroids.data(),
+                NULL,
+                &stats.data_points.back().get_event()
                 ));
 
     iterations = 0;
@@ -169,16 +184,23 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     while (did_changes == true && iterations < max_iterations) {
 
         // set did_changes to false on device
+        stats.data_points.emplace_back(
+                cle::DataPoint::Type::FillChanges,
+                iterations);
         cle_sanitize_val(
                 queue_.enqueueFillBuffer(
                     d_did_changes,
                     false,
                     0,
-                    d_did_changes.bytes()
+                    d_did_changes.bytes(),
+                    NULL,
+                    &stats.data_points.back().get_event()
                     ));
 
         // execute kernel
-        cl::Event labeling_event;
+        stats.data_points.emplace_back(
+                cle::DataPoint::Type::LloydLabelingPlain,
+                iterations);
         cle_sanitize_done_return(
                 labeling_kernel_(
                 cl::EnqueueArgs(
@@ -193,17 +215,22 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 d_points,
                 d_centroids,
                 d_labels,
-                labeling_event
+                stats.data_points.back().get_event()
                 ));
 
         // copy did_changes device -> host
+        stats.data_points.emplace_back(
+                cle::DataPoint::Type::D2HChanges,
+                iterations);
         cle_sanitize_val(
                 queue_.enqueueReadBuffer(
                     d_did_changes,
                     CL_TRUE,
                     0,
                     d_did_changes.bytes(),
-                    h_did_changes.data()
+                    h_did_changes.data(),
+                    NULL,
+                    &stats.data_points.back().get_event()
                     ));
 
         // inspect did_changes
@@ -215,9 +242,11 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
 
         if (did_changes == true) {
             // calculate cluster mass
-            cl::Event mass_sum_event;
             switch (mass_sum_strategy_) {
                 case MassSumStrategy::GlobalAtomic:
+                    stats.data_points.emplace_back(
+                            cle::DataPoint::Type::LloydMassSumGlobalAtomic,
+                            iterations);
                     cle_sanitize_done_return(
                             mass_sum_kernel_(
                                 cl::EnqueueArgs(
@@ -229,11 +258,14 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.rows(),
                                 d_labels,
                                 d_mass,
-                                mass_sum_event
+                                stats.data_points.back().get_event()
                                 ));
                     break;
 
                 case MassSumStrategy::Merge:
+                    stats.data_points.emplace_back(
+                            cle::DataPoint::Type::LloydMassSumMerge,
+                            iterations);
                     cle_sanitize_done_return(
                             mass_sum_merge_kernel_(
                                 cl::EnqueueArgs(
@@ -245,10 +277,13 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.rows(),
                                 d_labels,
                                 d_mass,
-                                mass_sum_event
+                                stats.data_points.back().get_event()
                                 ));
 
                     // aggregate masses calculated by individual work groups
+                    stats.data_points.emplace_back(
+                            cle::DataPoint::Type::AggregateMass,
+                            iterations);
                     cle_sanitize_done_return(
                             aggregate_mass_kernel_(
                                 cl::EnqueueArgs(
@@ -259,17 +294,17 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.rows(),
                                 mass_sum_merge_num_work_groups,
                                 d_mass,
-                                mass_sum_event
+                                stats.data_points.back().get_event()
                                 ));
                     break;
             }
 
             // calculate sum of points per cluster
-            cl::Event feature_sum_event;
-            cl::Event merge_sum_event;
-            cl::Event aggregate_centroid_event;
             switch (centroid_update_strategy_) {
                 case CentroidUpdateStrategy::FeatureSum:
+                    stats.data_points.emplace_back(
+                            cle::DataPoint::Type::LloydCentroidsFeatureSum,
+                            iterations);
                     cle_sanitize_done_return(
                             feature_sum_kernel_(
                                 cl::EnqueueArgs(
@@ -284,10 +319,13 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 d_centroids,
                                 d_mass,
                                 d_labels,
-                                feature_sum_event
+                                stats.data_points.back().get_event()
                                 ));
                     break;
                 case CentroidUpdateStrategy::MergeSum:
+                    stats.data_points.emplace_back(
+                            cle::DataPoint::Type::LloydCentroidsMergeSum,
+                            iterations);
                     cle_sanitize_done_return(
                             merge_sum_kernel_(
                                 cl::EnqueueArgs(
@@ -302,9 +340,12 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 d_centroids,
                                 d_mass,
                                 d_labels,
-                                merge_sum_event
+                                stats.data_points.back().get_event()
                                 ));
 
+                    stats.data_points.emplace_back(
+                            cle::DataPoint::Type::AggregateCentroids,
+                            iterations);
                     cle_sanitize_done_return(
                             aggregate_centroid_kernel_(
                                 cl::EnqueueArgs(
@@ -315,7 +356,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.size(),
                                 centroid_merge_sum_num_blocks,
                                 d_centroids,
-                                aggregate_centroid_event
+                                stats.data_points.back().get_event()
                                 ));
                     break;
             }
@@ -324,13 +365,18 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
         ++iterations;
     }
 
+    stats.data_points.emplace_back(
+            cle::DataPoint::Type::D2HLabels,
+            -1);
     cle_sanitize_val(
             queue_.enqueueReadBuffer(
                 d_labels,
                 CL_TRUE,
                 0,
                 d_labels.bytes(),
-                labels.data()
+                labels.data(),
+                NULL,
+                &stats.data_points.back().get_event()
                 ));
 
     stats.iterations = iterations;

@@ -26,10 +26,13 @@ char const* cle_data_point_type_name[] = {
     "LloydLabelingPlain",
     "LloydLabelingVpClc",
     "LloydLabelingVpClcp",
+    "LloydMassSumGlobalAtomic",
+    "LloydMassSumMerge",
     "LloydCentroidsNaive",
     "LloydCentroidsFeatureSum",
-    "LloydCentroidsMassSum",
-    "AggregateSumMass"
+    "LloydCentroidsMergeSum",
+    "AggregateMass",
+    "AggregateCentroids"
 };
 
 cle::DataPoint::DataPoint(Type type, int iteration, uint64_t nanoseconds)
