@@ -14,6 +14,8 @@
 #include <vector>
 #include <iostream>
 
+#define CLE_STRINGIFY(name) #name
+
 namespace cle {
 
 class Utils {

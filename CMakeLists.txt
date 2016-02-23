@@ -63,6 +63,7 @@ SET(BENCH_NAME "bench")
 SET(BENCH_SOURCES
     bench.cpp
     clustering_benchmark.cpp
+    kmeans_common.cpp
     kmeans_initializer.cpp
     kmeans_naive.cpp
     kmeans_gpu_assisted.cpp

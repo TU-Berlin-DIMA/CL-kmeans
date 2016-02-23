@@ -26,6 +26,7 @@ public:
     ClusteringBenchmarkStats(const uint32_t num_runs);
 
     void print_times();
+    void to_csv(char const* file_name);
 
     std::vector<uint64_t> microseconds;
     std::vector<cle::KmeansStats> kmeans_stats;

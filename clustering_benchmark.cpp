@@ -9,6 +9,8 @@
 
 #include "clustering_benchmark.hpp"
 
+#include <iostream>
+#include <fstream>
 #include <cstdint>
 #include <algorithm> // std::equal
 
@@ -20,7 +22,7 @@ cle::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
 {}
 
 void cle::ClusteringBenchmarkStats::print_times() {
-    std::cout << this->num_runs_ << " runs, in µs: [";
+    std::cout << num_runs_ << " runs, in µs: [";
     for (uint32_t r = 0; r < microseconds.size(); ++r) {
         std::cout << microseconds[r];
         if (r != microseconds.size() - 1) {
@@ -28,6 +30,44 @@ void cle::ClusteringBenchmarkStats::print_times() {
         }
     }
     std::cout << "]" << std::endl;
+}
+
+void cle::ClusteringBenchmarkStats::to_csv(char const* file_name) {
+    std::ofstream fs(file_name, std::fstream::trunc);
+
+    fs << "Total CPU (µs)";
+    fs << ',';
+    fs << "Iterations";
+
+    std::vector<DataPoint>& dp = kmeans_stats[0].data_points;
+    for (uint32_t p = 0; p < dp.size(); ++p) {
+        fs << ',';
+        fs << dp[p].get_name();
+    }
+
+    fs << '\n';
+
+    for (uint32_t r = 0; r < microseconds.size(); ++r) {
+        fs << microseconds[r];
+        fs << ",";
+        fs << kmeans_stats[r].iterations;
+        fs << ",";
+
+        std::vector<DataPoint>& dp = kmeans_stats[r].data_points;
+        for (uint32_t p = 0; p < dp.size(); ++p) {
+            fs << dp[p].get_nanoseconds() / 1000;
+
+            if (p != dp.size() - 1) {
+                fs << ',';
+            }
+        }
+
+        if (r != microseconds.size() - 1) {
+            fs << '\n';
+        }
+    }
+
+    fs.close();
 }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>

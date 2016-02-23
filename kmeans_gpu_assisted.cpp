@@ -13,6 +13,7 @@
 #include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_labeling_vp_clc_api.hpp"
 #include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
+#include "timer.hpp"
 
 #include <cstdint>
 #include <cstddef> // size_t
@@ -98,49 +99,63 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
 
 
     // copy points (x,y) host -> device
+    stats.data_points.emplace_back(cle::DataPoint::Type::H2DPoints);
     cle_sanitize_val_return(
             this->queue_.enqueueWriteBuffer(
                 d_points,
                 CL_FALSE,
                 0,
                 d_points.bytes(),
-                points.data()
+                points.data(),
+                NULL,
+                &stats.data_points.back().get_event()
                 ));
 
+    stats.data_points.emplace_back(cle::DataPoint::Type::FillLables);
     cle_sanitize_val_return(
             this->queue_.enqueueFillBuffer(
                 d_memberships,
                 0,
                 0,
-                d_memberships.bytes()
+                d_memberships.bytes(),
+                NULL,
+                &stats.data_points.back().get_event()
                 ));
+
 
     iterations = 0;
     did_changes = true;
     while (did_changes == true && iterations < max_iterations) {
 
         // set did_changes to false on device
+        stats.data_points.emplace_back(cle::DataPoint::Type::FillChanges);
         cle_sanitize_val(
                 this->queue_.enqueueFillBuffer(
                     d_did_changes,
                     false,
                     0,
-                    d_did_changes.bytes()
+                    d_did_changes.bytes(),
+                    NULL,
+                    &stats.data_points.back().get_event()
                     ));
 
+        stats.data_points.emplace_back(cle::DataPoint::Type::H2DCentroids);
         cle_sanitize_val_return(
                 this->queue_.enqueueWriteBuffer(
                     d_centroids,
                     CL_FALSE,
                     0,
                     d_centroids.bytes(),
-                    centroids.data()
+                    centroids.data(),
+                    NULL,
+                    &stats.data_points.back().get_event()
                     ));
 
         // execute kernel
-        cl::Event labeling_event;
         switch (labeling_strategy_) {
             case LabelingStrategy::Plain:
+                stats.data_points.emplace_back(
+                        cle::DataPoint::Type::LloydLabelingPlain);
                 cle_sanitize_done_return(
                         labeling_kernel_(
                             cl::EnqueueArgs(
@@ -155,10 +170,12 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                             d_points,
                             d_centroids,
                             d_memberships,
-                            labeling_event
+                            stats.data_points.back().get_event()
                             ));
                 break;
             case LabelingStrategy::VpClc:
+                stats.data_points.emplace_back(
+                        cle::DataPoint::Type::LloydLabelingVpClc);
                 cle_sanitize_done_return(
                         labeling_vp_clc_kernel_(
                             cl::EnqueueArgs(
@@ -173,10 +190,12 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                             d_points,
                             d_centroids,
                             d_memberships,
-                            labeling_event
+                            stats.data_points.back().get_event()
                             ));
                 break;
             case LabelingStrategy::VpClcp:
+                stats.data_points.emplace_back(
+                        cle::DataPoint::Type::LloydLabelingVpClcp);
                 cle_sanitize_done_return(
                         labeling_vp_clcp_kernel_(
                             cl::EnqueueArgs(
@@ -191,28 +210,34 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                             d_points,
                             d_centroids,
                             d_memberships,
-                            labeling_event
+                            stats.data_points.back().get_event()
                             ));
                 break;
         }
 
         // copy did_changes device -> host
+        stats.data_points.emplace_back(cle::DataPoint::Type::D2HChanges);
         cle_sanitize_val(
                 this->queue_.enqueueReadBuffer(
                     d_did_changes,
                     CL_FALSE,
                     0,
                     d_did_changes.bytes(),
-                    h_did_changes.data()
+                    h_did_changes.data(),
+                    NULL,
+                    &stats.data_points.back().get_event()
                     ));
 
+        stats.data_points.emplace_back(cle::DataPoint::Type::D2HLabels);
         cle_sanitize_val(
                 this->queue_.enqueueReadBuffer(
                     d_memberships,
                     CL_TRUE,
                     0,
                     d_memberships.bytes(),
-                    memberships.data()
+                    memberships.data(),
+                    NULL,
+                    &stats.data_points.back().get_event()
                     ));
 
         // inspect did_changes
@@ -223,6 +248,9 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                 );
 
         if (did_changes == true) {
+            cle::Timer centroids_cpu_timer;
+            centroids_cpu_timer.start();
+
             // Initialize to zero
             std::fill(centroids.begin(), centroids.end(), 0);
             std::fill(cluster_size.begin(), cluster_size.end(), 0);
@@ -243,6 +271,13 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                     centroids(c, f) = centroids(c, f) / cluster_size[c];
                 }
             }
+
+            uint64_t centroids_cpu_time =
+                centroids_cpu_timer.stop<std::chrono::nanoseconds>();
+
+            stats.data_points.emplace_back(
+                    cle::DataPoint::Type::LloydCentroidsNaive,
+                    centroids_cpu_time);
         }
 
         ++iterations;

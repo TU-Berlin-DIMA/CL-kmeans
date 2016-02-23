@@ -67,6 +67,9 @@ public:
             ("verify-file",
              po::value<std::string>(),
              "Do verification pass with labels")
+            ("csv",
+             po::value<std::string>(),
+             "Output measurements to CSV file")
             ("armadillo", "Run Armadillo K-means")
             ("naive", "Run Naive Lloyd's")
             ("gpu-assisted", "Run GPU assisted Lloyd's")
@@ -132,6 +135,11 @@ public:
             verify_ = true;
             verify_labels_ = true;
             labels_file_ = vm["verify-file"].as<std::string>();
+        }
+
+        if (vm.count("csv")) {
+            csv_ = true;
+            csv_file_ = vm["csv"].as<std::string>();
         }
 
         if (vm.count("armadillo")) {
@@ -209,6 +217,14 @@ public:
         return labels_file_;
     }
 
+    bool csv() const {
+        return csv_;
+    }
+
+    std::string csv_file() const {
+        return csv_file_;
+    }
+
     std::set<Algorithm> algorithms() const {
         return algorithms_;
     }
@@ -224,6 +240,8 @@ private:
     bool verify_ = false;
     bool verify_labels_ = false;
     std::string labels_file_;
+    bool csv_ = false;
+    std::string csv_file_;
     std::set<Algorithm> algorithms_;
 };
 
@@ -361,6 +379,10 @@ public:
             }
             else {
                 bs.print_times();
+
+                if (options.csv()) {
+                    bs.to_csv(options.csv_file().c_str());
+                }
             }
             std::cout << std::endl;
         }
