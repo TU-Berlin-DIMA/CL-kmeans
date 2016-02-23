@@ -48,6 +48,14 @@ int main(int argc, char **argv) {
 
     std::cout << "Array runtime: " << duration << " µs" << std::endl;
 
+    cle::Matrix<float, std::allocator<float>, uint32_t> matrix;
+
+    timer.start();
+    csv.read_csv(file_name, matrix);
+    duration = timer.stop<std::chrono::microseconds>();
+
+    std::cout << "Matrix runtime: " << duration << " µs" << std::endl;
+
     // for (auto& v : array) {
     //     cle::Utils::print_vector(v);
     // }
