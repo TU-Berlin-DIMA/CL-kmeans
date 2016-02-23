@@ -135,10 +135,26 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     cle::TypedBuffer<CL_INT> d_mass(context_, CL_MEM_READ_WRITE, aggregate_mass_num_work_items);
     cle::TypedBuffer<CL_INT> d_labels(context_, CL_MEM_READ_WRITE, points.rows());
 
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Changes,
+            d_did_changes.bytes());
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Points,
+            d_points.bytes());
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Centroids,
+            d_centroids.bytes());
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Mass,
+            d_mass.bytes());
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Labels,
+            d_labels.bytes());
+
     // copy points (x,y) host -> device
     stats.data_points.emplace_back(
             cle::DataPoint::Type::H2DPoints,
-            iterations);
+            -1);
     cle_sanitize_val_return(
             queue_.enqueueWriteBuffer(
                 d_points,
@@ -153,7 +169,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     // copy labels host -> device
     stats.data_points.emplace_back(
             cle::DataPoint::Type::FillLables,
-            iterations);
+            -1);
     cle_sanitize_val_return(
             queue_.enqueueFillBuffer(
                 d_labels,
@@ -167,7 +183,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     // copy centroids host -> device
     stats.data_points.emplace_back(
             cle::DataPoint::Type::H2DCentroids,
-            iterations);
+            -1);
     cle_sanitize_val_return(
             queue_.enqueueWriteBuffer(
                 d_centroids,

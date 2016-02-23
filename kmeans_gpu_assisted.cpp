@@ -97,6 +97,21 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
     cle::TypedBuffer<CL_FP> d_centroids(this->context_, CL_MEM_READ_ONLY, centroids.size());
     cle::TypedBuffer<CL_INT> d_memberships(this->context_, CL_MEM_READ_WRITE, points.rows());
 
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Changes,
+            d_did_changes.bytes());
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Points,
+            d_points.bytes());
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Centroids,
+            d_centroids.bytes());
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Mass,
+            cluster_size.size() * sizeof(decltype(cluster_size.front())));
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Labels,
+            d_memberships.bytes());
 
     // copy points (x,y) host -> device
     stats.data_points.emplace_back(cle::DataPoint::Type::H2DPoints, -1);

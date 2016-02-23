@@ -82,3 +82,29 @@ cl::Event& cle::DataPoint::get_event() {
 }
 
 
+
+char const* cle_buffer_info_type_name[] = {
+    "Changes",
+    "Points",
+    "Centroids",
+    "Labels",
+    "Mass"
+};
+
+cle::BufferInfo::BufferInfo(Type type, size_t size)
+    :
+        type_(type),
+        size_(size)
+{}
+
+cle::BufferInfo::Type cle::BufferInfo::get_type() {
+    return type_;
+}
+
+char const* cle::BufferInfo::get_name() {
+    return cle_buffer_info_type_name[type_];
+}
+
+size_t cle::BufferInfo::get_size() {
+    return size_;
+}

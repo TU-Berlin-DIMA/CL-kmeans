@@ -67,9 +67,31 @@ private:
     cl::Event event_;
 };
 
+class BufferInfo {
+public:
+    enum Type {
+        Changes,
+        Points,
+        Centroids,
+        Labels,
+        Mass
+    };
+
+    BufferInfo(Type type, size_t size);
+
+    Type get_type();
+    char const* get_name();
+    size_t get_size();
+
+private:
+    Type type_;
+    size_t size_;
+};
+
 class KmeansStats {
 public:
     std::vector<cle::DataPoint> data_points;
+    std::vector<cle::BufferInfo> buffer_info;
     uint32_t iterations;
 };
 

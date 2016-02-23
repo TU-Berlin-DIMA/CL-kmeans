@@ -35,11 +35,32 @@ void cle::ClusteringBenchmarkStats::print_times() {
 void cle::ClusteringBenchmarkStats::to_csv(char const* file_name) {
     std::ofstream fs(file_name, std::fstream::trunc);
 
+    std::vector<cle::BufferInfo>& bi = kmeans_stats[0].buffer_info;
+    for (uint32_t b = 0; b < bi.size(); ++b) {
+        fs << bi[b].get_name();
+
+        if (b != bi.size() - 1) {
+            fs << ',';
+        }
+    }
+
+    fs << '\n';
+
+    for (uint32_t b = 0; b < bi.size(); ++b) {
+        fs << bi[b].get_size();
+
+        if (b != bi.size() - 1) {
+            fs << ',';
+        }
+    }
+
+    fs << '\n';
+
     fs << "Total CPU (µs)";
     fs << ',';
     fs << "Iterations";
 
-    std::vector<DataPoint>& dp = kmeans_stats[0].data_points;
+    std::vector<cle::DataPoint>& dp = kmeans_stats[0].data_points;
     for (uint32_t p = 0; p < dp.size(); ++p) {
         fs << ',';
         fs << dp[p].get_name();
@@ -53,7 +74,7 @@ void cle::ClusteringBenchmarkStats::to_csv(char const* file_name) {
         fs << kmeans_stats[r].iterations;
         fs << ",";
 
-        std::vector<DataPoint>& dp = kmeans_stats[r].data_points;
+        std::vector<cle::DataPoint>& dp = kmeans_stats[r].data_points;
         for (uint32_t p = 0; p < dp.size(); ++p) {
             fs << dp[p].get_nanoseconds() / 1000;
 
