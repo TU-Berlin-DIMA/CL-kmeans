@@ -9,11 +9,12 @@
 
 #include "kmeans_gpu_assisted.hpp"
 
-#include "cle/common.hpp"
 #include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_labeling_vp_clc_api.hpp"
 #include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
 #include "timer.hpp"
+
+#include <clext.hpp>
 
 #include <cstdint>
 #include <cstddef> // size_t

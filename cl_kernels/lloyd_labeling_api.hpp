@@ -10,7 +10,9 @@
 #ifndef LLOYD_LABELING_API_HPP
 #define LLOYD_LABELING_API_HPP
 
-#include "../cle/common.hpp"
+#include "kernel_path.hpp"
+
+#include <clext.hpp>
 
 #include <functional>
 #include <cassert>

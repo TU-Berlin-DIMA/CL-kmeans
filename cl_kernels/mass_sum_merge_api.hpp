@@ -10,7 +10,9 @@
 #ifndef MASS_SUM_MERGE_API_HPP
 #define MASS_SUM_MERGE_API_HPP
 
-#include "../cle/common.hpp"
+#include "kernel_path.hpp"
+
+#include <clext.hpp>
 
 #include <functional>
 #include <cassert>

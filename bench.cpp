@@ -7,7 +7,6 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 #include "csv.hpp"
-#include "cle/common.hpp"
 
 #include "clustering_benchmark.hpp"
 #include "kmeans.hpp"
@@ -19,6 +18,7 @@
 #include "kmeans_armadillo.hpp"
 #endif
 
+#include <clext.hpp>
 #include <boost/program_options.hpp>
 
 #include <iostream>

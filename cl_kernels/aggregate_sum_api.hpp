@@ -10,7 +10,9 @@
 #ifndef AGGREGATE_SUM_API_HPP
 #define AGGREGATE_SUM_API_HPP
 
-#include "../cle/common.hpp"
+#include "kernel_path.hpp"
+
+#include <clext.hpp>
 
 #include <functional>
 #include <cassert>

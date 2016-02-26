@@ -9,13 +9,14 @@
 
 #include "lloyd_gpu_feature_sum.hpp"
 
-#include "cle/common.hpp"
 #include "cl_kernels/lloyd_labeling_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/lloyd_merge_sum_api.hpp"
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
 #include "cl_kernels/mass_sum_merge_api.hpp"
 #include "cl_kernels/aggregate_sum_api.hpp"
+
+#include <clext.hpp>
 
 #include <cstdint>
 #include <cstddef> // size_t
