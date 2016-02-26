@@ -1,0 +1,17 @@
+# Editors 
+*.swp
+*.swo
+*~
+.ycm_extra_conf.pyc
+.color_coded
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+Makefile
+
+# Build
+build/
+

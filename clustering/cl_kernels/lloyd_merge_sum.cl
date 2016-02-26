@@ -36,7 +36,7 @@ CL_INT div_round_up(CL_INT dividend, CL_INT divisor) {
  * l_points: local_size
  */
 __kernel
-void lloyd_merge_sum(
+void lloyd_merge_blocks(
         __global CL_FP const *const restrict g_points,
         __global CL_FP *const restrict g_centroids,
         __global CL_INT const *const restrict g_mass,
@@ -49,24 +49,15 @@ void lloyd_merge_sum(
         const CL_INT NUM_CLUSTERS
        ) {
 
-    CL_INT const num_local_cols = max((CL_INT)1, (CL_INT)get_local_size(0) / NUM_CLUSTERS);
-    CL_INT const num_local_rows_points = get_local_size(0) / num_local_cols;
-    CL_INT const num_local_rows_clusters = min(NUM_CLUSTERS, num_local_rows_points);
-
-    CL_INT const num_global_blocks = get_global_size(0) / (num_local_rows_points * num_local_cols);
-    CL_INT const g_block = (get_group_id(0) * get_local_size(0)) / (num_local_rows_points * num_local_cols);
-
-    CL_INT const num_tile_cols = div_round_up(NUM_FEATURES, num_local_cols);
-    CL_INT const num_tile_rows = div_round_up(NUM_CLUSTERS, num_local_rows_clusters);
-
-    CL_INT const l_col = get_local_id(0) / num_local_rows_points;
-    CL_INT const l_row = get_local_id(0) % num_local_rows_points;
-
-    CL_INT const t_col = (get_global_id(0) / (num_local_cols * num_local_rows_clusters * num_tile_rows)) % num_tile_cols;
-    CL_INT const t_row = (get_global_id(0) / num_local_rows_clusters) % num_tile_rows;
-
-    CL_INT const b_col = l_col + num_local_cols * t_col;
-    CL_INT const b_row = l_row + num_local_rows_clusters * t_row;
+    CL_INT const centroids_size = NUM_FEATURES * NUM_POINTS;
+    CL_INT const num_local_blocks = get_local_size(0) / centroids_size;
+    CL_INT const num_global_blocks = get_global_size(0) / centroids_size;
+    CL_INT const l_block = get_local_id(0) / centroids_size;
+    CL_INT const g_block = get_global_id(0) / centroids_size;
+    CL_INT const l_pos = get_local_id(0) - l_block * centroids_size;
+    CL_INT const l_cluster = l_pos % NUM_CLUSTERS;
+    CL_INT const l_feature = l_pos / NUM_CLUSTERS;
+    CL_INT const l_point = get_local_id(0) % (get_local_size(0) / NUM_FEATURES);
 
     if (b_col >= NUM_FEATURES) {
         return;
@@ -74,10 +65,11 @@ void lloyd_merge_sum(
 
     CL_FP centroid = 0;
 
-    for (CL_INT p = num_local_rows_points * g_block; p < NUM_POINTS; p += num_local_rows_points * num_global_blocks) {
+    for (CL_INT r = 0; r < NUM_POINTS; r += get_global_size(0)) {
         // p: Current point global index
+        CL_INT p = r + get_global_id(0);
 
-        if (p + l_row < NUM_POINTS) {
+        if (p < NUM_POINTS) {
             if (l_col == 0) {
                 l_labels[l_row] = g_labels[p + l_row];
             }
@@ -110,4 +102,8 @@ void lloyd_merge_sum(
         CL_INT global_ind = tile_ind + NUM_CLUSTERS * NUM_FEATURES * g_block;
         g_centroids[global_ind] = centroid / mass;
     }
+}
+
+__kernel
+void lloyd_merge_tiles() {
 }
