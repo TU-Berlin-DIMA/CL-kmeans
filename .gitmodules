@@ -1,0 +1,3 @@
+[submodule "cle"]
+	path = cle
+	url = git@bitbucket.org:lutzcle/cle.git
