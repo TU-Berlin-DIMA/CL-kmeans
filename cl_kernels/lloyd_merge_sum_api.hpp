@@ -83,18 +83,16 @@ namespace cle {
 
             assert(args.global_[0] >= num_features * num_clusters);
             assert(labels.size() == num_points);
+            assert(centroids.size() >= num_features * num_clusters);
 
             cl::LocalSpaceArg local_points =
                 cl::Local(args.local_[0] * sizeof(CL_FP));
 
             cl::LocalSpaceArg local_mass =
-                cl::Local(get_num_local_rows_points(
-                            args.local_[0],
-                            num_clusters)
-                        * sizeof(CL_INT));
+                cl::Local(num_clusters * sizeof(CL_INT));
 
             cl::LocalSpaceArg local_labels =
-                cl::Local(args.local_[0] * sizeof(CL_INT));
+                cl::Local((args.local_[0] / num_features) * sizeof(CL_INT));
 
             cle_sanitize_val_return(
                     lloyd_merge_sum_kernel_->setArg(0, (cl::Buffer&)points));
@@ -139,47 +137,19 @@ namespace cle {
             return CL_SUCCESS;
         }
 
-        size_t get_num_local_cols(
-                size_t const local_size,
-                size_t const num_clusters
-                ) const {
-
-            return std::max((size_t)1, local_size / num_clusters);
-        }
-
-        size_t get_num_local_rows_points(
-                size_t const local_size,
-                size_t const num_clusters
-                ) const {
-
-            return local_size / get_num_local_cols(local_size, num_clusters);
-        }
-
-        size_t get_num_local_rows_clusters(
-                size_t const local_size,
-                size_t const num_clusters
-                ) const {
-
-            return std::min(
-                    num_clusters,
-                    get_num_local_rows_points(local_size, num_clusters));
-        }
-
         size_t get_num_global_blocks(
                 size_t const global_size,
-                size_t const local_size,
+                size_t const /* local_size */,
                 size_t const num_features,
                 size_t const num_clusters
                 ) const {
 
-            return global_size / (
-                    get_num_local_rows_points(local_size, num_clusters)
-                    * get_num_local_cols(local_size, num_clusters));
+            return global_size / (num_features * num_clusters);
         }
 
     private:
         static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_merge_sum.cl");
-        static constexpr const char* KERNEL_NAME = "lloyd_merge_sum";
+        static constexpr const char* KERNEL_NAME = "lloyd_merge_blocks";
 
         std::shared_ptr<cl::Kernel> lloyd_merge_sum_kernel_;
     };

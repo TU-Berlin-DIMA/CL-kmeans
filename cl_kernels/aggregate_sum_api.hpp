@@ -68,7 +68,7 @@ namespace cle {
                 cl::Event& event
                 ) {
 
-            assert(mass.size() == num_clusters * num_blocks);
+            assert(mass.size() >= num_clusters * num_blocks);
 
             cle_sanitize_val_return(
                     aggregate_sum_kernel_->setArg(0, (cl::Buffer&)mass));
