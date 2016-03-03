@@ -116,17 +116,15 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
         cle::optimize_global_size(aggregate_mass_num_work_items , warp_size_);
     uint64_t const feature_sum_global_size =
         cle::optimize_global_size(points.cols(), warp_size_);
-    uint64_t const merge_sum_global_size = warp_size_ * 24;
-        // cle::optimize_global_size(points.size(), warp_size_);
+    uint64_t const merge_sum_global_size = warp_size_ * 24 * 4;
+    uint64_t const merge_sum_local_size = warp_size_ * 4;
     uint64_t const aggregate_centroid_global_size = warp_size_ * 24;
     uint64_t const centroid_merge_sum_num_blocks =
         merge_sum_kernel_.get_num_global_blocks(
                 merge_sum_global_size,
-                warp_size_,
+                merge_sum_local_size,
                 centroids.cols(),
                 centroids.rows());
-    std::cout << "Global size: " << merge_sum_global_size << std::endl;
-    std::cout << "Num blocks: " << centroid_merge_sum_num_blocks << std::endl;
 
     std::vector<cl_char> h_did_changes(1);
 
@@ -348,7 +346,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 cl::EnqueueArgs(
                                     queue_,
                                     cl::NDRange(merge_sum_global_size),
-                                    cl::NDRange(warp_size_)
+                                    cl::NDRange(merge_sum_local_size)
                                     ),
                                 points.cols(),
                                 points.rows(),
