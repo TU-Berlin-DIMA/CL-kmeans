@@ -178,12 +178,9 @@ void cle::ClusteringBenchmarkStats::to_csv(
         otf << ',';
         otf << "TotalTime";
 
-        std::vector<cle::DataPoint>& dp = kmeans_stats[run].data_points;
-        for (uint32_t p = 0; p < dp.size(); ++p) {
-            if (dp[p].get_iteration() == -1) {
-                otf << ',';
-                otf << dp[p].get_name();
-            }
+        for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
+            otf << ',';
+            otf << cle::DataPoint::type_to_name((cle::DataPoint::Type) p);
         }
 
         std::vector<cle::BufferInfo>& bi = kmeans_stats[run].buffer_info;
@@ -198,9 +195,11 @@ void cle::ClusteringBenchmarkStats::to_csv(
         otf << ',';
         otf << microseconds[run];
 
-        for (uint32_t p = 0; p < dp.size(); ++p) {
+        std::vector<cle::DataPoint>& dp = kmeans_stats[run].data_points;
+        for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
+            otf << ',';
+
             if (dp[p].get_iteration() == -1) {
-                otf << ',';
                 otf << dp[p].get_nanoseconds() / 1000;
             }
         }
