@@ -42,6 +42,17 @@ cle::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
         num_runs_(num_runs)
 {}
 
+void cle::ClusteringBenchmarkStats::set_dimensions(
+        uint64_t num_features,
+        uint64_t num_points,
+        uint64_t num_clusters
+        ) {
+
+    num_features_ = num_features;
+    num_points_ = num_points;
+    num_clusters_ = num_clusters;
+}
+
 void cle::ClusteringBenchmarkStats::print_times() {
     std::cout << num_runs_ << " runs, in µs: [";
     for (uint32_t r = 0; r < microseconds.size(); ++r) {
@@ -125,6 +136,12 @@ void cle::ClusteringBenchmarkStats::to_csv(
         paf << "TimeUnit";
         paf << ',';
         paf << "SpaceUnit";
+        paf << ',';
+        paf << "NumFeatures";
+        paf << ',';
+        paf << "NumPoints";
+        paf << ',';
+        paf << "NumClusters";
 
         paf << '\n';
 
@@ -141,6 +158,12 @@ void cle::ClusteringBenchmarkStats::to_csv(
         paf << "us";
         paf << ',';
         paf << "byte";
+        paf << ',';
+        paf << num_features_;
+        paf << ',';
+        paf << num_points_;
+        paf << ',';
+        paf << num_clusters_;
 
         paf.close();
         paf.clear();
@@ -266,6 +289,7 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
 
     cle::Timer timer;
     ClusteringBenchmarkStats bs(this->num_runs_);
+    bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
 
     for (uint32_t r = 0; r < this->num_runs_; ++r) {
         init_centroids_(

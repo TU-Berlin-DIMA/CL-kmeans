@@ -25,6 +25,12 @@ class ClusteringBenchmarkStats {
 public:
     ClusteringBenchmarkStats(const uint32_t num_runs);
 
+    void set_dimensions(
+            uint64_t num_features,
+            uint64_t num_points,
+            uint64_t num_clusters
+            );
+
     void print_times();
     void to_csv(char const* csv_file, char const* input_file);
 
@@ -33,6 +39,7 @@ public:
 
 private:
     uint32_t num_runs_;
+    uint64_t num_features_, num_points_, num_clusters_;
 
     static char const *const parameters_suffix_;
     static char const *const iterated_measurements_suffix_;
