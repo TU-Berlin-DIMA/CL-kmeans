@@ -28,7 +28,7 @@ OPTION(MATRIX_BOUNDSCHECK "Enable matrix bounds checking" OFF)
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -ffp-contract=fast -march=native -fopenmp -Wall -Wextra -DUNIX")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 
-FIND_PACKAGE(Boost 1.49 REQUIRED COMPONENTS program_options)
+FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS program_options system filesystem)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
 FIND_PACKAGE(OpenCL REQUIRED)

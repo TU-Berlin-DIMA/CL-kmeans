@@ -67,15 +67,14 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::initialize() {
     cle_sanitize_done_return(
             aggregate_mass_kernel_.initialize(context_));
 
-    cl::Device device;
     cle_sanitize_val_return(
             queue_.getInfo(
                 CL_QUEUE_DEVICE,
-                &device
+                &device_
                 ));
 
     cle_sanitize_done_return(
-            cle::device_warp_size(device, warp_size_));
+            cle::device_warp_size(device_, warp_size_));
 
     return 1;
 }
@@ -98,6 +97,8 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     assert(points.cols() == centroids.cols());
     assert(points.rows() == labels.size());
     assert(centroids.rows() == mass.size());
+
+    stats.start_experiment(device_);
 
     uint32_t iterations;
     bool did_changes;

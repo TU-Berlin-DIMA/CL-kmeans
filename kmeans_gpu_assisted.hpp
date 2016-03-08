@@ -67,6 +67,7 @@ private:
     cle::LloydLabelingVpClcpAPI<CL_FP, CL_INT> labeling_vp_clcp_kernel_;
     cl::Context context_;
     cl::CommandQueue queue_;
+    cl::Device device_;
 
     LabelingStrategy labeling_strategy_ = LabelingStrategy::VpClcp;
 

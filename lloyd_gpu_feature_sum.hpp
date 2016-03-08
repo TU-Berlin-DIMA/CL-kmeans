@@ -80,6 +80,7 @@ private:
     cle::AggregateSumAPI<CL_INT, CL_INT> aggregate_mass_kernel_;
     cl::Context context_;
     cl::CommandQueue queue_;
+    cl::Device device_;
 
     MassSumStrategy mass_sum_strategy_ = MassSumStrategy::Merge;
     CentroidUpdateStrategy centroid_update_strategy_ = CentroidUpdateStrategy::MergeSum;

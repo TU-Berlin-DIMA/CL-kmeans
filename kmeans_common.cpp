@@ -9,11 +9,18 @@
 
 #include "kmeans_common.hpp"
 
+#include <chrono>
+#include <cassert>
+#include <cstring>
+#include <string>
+
 #ifdef MAC
 #include <OpenCL/cl.hpp>
 #else
 #include <CL/cl.hpp>
 #endif
+
+#include <clext.hpp>
 
 char const* cle_data_point_type_name[] = {
     "H2DPoints",
@@ -107,4 +114,29 @@ char const* cle::BufferInfo::get_name() {
 
 size_t cle::BufferInfo::get_size() {
     return size_;
+}
+
+void cle::KmeansStats::start_experiment(cl::Device device) {
+    assert(is_initialized_ == false);
+
+
+    std::string device_name;
+    cle_sanitize_val(
+            device.getInfo(CL_DEVICE_NAME, &device_name));
+
+    std::strncpy(
+            device_name_,
+            device_name.c_str(),
+            max_device_name_length_
+            );
+
+    run_date_ = std::chrono::system_clock::now();
+}
+
+std::chrono::system_clock::time_point cle::KmeansStats::get_run_date() const {
+    return run_date_;
+}
+
+char const* cle::KmeansStats::get_device_name() const {
+    return device_name_;
 }

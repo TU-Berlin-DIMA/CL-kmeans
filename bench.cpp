@@ -381,7 +381,10 @@ public:
                 bs.print_times();
 
                 if (options.csv()) {
-                    bs.to_csv(options.csv_file().c_str());
+                    bs.to_csv(
+                            options.csv_file().c_str(),
+                            options.input_file().c_str()
+                            );
                 }
             }
             std::cout << std::endl;

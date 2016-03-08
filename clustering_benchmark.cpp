@@ -9,10 +9,31 @@
 
 #include "clustering_benchmark.hpp"
 
+#include <boost/filesystem/path.hpp>
+
 #include <iostream>
 #include <fstream>
 #include <cstdint>
 #include <algorithm> // std::equal
+#include <string>
+#include <chrono>
+
+#include <unistd.h>
+
+char const *const cle::ClusteringBenchmarkStats::parameters_suffix_ =
+"_info";
+
+char const *const cle::ClusteringBenchmarkStats::iterated_measurements_suffix_ =
+"_iter";
+
+char const *const cle::ClusteringBenchmarkStats::onetime_measurements_suffix_ =
+"_once";
+
+uint32_t const cle::ClusteringBenchmarkStats::max_hostname_length_ = 30;
+uint32_t const cle::ClusteringBenchmarkStats::max_datetime_length_ = 30;
+
+char const *const cle::ClusteringBenchmarkStats::timestamp_format_ =
+"%F-%H-%M-%S";
 
 cle::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
     :
@@ -32,63 +53,175 @@ void cle::ClusteringBenchmarkStats::print_times() {
     std::cout << "]" << std::endl;
 }
 
-void cle::ClusteringBenchmarkStats::to_csv(char const* file_name) {
-    std::ofstream fs(file_name, std::fstream::trunc);
+void cle::ClusteringBenchmarkStats::to_csv(
+        char const* csv_file,
+        char const* input_file
+        ) {
 
-    std::vector<cle::BufferInfo>& bi = kmeans_stats[0].buffer_info;
-    for (uint32_t b = 0; b < bi.size(); ++b) {
-        fs << bi[b].get_name();
+    boost::filesystem::path file_path(csv_file);
+    boost::filesystem::path file_parent = file_path.parent_path();
+    boost::filesystem::path file_stem = file_path.stem();
+    boost::filesystem::path file_suffix = file_path.extension();
 
-        if (b != bi.size() - 1) {
-            fs << ',';
-        }
-    }
+    char hostname[max_hostname_length_];
+    gethostname(hostname, max_hostname_length_);
 
-    fs << '\n';
+    boost::filesystem::path input_file_path(input_file);
+    boost::filesystem::path input_file_name = input_file_path.filename();
 
-    for (uint32_t b = 0; b < bi.size(); ++b) {
-        fs << bi[b].get_size();
+    assert(microseconds.size() == kmeans_stats.size());
+    for (uint32_t run = 0; run < microseconds.size(); ++run) {
 
-        if (b != bi.size() - 1) {
-            fs << ',';
-        }
-    }
+        char datetime[max_datetime_length_];
+        std::chrono::system_clock::time_point chrono_date =
+            kmeans_stats[run].get_run_date();
+        std::time_t timet_date =
+            std::chrono::system_clock::to_time_t(chrono_date);
+        std::tm *timeinfo_date = std::gmtime(&timet_date);
+        std::strftime(
+                datetime,
+                max_datetime_length_,
+                timestamp_format_,
+                timeinfo_date
+                );
 
-    fs << '\n';
+        boost::filesystem::path parameters_file;
+        parameters_file += file_parent;
+        parameters_file /= datetime;
+        parameters_file += '_';
+        parameters_file += file_stem;
+        parameters_file += parameters_suffix_;
+        parameters_file += file_suffix;
 
-    fs << "Total CPU (µs)";
-    fs << ',';
-    fs << "Iterations";
+        boost::filesystem::path onetime_file;
+        onetime_file += file_parent;
+        onetime_file /= datetime;
+        onetime_file += '_';
+        onetime_file += file_stem;
+        onetime_file += onetime_measurements_suffix_;
+        onetime_file += file_suffix;
 
-    std::vector<cle::DataPoint>& dp = kmeans_stats[0].data_points;
-    for (uint32_t p = 0; p < dp.size(); ++p) {
-        fs << ',';
-        fs << dp[p].get_name();
-    }
+        boost::filesystem::path iterated_file;
+        iterated_file += file_parent;
+        iterated_file /= datetime;
+        iterated_file += '_';
+        iterated_file += file_stem;
+        iterated_file += iterated_measurements_suffix_;
+        iterated_file += file_suffix;
 
-    fs << '\n';
+        std::ofstream paf(parameters_file.c_str(),
+                std::ios_base::out | std::ios::trunc);
 
-    for (uint32_t r = 0; r < microseconds.size(); ++r) {
-        fs << microseconds[r];
-        fs << ",";
-        fs << kmeans_stats[r].iterations;
-        fs << ",";
+        paf << "Timestamp";
+        paf << ',';
+        paf << "Filename";
+        paf << ',';
+        paf << "Hostname";
+        paf << ',';
+        paf << "Device";
+        paf << ',';
+        paf << "NumIters";
+        paf << ',';
+        paf << "TimeUnit";
+        paf << ',';
+        paf << "SpaceUnit";
 
-        std::vector<cle::DataPoint>& dp = kmeans_stats[r].data_points;
+        paf << '\n';
+
+        paf << datetime;
+        paf << ',';
+        paf << input_file_name.c_str();
+        paf << ',';
+        paf << hostname;
+        paf << ',';
+        paf << kmeans_stats[run].get_device_name();
+        paf << ',';
+        paf << kmeans_stats[run].iterations;
+        paf << ',';
+        paf << "us";
+        paf << ',';
+        paf << "byte";
+
+        paf.close();
+        paf.clear();
+
+
+        std::ofstream otf(onetime_file.c_str(),
+                std::ios_base::out | std::ios::trunc);
+
+        otf << "Timestamp";
+        otf << ',';
+        otf << "TotalTime";
+
+        std::vector<cle::DataPoint>& dp = kmeans_stats[run].data_points;
         for (uint32_t p = 0; p < dp.size(); ++p) {
-            fs << dp[p].get_nanoseconds() / 1000;
-
-            if (p != dp.size() - 1) {
-                fs << ',';
+            if (dp[p].get_iteration() == -1) {
+                otf << ',';
+                otf << dp[p].get_name();
             }
         }
 
-        if (r != microseconds.size() - 1) {
-            fs << '\n';
+        std::vector<cle::BufferInfo>& bi = kmeans_stats[run].buffer_info;
+        for (uint32_t b = 0; b < bi.size(); ++b) {
+            otf << ',';
+            otf << bi[b].get_name();
         }
-    }
 
-    fs.close();
+        otf << '\n';
+
+        otf << datetime;
+        otf << ',';
+        otf << microseconds[run];
+
+        for (uint32_t p = 0; p < dp.size(); ++p) {
+            if (dp[p].get_iteration() == -1) {
+                otf << ',';
+                otf << dp[p].get_nanoseconds() / 1000;
+            }
+        }
+
+        for (uint32_t b = 0; b < bi.size(); ++b) {
+            otf << ',';
+            otf << bi[b].get_size();
+        }
+
+        otf.close();
+        otf.clear();
+
+
+        std::ofstream itf(iterated_file.c_str(),
+                std::ios_base::out | std::ios::trunc);
+
+        itf << "Timestamp";
+
+        for (uint32_t p = 0; p < dp.size(); ++p) {
+            if (dp[p].get_iteration() == 0) {
+                itf << ',';
+                itf << dp[p].get_name();
+            }
+        }
+
+        itf << '\n';
+
+        itf << datetime;
+
+        int cur_iter = 0;
+        for (uint32_t p = 0; p < dp.size(); ++p) {
+            if (dp[p].get_iteration() == cur_iter + 1) {
+                itf << '\n';
+                itf << datetime;
+                ++cur_iter;
+            }
+
+            if (dp[p].get_iteration() == cur_iter) {
+                itf << ',';
+                itf << dp[p].get_nanoseconds() / 1000;
+            }
+        }
+
+        itf.close();
+        itf.clear();
+    }
 }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>

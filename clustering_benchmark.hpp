@@ -26,13 +26,21 @@ public:
     ClusteringBenchmarkStats(const uint32_t num_runs);
 
     void print_times();
-    void to_csv(char const* file_name);
+    void to_csv(char const* csv_file, char const* input_file);
 
     std::vector<uint64_t> microseconds;
     std::vector<cle::KmeansStats> kmeans_stats;
 
 private:
     uint32_t num_runs_;
+
+    static char const *const parameters_suffix_;
+    static char const *const iterated_measurements_suffix_;
+    static char const *const onetime_measurements_suffix_;
+
+    static uint32_t const max_hostname_length_;
+    static uint32_t const max_datetime_length_;
+    static char const *const timestamp_format_;
 };
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT,

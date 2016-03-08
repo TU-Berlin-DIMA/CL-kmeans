@@ -54,15 +54,14 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::initialize() {
     cle_sanitize_done_return(
             labeling_vp_clcp_kernel_.initialize(context_, 4, 8));
 
-    cl::Device device;
     cle_sanitize_val_return(
             this->queue_.getInfo(
                 CL_QUEUE_DEVICE,
-                &device
+                &device_
                 ));
 
     cle_sanitize_done_return(
-            cle::device_warp_size(device, warp_size_));
+            cle::device_warp_size(device_, warp_size_));
 
     return 1;
 }
@@ -84,6 +83,8 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
 
     assert(points.cols() == centroids.cols());
     assert(points.rows() == memberships.size());
+
+    stats.start_experiment(device_);
 
     uint32_t iterations;
     bool did_changes;

@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <memory> // std::allocator
 #include <vector>
+#include <chrono>
+
 #include <SystemConfig.h>
 
 #ifdef USE_ALIGNED_ALLOCATOR
@@ -90,9 +92,19 @@ private:
 
 class KmeansStats {
 public:
+    void start_experiment(cl::Device device);
+    std::chrono::system_clock::time_point get_run_date() const;
+    char const* get_device_name() const;
+
     std::vector<cle::DataPoint> data_points;
     std::vector<cle::BufferInfo> buffer_info;
     uint32_t iterations;
+
+private:
+    static constexpr uint32_t max_device_name_length_ = 30;
+    bool is_initialized_ = false;
+    char device_name_[max_device_name_length_];
+    std::chrono::system_clock::time_point run_date_;
 };
 
 #ifdef USE_ALIGNED_ALLOCATOR
