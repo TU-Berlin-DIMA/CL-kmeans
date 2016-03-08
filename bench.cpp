@@ -51,6 +51,7 @@ public:
         po::options_description cmdline(help_msg);
         cmdline.add_options()
             ("help", "Produce help message")
+            ("quiet", "Suppress non-critical output")
             ("runs", po::value<uint32_t>(&runs_)->default_value(1),
              "Number of runs")
             ("max-iterations",
@@ -123,6 +124,10 @@ public:
             return -1;
         }
 
+        if (vm.count("quiet")) {
+            quiet_ = true;
+        }
+
         if (vm.count("64bit")) {
             type64_ = true;
         }
@@ -175,6 +180,10 @@ public:
         }
 
         return 1;
+    }
+
+    bool quiet() const {
+        return quiet_;
     }
 
     uint32_t k() const {
@@ -230,6 +239,7 @@ public:
     }
 
 private:
+    bool quiet_ = false;
     uint32_t k_ = 0;
     uint32_t runs_ = 0;
     uint32_t max_iterations_ = 0;
@@ -260,8 +270,11 @@ public:
                 < 0) {
             return ret;
         }
-        cle_sanitize_done_return(
-                clinit.print_device_info());
+
+        if (not options.quiet()) {
+            cle_sanitize_done_return(
+                    clinit.print_device_info());
+        }
 
         {
             cle::CSV csv;
@@ -366,28 +379,31 @@ public:
                     break;
             }
 
-            std::cout << name << " ";
-            std::cout << (options.type64() ? "64-bit" : "32-bit");
-            std::cout << " ";
-            if (options.verify()) {
-                if (verify_res == 0) {
-                    std::cout << "correct";
+            if (not options.quiet()) {
+                std::cout << name << " ";
+                std::cout << (options.type64() ? "64-bit" : "32-bit");
+                std::cout << " ";
+                if (options.verify()) {
+                    if (verify_res == 0) {
+                        std::cout << "correct";
+                    }
+                    else {
+                        std::cout << verify_res << " incorrect labels";
+                    }
                 }
                 else {
-                    std::cout << verify_res << " incorrect labels";
-                }
-            }
-            else {
-                bs.print_times();
+                    bs.print_times();
 
-                if (options.csv()) {
-                    bs.to_csv(
-                            options.csv_file().c_str(),
-                            options.input_file().c_str()
-                            );
                 }
+                std::cout << std::endl;
             }
-            std::cout << std::endl;
+
+            if (options.csv() && not options.verify()) {
+                bs.to_csv(
+                        options.csv_file().c_str(),
+                        options.input_file().c_str()
+                        );
+            }
         }
 
 #ifdef ARMADILLO_FOUND
