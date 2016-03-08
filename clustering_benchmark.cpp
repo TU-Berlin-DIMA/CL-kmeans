@@ -219,6 +219,8 @@ void cle::ClusteringBenchmarkStats::to_csv(
                 std::ios_base::out | std::ios::trunc);
 
         itf << "Timestamp";
+        itf << ',';
+        itf << "Iteration";
 
         for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
             itf << ',';
@@ -229,6 +231,8 @@ void cle::ClusteringBenchmarkStats::to_csv(
 
         for (int iter = 0; iter < kmeans_stats[run].iterations; ++iter) {
             itf << datetime;
+            itf << ',';
+            itf << iter;
 
             for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
                 itf << ',';
