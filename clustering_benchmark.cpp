@@ -165,6 +165,8 @@ void cle::ClusteringBenchmarkStats::to_csv(
         paf << ',';
         paf << num_clusters_;
 
+        paf << '\n';
+
         paf.close();
         paf.clear();
 
@@ -208,6 +210,8 @@ void cle::ClusteringBenchmarkStats::to_csv(
             otf << bi[b].get_size();
         }
 
+        otf << '\n';
+
         otf.close();
         otf.clear();
 
@@ -217,29 +221,26 @@ void cle::ClusteringBenchmarkStats::to_csv(
 
         itf << "Timestamp";
 
-        for (uint32_t p = 0; p < dp.size(); ++p) {
-            if (dp[p].get_iteration() == 0) {
-                itf << ',';
-                itf << dp[p].get_name();
-            }
+        for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
+            itf << ',';
+            itf << cle::DataPoint::type_to_name((cle::DataPoint::Type) p);
         }
 
         itf << '\n';
 
-        itf << datetime;
+        for (int iter = 0; iter < kmeans_stats[run].iterations; ++iter) {
+            itf << datetime;
 
-        int cur_iter = 0;
-        for (uint32_t p = 0; p < dp.size(); ++p) {
-            if (dp[p].get_iteration() == cur_iter + 1) {
-                itf << '\n';
-                itf << datetime;
-                ++cur_iter;
-            }
-
-            if (dp[p].get_iteration() == cur_iter) {
+            for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
                 itf << ',';
-                itf << dp[p].get_nanoseconds() / 1000;
+
+                if (dp[p].get_iteration() == iter) {
+                    itf << dp[p].get_nanoseconds() / 1000;
+                }
+
             }
+
+            itf << '\n';
         }
 
         itf.close();

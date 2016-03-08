@@ -61,6 +61,9 @@ public:
     uint64_t get_nanoseconds();
     cl::Event& get_event();
 
+    static int get_num_types();
+    static char const* type_to_name(Type type);
+
 private:
     Type type_;
     int iteration_;
@@ -96,11 +99,34 @@ public:
     std::chrono::system_clock::time_point get_run_date() const;
     char const* get_device_name() const;
 
+    inline cle::DataPoint& add_point(DataPoint::Type type, int iteration) {
+        iter_points_.emplace_back(type, iteration);
+        return iter_points_.back();
+    }
+
+    inline cle::DataPoint& add_point(DataPoint::Type type, int iteration, uint64_t nanoseconds) {
+        iter_points_.emplace_back(type, iteration, nanoseconds);
+        return iter_points_.back();
+    }
+
+    inline cle::DataPoint& add_point(DataPoint::Type type) {
+        iter_points_.emplace_back(type, -1);
+        return once_points_.back();
+    }
+
+    inline cle::DataPoint& add_point(DataPoint::Type type, uint64_t nanoseconds) {
+        iter_points_.emplace_back(type, -1, nanoseconds);
+        return once_points_.back();
+    }
+
     std::vector<cle::DataPoint> data_points;
     std::vector<cle::BufferInfo> buffer_info;
-    uint32_t iterations;
+    int iterations;
 
 private:
+    std::vector<cle::DataPoint> iter_points_;
+    std::vector<cle::DataPoint> once_points_;
+
     static constexpr uint32_t max_device_name_length_ = 30;
     bool is_initialized_ = false;
     char device_name_[max_device_name_length_];

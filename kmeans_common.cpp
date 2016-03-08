@@ -42,6 +42,15 @@ char const* cle_data_point_type_name[] = {
     "AggregateCentroids"
 };
 
+int cle::DataPoint::get_num_types() {
+    return
+        sizeof(cle_data_point_type_name) / sizeof(cle_data_point_type_name[0]);
+}
+
+char const* cle::DataPoint::type_to_name(Type type) {
+    return cle_data_point_type_name[type];
+}
+
 cle::DataPoint::DataPoint(Type type, int iteration, uint64_t nanoseconds)
     :
         type_(type),
