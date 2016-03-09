@@ -11,8 +11,8 @@
 #include "matrix.hpp"
 
 #include <cstdint>
-#include <fstream>
 #include <iostream>
+#include <string>
 
 #include <SystemConfig.h>
 
@@ -52,13 +52,32 @@ public:
              "Number of points are multiple of divisor")
             ;
 
+        po::options_description hidden("Hidden options");
+        hidden.add_options()
+            ("output-file", po::value<std::string>(&output_file_),
+             "output file")
+            ;
+
+        po::options_description visible;
+        visible.add(cmdline).add(hidden);
+
+        po::positional_options_description pos;
+        pos.add("output-file", 1);
+
         po::variables_map vm;
-        po::store(po::command_line_parser(argc, argv).options(cmdline).run(),
+        po::store(po::command_line_parser(argc, argv).options(visible)
+                .positional(pos).run(),
                 vm);
         po::notify(vm);
 
         if (vm.count("help")) {
             std::cout << cmdline << std::endl;
+            return -1;
+        }
+
+        // Ensure we have required options
+        if (output_file_.empty()) {
+            std::cout << "Give me an output file!" << std::endl;
             return -1;
         }
 
@@ -93,7 +112,12 @@ public:
         return domain_max_;
     }
 
+    std::string output_file() const {
+        return output_file_;
+    }
+
 private:
+    std::string output_file_;
     uint64_t features_;
     uint64_t clusters_;
     uint64_t megabytes_;
@@ -112,6 +136,8 @@ int main(int argc, char **argv) {
 
     cle::ClusterGenerator generator;
 
+    std::cout << options.bytes() << std::endl;
+
     generator.total_size(options.bytes());
     generator.cluster_radius(options.radius());
     generator.domain(options.domain_min(), options.domain_max());
@@ -120,5 +146,5 @@ int main(int argc, char **argv) {
     generator.point_multiple(options.multiple());
 
     cle::Matrix<float, std::allocator<float>, uint64_t> clusters;
-    generator.generate("data.csv");
+    generator.generate(options.output_file().c_str());
 }
