@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <memory> // std::allocator
 #include <vector>
+#include <deque>
 #include <chrono>
 
 #include <SystemConfig.h>
@@ -119,13 +120,13 @@ public:
         return once_points_.back();
     }
 
-    std::vector<cle::DataPoint> data_points;
+    std::deque<cle::DataPoint> data_points;
     std::vector<cle::BufferInfo> buffer_info;
     int iterations;
 
 private:
-    std::vector<cle::DataPoint> iter_points_;
-    std::vector<cle::DataPoint> once_points_;
+    std::deque<cle::DataPoint> iter_points_;
+    std::deque<cle::DataPoint> once_points_;
 
     static constexpr uint32_t max_device_name_length_ = 30;
     bool is_initialized_ = false;

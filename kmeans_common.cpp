@@ -13,6 +13,8 @@
 #include <cassert>
 #include <cstring>
 #include <string>
+#include <vector>
+#include <deque>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>

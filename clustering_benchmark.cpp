@@ -17,6 +17,8 @@
 #include <algorithm> // std::equal
 #include <string>
 #include <chrono>
+#include <vector>
+#include <deque>
 
 #include <unistd.h>
 
@@ -195,12 +197,14 @@ void cle::ClusteringBenchmarkStats::to_csv(
         otf << ',';
         otf << microseconds[run];
 
-        std::vector<cle::DataPoint>& dp = kmeans_stats[run].data_points;
-        for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
+        std::deque<cle::DataPoint>& dp = kmeans_stats[run].data_points;
+        for (int t = 0; t < cle::DataPoint::get_num_types(); ++t) {
             otf << ',';
 
-            if (dp[p].get_iteration() == -1) {
-                otf << dp[p].get_nanoseconds() / 1000;
+            for (size_t p = 0; p < dp.size(); ++p) {
+                if (dp[p].get_iteration() == -1 && dp[p].get_type() == t) {
+                    otf << dp[p].get_nanoseconds() / 1000;
+                }
             }
         }
 
@@ -234,13 +238,14 @@ void cle::ClusteringBenchmarkStats::to_csv(
             itf << ',';
             itf << iter;
 
-            for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
+            for (int t = 0; t < cle::DataPoint::get_num_types(); ++t) {
                 itf << ',';
 
-                if (dp[p].get_iteration() == iter) {
-                    itf << dp[p].get_nanoseconds() / 1000;
+                for (size_t p = 0; p < dp.size(); ++p) {
+                    if (dp[p].get_iteration() == iter && dp[p].get_type() == t) {
+                        itf << dp[p].get_nanoseconds() / 1000;
+                    }
                 }
-
             }
 
             itf << '\n';
