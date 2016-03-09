@@ -136,8 +136,6 @@ int main(int argc, char **argv) {
 
     cle::ClusterGenerator generator;
 
-    std::cout << options.bytes() << std::endl;
-
     generator.total_size(options.bytes());
     generator.cluster_radius(options.radius());
     generator.domain(options.domain_min(), options.domain_max());
