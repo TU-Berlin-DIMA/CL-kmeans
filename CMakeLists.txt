@@ -78,6 +78,14 @@ IF(CUDA_FOUND)
     TARGET_LINK_LIBRARIES(bench ${CUDA_LIBRARIES})
 ENDIF(CUDA_FOUND)
 
+SET(GENERATOR_NAME "generator")
+SET(GENERATOR_SOURCES
+    generator.cpp
+    cluster_generator.cpp
+    )
+ADD_EXECUTABLE(generator ${GENERATOR_SOURCES})
+TARGET_LINK_LIBRARIES(generator ${Boost_LIBRARIES})
+
 # Create Version.h file with current git revision string
 FIND_PACKAGE(Git)
 EXECUTE_PROCESS(
