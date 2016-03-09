@@ -22,6 +22,8 @@
 
 #include <unistd.h>
 
+#include <Version.h>
+
 char const *const cle::ClusteringBenchmarkStats::parameters_suffix_ =
 "_info";
 
@@ -127,6 +129,8 @@ void cle::ClusteringBenchmarkStats::to_csv(
 
         paf << "Timestamp";
         paf << ',';
+        paf << "Version";
+        paf << ',';
         paf << "Filename";
         paf << ',';
         paf << "Hostname";
@@ -148,6 +152,8 @@ void cle::ClusteringBenchmarkStats::to_csv(
         paf << '\n';
 
         paf << datetime;
+        paf << ',';
+        paf << GIT_REVISION;
         paf << ',';
         paf << input_file_name.c_str();
         paf << ',';
