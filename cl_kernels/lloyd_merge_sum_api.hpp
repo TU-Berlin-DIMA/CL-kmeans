@@ -86,13 +86,13 @@ namespace cle {
             assert(centroids.size() >= num_features * num_clusters);
 
             cl::LocalSpaceArg local_points =
-                cl::Local(args.local_[0] * sizeof(CL_FP));
+                cl::Local(sizeof(CL_FP));
 
             cl::LocalSpaceArg local_mass =
                 cl::Local(num_clusters * sizeof(CL_INT));
 
             cl::LocalSpaceArg local_labels =
-                cl::Local((args.local_[0] / num_features) * sizeof(CL_INT));
+                cl::Local(sizeof(CL_INT));
 
             cle_sanitize_val_return(
                     lloyd_merge_sum_kernel_->setArg(0, (cl::Buffer&)points));
