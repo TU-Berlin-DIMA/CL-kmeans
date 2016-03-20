@@ -86,6 +86,21 @@ SET(GENERATOR_SOURCES
 ADD_EXECUTABLE(generator ${GENERATOR_SOURCES})
 TARGET_LINK_LIBRARIES(generator ${Boost_LIBRARIES})
 
+FIND_PACKAGE(JPEG)
+IF(JPEG_FOUND)
+    SET(PICLUSTER_SOURCES
+        picluster.cpp
+        kmeans_common.cpp
+        kmeans_initializer.cpp
+        kmeans_naive.cpp
+        libs/jpeg_reader_writer/JPEGReader.cpp
+        libs/jpeg_reader_writer/JPEGWriter.cpp
+        )
+    INCLUDE_DIRECTORIES(${JPEG_INCLUDE_DIR})
+    ADD_EXECUTABLE(picluster ${PICLUSTER_SOURCES})
+    TARGET_LINK_LIBRARIES(picluster ${OPENCL_LIBRARIES} ${Boost_LIBRARIES} ${CLEXT_LIBRARIES} ${JPEG_LIBRARIES})
+ENDIF(JPEG_FOUND)
+
 # Create Version.h file with current git revision string
 FIND_PACKAGE(Git)
 EXECUTE_PROCESS(
