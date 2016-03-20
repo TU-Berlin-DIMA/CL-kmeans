@@ -1,0 +1,2 @@
+Version 1.0.1:
+- Added missing <cassert> and <limits> headers.  Thanks to gmkarl for pointing this out.

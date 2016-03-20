@@ -1,0 +1,305 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 42;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0B883C4A0B8CF1590000A68E /* JPEGReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B883C3E0B8CF11F0000A68E /* JPEGReader.cpp */; };
+		0B883C4B0B8CF15B0000A68E /* test_jpeg_reader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B883C3A0B8CF11F0000A68E /* test_jpeg_reader.cpp */; };
+		0B883C4C0B8CF15E0000A68E /* JPEGWriter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B883C3C0B8CF11F0000A68E /* JPEGWriter.cpp */; };
+		0B883C4D0B8CF15F0000A68E /* test_jpeg_writer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B883C390B8CF11F0000A68E /* test_jpeg_writer.cpp */; };
+		0B883C5C0B8CF1AA0000A68E /* libjpeg.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B883C5B0B8CF1AA0000A68E /* libjpeg.dylib */; };
+		0B883C5D0B8CF1AA0000A68E /* libjpeg.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B883C5B0B8CF1AA0000A68E /* libjpeg.dylib */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0B883C390B8CF11F0000A68E /* test_jpeg_writer.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = test_jpeg_writer.cpp; sourceTree = "<group>"; };
+		0B883C3A0B8CF11F0000A68E /* test_jpeg_reader.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = test_jpeg_reader.cpp; sourceTree = "<group>"; };
+		0B883C3B0B8CF11F0000A68E /* JPEGWriter.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = JPEGWriter.h; sourceTree = "<group>"; };
+		0B883C3C0B8CF11F0000A68E /* JPEGWriter.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = JPEGWriter.cpp; sourceTree = "<group>"; };
+		0B883C3D0B8CF11F0000A68E /* JPEGReader.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = JPEGReader.h; sourceTree = "<group>"; };
+		0B883C3E0B8CF11F0000A68E /* JPEGReader.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = JPEGReader.cpp; sourceTree = "<group>"; };
+		0B883C3F0B8CF11F0000A68E /* JPEG.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = JPEG.h; sourceTree = "<group>"; };
+		0B883C430B8CF12C0000A68E /* test_jpeg_reader */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = test_jpeg_reader; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B883C480B8CF1440000A68E /* test_jpeg_writer */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = test_jpeg_writer; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B883C5B0B8CF1AA0000A68E /* libjpeg.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libjpeg.dylib; path = /sw/lib/libjpeg.dylib; sourceTree = "<absolute>"; };
+		0B883C5E0B8CF1C00000A68E /* README.txt */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
+		0B883C5F0B8CF1E70000A68E /* annotated.html */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = text.html; name = annotated.html; path = html/annotated.html; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0B883C410B8CF12C0000A68E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B883C5D0B8CF1AA0000A68E /* libjpeg.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0B883C460B8CF1440000A68E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B883C5C0B8CF1AA0000A68E /* libjpeg.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		08FB7794FE84155DC02AAC07 /* test_jpeg */ = {
+			isa = PBXGroup;
+			children = (
+				08FB7795FE84155DC02AAC07 /* Source */,
+				C6859E8C029090F304C91782 /* Documentation */,
+				1AB674ADFE9D54B511CA2CBB /* Products */,
+				0B883C5B0B8CF1AA0000A68E /* libjpeg.dylib */,
+			);
+			name = test_jpeg;
+			sourceTree = "<group>";
+		};
+		08FB7795FE84155DC02AAC07 /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				0B883C390B8CF11F0000A68E /* test_jpeg_writer.cpp */,
+				0B883C3A0B8CF11F0000A68E /* test_jpeg_reader.cpp */,
+				0B883C3B0B8CF11F0000A68E /* JPEGWriter.h */,
+				0B883C3C0B8CF11F0000A68E /* JPEGWriter.cpp */,
+				0B883C3D0B8CF11F0000A68E /* JPEGReader.h */,
+				0B883C3E0B8CF11F0000A68E /* JPEGReader.cpp */,
+				0B883C3F0B8CF11F0000A68E /* JPEG.h */,
+			);
+			name = Source;
+			sourceTree = "<group>";
+		};
+		1AB674ADFE9D54B511CA2CBB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0B883C430B8CF12C0000A68E /* test_jpeg_reader */,
+				0B883C480B8CF1440000A68E /* test_jpeg_writer */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C6859E8C029090F304C91782 /* Documentation */ = {
+			isa = PBXGroup;
+			children = (
+				0B883C5F0B8CF1E70000A68E /* annotated.html */,
+				0B883C5E0B8CF1C00000A68E /* README.txt */,
+			);
+			name = Documentation;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0B883C420B8CF12C0000A68E /* test_jpeg_reader */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0B883C550B8CF1A40000A68E /* Build configuration list for PBXNativeTarget "test_jpeg_reader" */;
+			buildPhases = (
+				0B883C400B8CF12C0000A68E /* Sources */,
+				0B883C410B8CF12C0000A68E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = test_jpeg_reader;
+			productName = test_jpeg_reader;
+			productReference = 0B883C430B8CF12C0000A68E /* test_jpeg_reader */;
+			productType = "com.apple.product-type.tool";
+		};
+		0B883C470B8CF1440000A68E /* test_jpeg_writer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0B883C580B8CF1A40000A68E /* Build configuration list for PBXNativeTarget "test_jpeg_writer" */;
+			buildPhases = (
+				0B883C450B8CF1440000A68E /* Sources */,
+				0B883C460B8CF1440000A68E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = test_jpeg_writer;
+			productName = test_jpeg_writer;
+			productReference = 0B883C480B8CF1440000A68E /* test_jpeg_writer */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = 1DEB923508733DC60010E9CD /* Build configuration list for PBXProject "test_jpeg" */;
+			compatibilityVersion = "Xcode 2.4";
+			hasScannedForEncodings = 1;
+			mainGroup = 08FB7794FE84155DC02AAC07 /* test_jpeg */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0B883C420B8CF12C0000A68E /* test_jpeg_reader */,
+				0B883C470B8CF1440000A68E /* test_jpeg_writer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0B883C400B8CF12C0000A68E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B883C4A0B8CF1590000A68E /* JPEGReader.cpp in Sources */,
+				0B883C4B0B8CF15B0000A68E /* test_jpeg_reader.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0B883C450B8CF1440000A68E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B883C4C0B8CF15E0000A68E /* JPEGWriter.cpp in Sources */,
+				0B883C4D0B8CF15F0000A68E /* test_jpeg_writer.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0B883C560B8CF1A40000A68E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				INSTALL_PATH = "$(HOME)/bin";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/sw/lib,
+				);
+				PREBINDING = NO;
+				PRODUCT_NAME = test_jpeg_reader;
+				ZERO_LINK = NO;
+			};
+			name = Debug;
+		};
+		0B883C570B8CF1A40000A68E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = YES;
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_MODEL_TUNING = G5;
+				INSTALL_PATH = "$(HOME)/bin";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/sw/lib,
+				);
+				PREBINDING = NO;
+				PRODUCT_NAME = test_jpeg_reader;
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+		0B883C590B8CF1A40000A68E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				INSTALL_PATH = "$(HOME)/bin";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/sw/lib,
+				);
+				PREBINDING = NO;
+				PRODUCT_NAME = test_jpeg_writer;
+				ZERO_LINK = NO;
+			};
+			name = Debug;
+		};
+		0B883C5A0B8CF1A40000A68E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = YES;
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_MODEL_TUNING = G5;
+				INSTALL_PATH = "$(HOME)/bin";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/sw/lib,
+				);
+				PREBINDING = NO;
+				PRODUCT_NAME = test_jpeg_writer;
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+		1DEB923608733DC60010E9CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = /sw/include/;
+				PREBINDING = NO;
+				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				WARNING_CFLAGS = "-Wall";
+			};
+			name = Debug;
+		};
+		1DEB923708733DC60010E9CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = NDEBUG;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = /sw/include/;
+				PREBINDING = NO;
+				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				WARNING_CFLAGS = "-Wall";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0B883C550B8CF1A40000A68E /* Build configuration list for PBXNativeTarget "test_jpeg_reader" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0B883C560B8CF1A40000A68E /* Debug */,
+				0B883C570B8CF1A40000A68E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0B883C580B8CF1A40000A68E /* Build configuration list for PBXNativeTarget "test_jpeg_writer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0B883C590B8CF1A40000A68E /* Debug */,
+				0B883C5A0B8CF1A40000A68E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1DEB923508733DC60010E9CD /* Build configuration list for PBXProject "test_jpeg" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DEB923608733DC60010E9CD /* Debug */,
+				1DEB923708733DC60010E9CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}
