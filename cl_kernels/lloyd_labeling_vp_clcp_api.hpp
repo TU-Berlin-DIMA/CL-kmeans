@@ -153,7 +153,8 @@ namespace cle {
             assert(num_features <= unroll_max_);
 
             cl::LocalSpaceArg local_points = cl::Local(num_features * vector_length_ * args.local_[0] * sizeof(CL_FP));
-            cl::LocalSpaceArg local_centroids = cl::Local(centroids.bytes());
+            cl::LocalSpaceArg local_centroids =
+                cl::Local(num_clusters * num_features * sizeof(CL_FP));
 
             unsigned int cluster_unroll = num_clusters;
             unsigned int feature_unroll = num_features;

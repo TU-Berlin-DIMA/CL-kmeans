@@ -85,7 +85,8 @@ namespace cle {
             assert(memberships.size() == num_points);
             assert(centroids.size() >= num_clusters * num_features);
 
-            cl::LocalSpaceArg local_centroids = cl::Local(centroids.bytes());
+            cl::LocalSpaceArg local_centroids =
+                cl::Local(num_clusters * num_features * sizeof(CL_FP));
 
             cle_sanitize_val_return(
                     labeling_kernel_->setArg(0, (cl::Buffer&)did_changes));
