@@ -67,6 +67,9 @@ void lloyd_merge_blocks(
 
     for (CL_INT r = get_group_id(0) * cache_num_points; r < NUM_POINTS; r += g_num_points) {
 
+        event_t label_copy_event = 0;
+        event_t point_copy_event[MAX_NUM_FEATURES];
+
         uint num_copy_points = (
                 (r + cache_num_points - 1 < NUM_POINTS) ?
                 cache_num_points
@@ -74,13 +77,40 @@ void lloyd_merge_blocks(
                 NUM_POINTS - r
                 );
 
+        async_work_group_copy(
+                &l_labels[0],
+                &g_labels[r],
+                num_copy_points,
+                label_copy_event
+                );
+
+        for (uint i = 0; i < NUM_FEATURES; ++i) {
+            async_work_group_copy(
+                    &l_points[ccoord2ind(
+                        cache_num_points,
+                        0,
+                        i
+                        )],
+                    &g_points[ccoord2ind(
+                        NUM_POINTS,
+                        r,
+                        i
+                        )],
+                    num_copy_points,
+                    point_copy_event[i]
+                    );
+        }
+
+        wait_group_events(1, &label_copy_event);
+        wait_group_events(NUM_FEATURES, &point_copy_event);
+
         for (
                 CL_INT p = l_point_begin;
                 p < l_point_begin + l_num_points && r + p < NUM_POINTS;
                 ++p) {
 
-            bool is_in_cluster = (g_labels[r + p] == l_cluster);
-            CL_FP point = g_points[ccoord2ind(NUM_POINTS, r + p, l_feature)];
+            bool is_in_cluster = (l_labels[p] == l_cluster);
+            CL_FP point = l_points[ccoord2ind(cache_num_points, p, l_feature)];
             centroid += (is_in_cluster ? point : 0);
         }
     }
