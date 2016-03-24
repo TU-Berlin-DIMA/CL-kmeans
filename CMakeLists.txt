@@ -59,6 +59,7 @@ TARGET_LINK_LIBRARIES(test_csv)
 SET(BENCH_NAME "bench")
 SET(BENCH_SOURCES
     bench.cpp
+    binary_format.cpp
     clustering_benchmark.cpp
     kmeans_common.cpp
     kmeans_initializer.cpp

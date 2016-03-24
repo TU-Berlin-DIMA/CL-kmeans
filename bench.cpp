@@ -6,7 +6,7 @@
  * 
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
-#include "csv.hpp"
+#include "binary_format.hpp"
 
 #include "clustering_benchmark.hpp"
 #include "kmeans.hpp"
@@ -277,8 +277,8 @@ public:
         }
 
         {
-            cle::CSV csv;
-            csv.read_csv(options.input_file().c_str(), points);
+            cle::BinaryFormat binformat;
+            binformat.read(options.input_file().c_str(), points);
         }
 
 #ifdef ARMADILLO_FOUND
@@ -300,9 +300,8 @@ public:
         kmeans_naive.initialize();
 
         if (options.verify_labels()) {
-            cle::CSV csv;
+            std::cout << "Not implemented" << std::endl;
             std::vector<std::vector<INT, AllocINT>> reference_labels;
-            csv.read_csv(options.labels_file().c_str(), reference_labels);
             bm.setVerificationReference(std::move(reference_labels[0]));
         }
         else if (options.verify()) {

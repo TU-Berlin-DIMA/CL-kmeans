@@ -8,7 +8,6 @@
  */
 
 #include "cluster_generator.hpp"
-#include "matrix.hpp"
 
 #include <cstdint>
 #include <iostream>
@@ -29,7 +28,7 @@ class CmdOptions {
 public:
     int parse(int argc, char **argv) {
         char help_msg[] =
-            "Usage: " GENERATOR_NAME " [OPTION]\n"
+            "Usage: " GENERATOR_NAME " [OPTION] [OUTPUT FILE]\n"
             "Options"
             ;
 
@@ -143,6 +142,5 @@ int main(int argc, char **argv) {
     generator.num_clusters(options.clusters());
     generator.point_multiple(options.multiple());
 
-    cle::Matrix<float, std::allocator<float>, uint64_t> clusters;
-    generator.generate(options.output_file().c_str());
+    generator.generate_bin(options.output_file().c_str());
 }

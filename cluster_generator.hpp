@@ -22,7 +22,8 @@ public:
     void total_size(uint64_t bytes);
     void point_multiple(uint64_t multiple);
 
-    void generate(char const* file_name);
+    void generate_csv(char const* file_name);
+    void generate_bin(char const* file_name);
 
 private:
     uint64_t features_;
