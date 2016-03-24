@@ -14,7 +14,7 @@ generator = "build/generator"
 
 outdir = "data"
 stem = "cluster_data_2f_10c_"
-postfix = "mb.csv"
+postfix = "mb.bin"
 features = 2
 clusters = 10
 divisor = 8
