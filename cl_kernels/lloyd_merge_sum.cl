@@ -59,6 +59,8 @@ void lloyd_merge_blocks(
     CL_INT const l_cluster = l_pos % NUM_CLUSTERS;
     CL_INT const l_feature = l_pos / NUM_CLUSTERS;
     CL_INT const cache_num_points = get_local_size(0) / NUM_FEATURES;
+    CL_INT const cache_point = get_local_id(0) % cache_num_points;
+    CL_INT const cache_feature = get_local_id(0) / cache_num_points;
     CL_INT const g_num_points = get_global_size(0) / NUM_FEATURES;
     CL_INT const l_num_points = cache_num_points / num_local_blocks;
     CL_INT const l_point_begin = l_block * l_num_points;
@@ -84,25 +86,14 @@ void lloyd_merge_blocks(
                 label_copy_event
                 );
 
-        for (uint i = 0; i < NUM_FEATURES; ++i) {
-            async_work_group_copy(
-                    &l_points[ccoord2ind(
-                        cache_num_points,
-                        0,
-                        i
-                        )],
-                    &g_points[ccoord2ind(
-                        NUM_POINTS,
-                        r,
-                        i
-                        )],
-                    num_copy_points,
-                    point_copy_event[i]
-                    );
+        if (cache_point < num_copy_points) {
+            l_points[ccoord2ind(cache_num_points, cache_point, cache_feature)]
+                = g_points[ccoord2ind(NUM_POINTS, r + cache_point, cache_feature)];
         }
 
+        barrier(CLK_LOCAL_MEM_FENCE);
+
         wait_group_events(1, &label_copy_event);
-        wait_group_events(NUM_FEATURES, &point_copy_event);
 
         for (
                 CL_INT p = l_point_begin;
