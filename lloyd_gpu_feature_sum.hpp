@@ -11,6 +11,8 @@
 #define LLOYD_GPU_FEATURE_SUM_HPP
 
 #include "cl_kernels/lloyd_labeling_api.hpp"
+#include "cl_kernels/lloyd_labeling_vp_clc_api.hpp"
+#include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/lloyd_merge_sum_api.hpp"
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
@@ -36,6 +38,12 @@ namespace cle {
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 class LloydGPUFeatureSum {
 public:
+    enum class LabelingStrategy {
+        Plain,
+        VpClc,
+        VpClcp
+    };
+
     enum class MassSumStrategy {
         GlobalAtomic,
         Merge
@@ -72,6 +80,8 @@ private:
         std::is_same<INT, uint32_t>::value, cl_uint, cl_ulong>::type;
 
     cle::LloydLabelingAPI<CL_FP, CL_INT> labeling_kernel_;
+    cle::LloydLabelingVpClcAPI<CL_FP, CL_INT> labeling_vp_clc_kernel_;
+    cle::LloydLabelingVpClcpAPI<CL_FP, CL_INT> labeling_vp_clcp_kernel_;
     cle::LloydFeatureSumAPI<CL_FP, CL_INT> feature_sum_kernel_;
     cle::LloydMergeSumAPI<CL_FP, CL_INT> merge_sum_kernel_;
     cle::AggregateSumAPI<CL_FP, CL_INT> aggregate_centroid_kernel_;
@@ -82,6 +92,7 @@ private:
     cl::CommandQueue queue_;
     cl::Device device_;
 
+    LabelingStrategy labeling_strategy_ = LabelingStrategy::VpClcp;
     MassSumStrategy mass_sum_strategy_ = MassSumStrategy::Merge;
     CentroidUpdateStrategy centroid_update_strategy_ = CentroidUpdateStrategy::MergeSum;
     cl_uint warp_size_;

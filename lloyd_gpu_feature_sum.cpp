@@ -10,6 +10,8 @@
 #include "lloyd_gpu_feature_sum.hpp"
 
 #include "cl_kernels/lloyd_labeling_api.hpp"
+#include "cl_kernels/lloyd_labeling_vp_clc_api.hpp"
+#include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/lloyd_merge_sum_api.hpp"
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
@@ -48,6 +50,12 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::initialize() {
     // Create kernels
     cle_sanitize_done_return(
             labeling_kernel_.initialize(context_));
+
+    cle_sanitize_done_return(
+            labeling_vp_clc_kernel_.initialize(context_, 4, 8));
+
+    cle_sanitize_done_return(
+            labeling_vp_clcp_kernel_.initialize(context_, 4, 8));
 
     cle_sanitize_done_return(
             feature_sum_kernel_.initialize(context_));
@@ -103,8 +111,8 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     uint32_t iterations;
     bool did_changes;
 
-    uint64_t const labeling_global_size =
-        cle::optimize_global_size(points.rows(), warp_size_);
+    uint64_t const labeling_local_size = warp_size_ * 4;
+    uint64_t const labeling_global_size = labeling_local_size * 90 * 32;
     uint64_t const mass_sum_global_atomic_global_size =
         cle::optimize_global_size(points.rows(), warp_size_);
     uint64_t const mass_sum_merge_global_size =
@@ -214,25 +222,71 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                     ));
 
         // execute kernel
-        stats.data_points.emplace_back(
-                cle::DataPoint::Type::LloydLabelingPlain,
-                iterations);
-        cle_sanitize_done_return(
-                labeling_kernel_(
-                cl::EnqueueArgs(
-                    queue_,
-                    cl::NDRange(labeling_global_size),
-                    cl::NDRange(warp_size_)
-                    ),
-                d_did_changes,
-                points.cols(),
-                points.rows(),
-                centroids.rows(),
-                d_points,
-                d_centroids,
-                d_labels,
-                stats.data_points.back().get_event()
-                ));
+        switch (labeling_strategy_) {
+            case LabelingStrategy::Plain:
+                stats.data_points.emplace_back(
+                        cle::DataPoint::Type::LloydLabelingPlain,
+                        iterations);
+                cle_sanitize_done_return(
+                        labeling_kernel_(
+                            cl::EnqueueArgs(
+                                queue_,
+                                cl::NDRange(labeling_global_size),
+                                cl::NDRange(labeling_local_size)
+                                ),
+                            d_did_changes,
+                            points.cols(),
+                            points.rows(),
+                            centroids.rows(),
+                            d_points,
+                            d_centroids,
+                            d_labels,
+                            stats.data_points.back().get_event()
+                            ));
+                break;
+            case LabelingStrategy::VpClc:
+                stats.data_points.emplace_back(
+                        cle::DataPoint::Type::LloydLabelingVpClc,
+                        iterations);
+                cle_sanitize_done_return(
+                        labeling_vp_clc_kernel_(
+                            cl::EnqueueArgs(
+                                queue_,
+                                cl::NDRange(labeling_global_size),
+                                cl::NDRange(labeling_local_size)
+                                ),
+                            d_did_changes,
+                            points.cols(),
+                            points.rows(),
+                            centroids.rows(),
+                            d_points,
+                            d_centroids,
+                            d_labels,
+                            stats.data_points.back().get_event()
+                            ));
+                break;
+            case LabelingStrategy::VpClcp:
+                stats.data_points.emplace_back(
+                        cle::DataPoint::Type::LloydLabelingVpClcp,
+                        iterations);
+                cle_sanitize_done_return(
+                        labeling_vp_clcp_kernel_(
+                            cl::EnqueueArgs(
+                                queue_,
+                                cl::NDRange(labeling_global_size),
+                                cl::NDRange(labeling_local_size)
+                                ),
+                            d_did_changes,
+                            points.cols(),
+                            points.rows(),
+                            centroids.rows(),
+                            d_points,
+                            d_centroids,
+                            d_labels,
+                            stats.data_points.back().get_event()
+                            ));
+                break;
+        }
 
         // copy did_changes device -> host
         stats.data_points.emplace_back(
