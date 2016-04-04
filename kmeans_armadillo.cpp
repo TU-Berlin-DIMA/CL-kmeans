@@ -8,6 +8,7 @@
  */
 
 #include "kmeans_armadillo.hpp"
+#include "timer.hpp"
 
 #include <armadillo>
 #include <memory> // std::move
@@ -46,8 +47,16 @@ void cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::operator() (
         cle::Matrix<FP, AllocFP, INT, true>& centroids,
         std::vector<INT, AllocINT>&,
         std::vector<INT, AllocINT>&,
-        KmeansStats&) {
+        KmeansStats& stats) {
 
+    stats.start_experiment();
+
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Points,
+            points_.n_elem * sizeof(FP));
+    stats.buffer_info.emplace_back(
+            cle::BufferInfo::Type::Centroids,
+            centroids.size() * sizeof(FP));
 
     // No data copy, reference existing centroids
     arma::Mat<FP> arma_centroids(
@@ -59,6 +68,9 @@ void cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::operator() (
 
     arma::inplace_trans(arma_centroids);
 
+    cle::Timer cpu_timer;
+    cpu_timer.start();
+
     arma::kmeans(
             arma_centroids,
             points_,
@@ -66,6 +78,16 @@ void cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::operator() (
             arma::keep_existing,
             max_iterations,
             false);
+
+    uint64_t total_time =
+        cpu_timer.stop<std::chrono::nanoseconds>();
+
+    stats.data_points.emplace_back(
+            cle::DataPoint::Type::TotalTime,
+            -1,
+            total_time);
+
+    stats.iterations = max_iterations;
 
     arma::inplace_trans(arma_centroids);
 }
