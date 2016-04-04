@@ -106,8 +106,8 @@ char const* cle_buffer_info_type_name[] = {
     "Changes",
     "Points",
     "Centroids",
-    "Labels",
-    "Mass"
+    "Mass",
+    "Labels"
 };
 
 cle::BufferInfo::BufferInfo(Type type, size_t size)
@@ -115,6 +115,15 @@ cle::BufferInfo::BufferInfo(Type type, size_t size)
         type_(type),
         size_(size)
 {}
+
+int cle::BufferInfo::get_num_types() {
+    return
+        sizeof(cle_buffer_info_type_name) / sizeof(cle_buffer_info_type_name[0]);
+}
+
+char const* cle::BufferInfo::type_to_name(Type type) {
+    return cle_buffer_info_type_name[type];
+}
 
 cle::BufferInfo::Type cle::BufferInfo::get_type() {
     return type_;

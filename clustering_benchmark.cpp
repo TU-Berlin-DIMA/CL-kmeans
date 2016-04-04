@@ -189,10 +189,9 @@ void cle::ClusteringBenchmarkStats::to_csv(
             otf << cle::DataPoint::type_to_name((cle::DataPoint::Type) p);
         }
 
-        std::vector<cle::BufferInfo>& bi = kmeans_stats[run].buffer_info;
-        for (uint32_t b = 0; b < bi.size(); ++b) {
+        for (int t = 0; t < cle::BufferInfo::get_num_types(); ++t) {
             otf << ',';
-            otf << bi[b].get_name();
+            otf << cle::BufferInfo::type_to_name((cle::BufferInfo::Type) t);
         }
 
         otf << '\n';
@@ -210,9 +209,15 @@ void cle::ClusteringBenchmarkStats::to_csv(
             }
         }
 
-        for (uint32_t b = 0; b < bi.size(); ++b) {
+        std::vector<cle::BufferInfo>& bi = kmeans_stats[run].buffer_info;
+        for (int t = 0; t < cle::BufferInfo::get_num_types(); ++t) {
             otf << ',';
-            otf << bi[b].get_size();
+
+            for (size_t b = 0; b < bi.size(); ++b) {
+                if (bi[b].get_type() == t) {
+                    otf << bi[b].get_size();
+                }
+            }
         }
 
         otf << '\n';

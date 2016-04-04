@@ -80,8 +80,8 @@ public:
         Changes,
         Points,
         Centroids,
-        Labels,
-        Mass
+        Mass,
+        Labels
     };
 
     BufferInfo(Type type, size_t size);
@@ -89,6 +89,9 @@ public:
     Type get_type();
     char const* get_name();
     size_t get_size();
+
+    static int get_num_types();
+    static char const* type_to_name(Type type);
 
 private:
     Type type_;
