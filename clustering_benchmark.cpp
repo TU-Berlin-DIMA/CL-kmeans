@@ -183,8 +183,6 @@ void cle::ClusteringBenchmarkStats::to_csv(
                 std::ios_base::out | std::ios::trunc);
 
         otf << "Timestamp";
-        otf << ',';
-        otf << "TotalTime";
 
         for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
             otf << ',';
@@ -200,8 +198,6 @@ void cle::ClusteringBenchmarkStats::to_csv(
         otf << '\n';
 
         otf << datetime;
-        otf << ',';
-        otf << microseconds[run];
 
         std::deque<cle::DataPoint>& dp = kmeans_stats[run].data_points;
         for (int t = 0; t < cle::DataPoint::get_num_types(); ++t) {

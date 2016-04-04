@@ -25,6 +25,7 @@
 #include <clext.hpp>
 
 char const* cle_data_point_type_name[] = {
+    "TotalTime",
     "H2DPoints",
     "H2DCentroids",
     "D2HLabels",
@@ -125,6 +126,19 @@ char const* cle::BufferInfo::get_name() {
 
 size_t cle::BufferInfo::get_size() {
     return size_;
+}
+
+void cle::KmeansStats::start_experiment() {
+    assert(is_initialized_ == false);
+
+
+    std::strncpy(
+            device_name_,
+            "unknown CPU",
+            max_device_name_length_
+            );
+
+    run_date_ = std::chrono::system_clock::now();
 }
 
 void cle::KmeansStats::start_experiment(cl::Device device) {

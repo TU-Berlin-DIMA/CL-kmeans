@@ -139,6 +139,8 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
                 &stats.data_points.back().get_event()
                 ));
 
+    Timer total_timer;
+    total_timer.start();
 
     iterations = 0;
     did_changes = true;
@@ -312,6 +314,11 @@ int cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>::operator() (
         ++iterations;
     }
 
+    uint64_t total_time = total_timer.stop<std::chrono::nanoseconds>();
+    stats.data_points.emplace_back(
+            cle::DataPoint::Type::TotalTime,
+            -1,
+            total_time);
     stats.iterations = iterations;
 
     return 1;

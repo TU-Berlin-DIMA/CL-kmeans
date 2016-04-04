@@ -34,7 +34,8 @@ class DataPoint {
 public:
     // Don't forget to update cle_data_point_type_name strings in .cpp
     enum Type {
-        H2DPoints = 0,
+        TotalTime = 0,
+        H2DPoints,
         H2DCentroids,
         D2HLabels,
         D2HChanges,
@@ -96,6 +97,7 @@ private:
 
 class KmeansStats {
 public:
+    void start_experiment();
     void start_experiment(cl::Device device);
     std::chrono::system_clock::time_point get_run_date() const;
     char const* get_device_name() const;

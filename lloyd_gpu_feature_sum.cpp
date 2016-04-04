@@ -17,6 +17,7 @@
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
 #include "cl_kernels/mass_sum_merge_api.hpp"
 #include "cl_kernels/aggregate_sum_api.hpp"
+#include "timer.hpp"
 
 #include <clext.hpp>
 
@@ -202,6 +203,9 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 NULL,
                 &stats.data_points.back().get_event()
                 ));
+
+    Timer total_timer;
+    total_timer.start();
 
     iterations = 0;
     did_changes = true;
@@ -449,6 +453,11 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 &stats.data_points.back().get_event()
                 ));
 
+    uint64_t total_time = total_timer.stop<std::chrono::nanoseconds>();
+    stats.data_points.emplace_back(
+            cle::DataPoint::Type::TotalTime,
+            -1,
+            total_time);
     stats.iterations = iterations;
 
     return 1;
