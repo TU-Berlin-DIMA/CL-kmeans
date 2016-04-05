@@ -112,8 +112,8 @@ void lloyd_labeling_vp_clcp(
     // Read to local memory
     for (CL_INT i = get_local_id(0); i < NUM_CLUSTERS; i += get_local_size(0)) {
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-            l_centroids[ccoord2ind(NUM_CLUSTERS, get_local_id(0), f)]
-                = g_centroids[ccoord2ind(NUM_CLUSTERS, get_local_id(0), f)];
+            l_centroids[ccoord2ind(NUM_CLUSTERS, i, f)]
+                = g_centroids[ccoord2ind(NUM_CLUSTERS, i, f)];
         }
     }
 
