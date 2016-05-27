@@ -92,7 +92,7 @@ public:
                   cl::NullRange,
                   &args.events_, &event));
 
-      global_size >>= 1;
+      global_size /= 2;
       data_size = global_size * 2;
       ++round;
     }

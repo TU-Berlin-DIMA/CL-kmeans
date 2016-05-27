@@ -25,7 +25,7 @@ ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 OPTION(CLEXT_PATH "Path to CLExt library" OFF)
 OPTION(MATRIX_BOUNDSCHECK "Enable matrix bounds checking" OFF)
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -ffp-contract=fast -march=native -fopenmp -Wall -Wextra -DUNIX")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -ffp-contract=fast -march=native -Wall -Wextra -DUNIX")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 
 FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS program_options system filesystem)

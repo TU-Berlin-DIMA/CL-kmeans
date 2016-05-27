@@ -10,9 +10,17 @@
 #include <iostream>
 
 #include "cl_kernels/reduce_vector_parcol_api.hpp"
+#include "matrix.hpp"
 
 #include <clext.hpp>
 #include <boost/program_options.hpp>
+
+#include <iostream>
+#include <memory> // allocator
+#include <vector>
+#include <algorithm> // equal
+#include <cstdint>
+#include <random>
 
 #ifndef TEST_KERNEL_NAME
 #define TEST_KERNEL_NAME ""
@@ -103,6 +111,26 @@ private:
     size_t buffer_size_;
 };
 
+class ReduceVectorParcolTest {
+public:
+    bool operator() (
+            cle::Matrix<uint32_t, std::allocator<uint32_t>, uint32_t> const& data,
+            std::vector<uint32_t> const& reduced
+            ) {
+
+        std::vector<uint32_t> reduced_verify(data.rows(), 0);
+        for (uint32_t col = 0; col < data.cols(); ++col) {
+            for (uint32_t row = 0; row < data.rows(); ++row) {
+                reduced_verify[row] += data(row, col);
+            }
+        }
+
+        return std::equal(
+                reduced_verify.begin(), reduced_verify.end(),
+                reduced.begin());
+    }
+};
+
 int main(int argc, char **argv) {
 
     int ret = 0;
@@ -132,13 +160,20 @@ int main(int argc, char **argv) {
     }
 
     uint32_t num_rows = 64;
-    uint32_t num_cols = options.buffer_bytes() / num_rows;
+    uint32_t num_cols = options.buffer_bytes() / sizeof(uint32_t) / num_rows;
+
+    cle::Matrix<uint32_t, std::allocator<uint32_t>, uint32_t> data;
+    data.resize(num_rows, num_cols);
+
+    std::default_random_engine rgen;
+    std::uniform_int_distribution<uint32_t> uniform;
+    std::generate(data.begin(), data.end(), [&](){return uniform(rgen);});
 
     cl::Context context_ = initializer.get_context();
     cl::CommandQueue queue_ = initializer.get_commandqueue();
 
-    std::vector<int> h_buffer(options.buffer_bytes());
-    cle::TypedBuffer<cl_uint> d_buffer(context_, CL_MEM_READ_WRITE, options.buffer_bytes());
+    std::vector<uint32_t> res_buffer(num_rows);
+    cle::TypedBuffer<cl_uint> d_buffer(context_, CL_MEM_READ_WRITE, data.size());
 
     cle::ReduceVectorParcolAPI<cl_uint, cl_uint> reducevector;
     cle_sanitize_done_return(
@@ -151,7 +186,7 @@ int main(int argc, char **argv) {
                 CL_FALSE,
                 0,
                 d_buffer.bytes(),
-                h_buffer.data(),
+                data.data(),
                 NULL,
                 NULL));
 
@@ -167,6 +202,24 @@ int main(int argc, char **argv) {
                 num_rows,
                 d_buffer,
                 event));
+
+    cle_sanitize_val_return(
+            queue_.enqueueReadBuffer(
+                d_buffer,
+                CL_TRUE,
+                0,
+                res_buffer.size() * sizeof(uint32_t),
+                res_buffer.data(),
+                NULL,
+                NULL));
+
+    ReduceVectorParcolTest reducetest;
+    if (reducetest(data, res_buffer)) {
+        std::cout << "Passed" << std::endl;
+    }
+    else {
+        std::cout << "Failed" << std::endl;
+    }
 
     return 0;
 }
