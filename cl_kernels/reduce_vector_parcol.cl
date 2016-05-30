@@ -35,8 +35,8 @@ void reduce_vector_parcol_innersum(
     wait_group_events(1, &event);
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    unsigned int remaining = get_local_size(0) / NUM_ROWS / 2;
-    for (int i = remaining; i > 1; i /=2 ) {
+    uint remaining = get_local_size(0) / NUM_ROWS / 2;
+    for (uint i = remaining; i > 1; i /=2 ) {
         if (get_local_id(0) < i) {
             l_data[get_local_id(0)] += l_data[remaining + get_local_id(0)];
         }
@@ -64,6 +64,6 @@ void reduce_vector_parcol_compact(
     for (CL_INT i = get_global_id(0); i < N; i += get_global_size(0)) {
         sum += g_data[i];
     }
+    // sum = g_data[get_global_id(0)] + g_data[get_global_id(0) + get_global_size(0)];
     g_data[get_global_id(0)] = sum;
-
 }

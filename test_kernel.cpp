@@ -125,7 +125,8 @@ public:
             }
         }
 
-        return std::equal(
+        return (reduced.size() == reduced_verify.size()) &&
+            std::equal(
                 reduced_verify.begin(), reduced_verify.end(),
                 reduced.begin());
     }
@@ -168,6 +169,8 @@ int main(int argc, char **argv) {
     std::default_random_engine rgen;
     std::uniform_int_distribution<uint32_t> uniform;
     std::generate(data.begin(), data.end(), [&](){return uniform(rgen);});
+    // std::fill(data.begin(), data.end(), 1 << 31);
+    // std::generate(data.begin(), data.end(), [](){static uint32_t x = 0; return x++;});
 
     cl::Context context_ = initializer.get_context();
     cl::CommandQueue queue_ = initializer.get_commandqueue();
