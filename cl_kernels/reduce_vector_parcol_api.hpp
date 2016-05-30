@@ -68,7 +68,9 @@ public:
     uint64_t global_size = data.size() / 2;
     uint32_t round = 0;
     CL_INT data_size = data.size();
-    while (global_size > num_rows) {
+    while (data_size > num_rows) {
+      assert(global_size * 2 == data_size);
+
       cle_sanitize_val_return(
           reduce_vector_parcol_kernel_->setArg(0, (cl::Buffer &)data));
 
