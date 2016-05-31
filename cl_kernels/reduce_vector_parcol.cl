@@ -16,17 +16,14 @@
 #endif
 #endif
 
-#define MAX_LOCAL_SIZE 64
-#define AIRITY 2
-
 __kernel
-void reduce_vector_parcol_innersum(
+void reduce_vector_parcol_inner(
         __global CL_INT *const restrict g_data,
         CL_INT const NUM_COLS,
         CL_INT const NUM_ROWS
         ) {
 
-    __local CL_INT l_data[2 * MAX_LOCAL_SIZE];
+    __local CL_INT l_data[2 * MAX_WORKGROUP_SIZE];
 
     CL_INT base = get_group_id(0) * get_local_size(0);
 
@@ -35,9 +32,12 @@ void reduce_vector_parcol_innersum(
     wait_group_events(1, &event);
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    uint remaining = get_local_size(0) / NUM_ROWS / 2;
-    for (uint i = remaining; i > 1; i /=2 ) {
-        if (get_local_id(0) < i) {
+    for (
+            CL_INT remaining = get_local_size(0);
+            remaining >= NUM_ROWS;
+            remaining /= 2
+            ) {
+        if (get_local_id(0) < remaining) {
             l_data[get_local_id(0)] += l_data[remaining + get_local_id(0)];
         }
 

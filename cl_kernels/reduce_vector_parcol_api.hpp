@@ -43,21 +43,32 @@ public:
     defines += " -DCL_TYPE=";
     defines += cle::OpenCLType::to_str<CL_TYPE>();
 
+    defines += " -DMAX_WORKGROUP_SIZE=";
+    defines += std::to_string(MAX_WORKGROUP_SIZE);
+
     cl::Program program =
         make_program(context, PROGRAM_FILE, defines, error_code);
     if (error_code != CL_SUCCESS) {
       return error_code;
     }
 
-    reduce_vector_parcol_kernel_.reset(
-        new cl::Kernel(program, KERNEL_NAME, &error_code));
+    reduce_vector_parcol_compact_kernel_.reset(
+        new cl::Kernel(program, COMPACT_KERNEL_NAME, &error_code));
+    sanitize_make_kernel(error_code, context, program);
+
+    if (error_code != CL_SUCCESS) {
+        return error_code;
+    }
+
+    reduce_vector_parcol_inner_kernel_.reset(
+        new cl::Kernel(program, INNER_KERNEL_NAME, &error_code));
     sanitize_make_kernel(error_code, context, program);
 
     return error_code;
   }
 
   /*
-  * kernel aggregate sum
+  * kernel reduce vector parcol
   */
   cl_int operator()(cl::EnqueueArgs const &args, CL_INT num_cols,
                     CL_INT num_rows, TypedBuffer<CL_TYPE> &data,
@@ -68,14 +79,14 @@ public:
     uint64_t global_size = data.size() / 2;
     uint32_t round = 0;
     CL_INT data_size = data.size();
-    while (data_size > num_rows) {
+    while (data_size > num_rows && data_size > 2 * MAX_WORKGROUP_SIZE) {
       assert(global_size * 2 == data_size);
 
       cle_sanitize_val_return(
-          reduce_vector_parcol_kernel_->setArg(0, (cl::Buffer &)data));
+          reduce_vector_parcol_compact_kernel_->setArg(0, (cl::Buffer &)data));
 
       cle_sanitize_val_return(
-          reduce_vector_parcol_kernel_->setArg(1, data_size));
+          reduce_vector_parcol_compact_kernel_->setArg(1, data_size));
 
       // cle_sanitize_val_return(
       //         reduce_vector_parcol_kernel_->setArg(1, num_cols));
@@ -88,7 +99,7 @@ public:
 
       cle_sanitize_val_return(
               args.queue_.enqueueNDRangeKernel(
-                  *reduce_vector_parcol_kernel_,
+                  *reduce_vector_parcol_compact_kernel_,
                   args.offset_,
                   cl::NDRange(global_size),
                   cl::NullRange,
@@ -99,15 +110,39 @@ public:
       ++round;
     }
 
+    if (data_size != num_rows && data_size == 2 * MAX_WORKGROUP_SIZE) {
+
+      cle_sanitize_val_return(
+              reduce_vector_parcol_inner_kernel_->setArg(0, (cl::Buffer &)data));
+
+      cle_sanitize_val_return(
+              reduce_vector_parcol_inner_kernel_->setArg(1, num_cols));
+
+      cle_sanitize_val_return(
+              reduce_vector_parcol_inner_kernel_->setArg(2, num_rows));
+
+      cle_sanitize_val_return(
+              args.queue_.enqueueNDRangeKernel(
+                  *reduce_vector_parcol_inner_kernel_,
+                  args.offset_,
+                  cl::NDRange(MAX_WORKGROUP_SIZE),
+                  cl::NDRange(MAX_WORKGROUP_SIZE),
+                  &args.events_, &event));
+    }
+
     return CL_SUCCESS;
   }
 
 private:
+  static constexpr uint32_t MAX_WORKGROUP_SIZE = 64;
+
   static constexpr const char *PROGRAM_FILE =
       CL_KERNEL_FILE_PATH("reduce_vector_parcol.cl");
-  static constexpr const char *KERNEL_NAME = "reduce_vector_parcol_compact";
+  static constexpr const char *COMPACT_KERNEL_NAME = "reduce_vector_parcol_compact";
+  static constexpr const char *INNER_KERNEL_NAME = "reduce_vector_parcol_inner";
 
-  std::shared_ptr<cl::Kernel> reduce_vector_parcol_kernel_;
+  std::shared_ptr<cl::Kernel> reduce_vector_parcol_compact_kernel_;
+  std::shared_ptr<cl::Kernel> reduce_vector_parcol_inner_kernel_;
 };
 }
 
