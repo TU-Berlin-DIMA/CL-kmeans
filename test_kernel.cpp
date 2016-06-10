@@ -11,6 +11,7 @@
 
 #include "cl_kernels/reduce_vector_parcol_api.hpp"
 #include "matrix.hpp"
+#include "timer.hpp"
 
 #include <clext.hpp>
 #include <boost/program_options.hpp>
@@ -148,7 +149,7 @@ public:
 
 class ReduceVectorMode {
 public:
-    cl_int operator() () {
+    bool operator() () {
         cle::Matrix<uint32_t, std::allocator<uint32_t>, uint32_t> data;
         data.resize(num_rows_, num_cols_);
 
@@ -166,6 +167,7 @@ public:
         cle_sanitize_done_return(
                 reducevector.initialize(context_)
                 );
+        cl::Event event;
 
         cle_sanitize_val_return(
                 queue_.enqueueWriteBuffer(
@@ -177,7 +179,6 @@ public:
                     NULL,
                     NULL));
 
-        cl::Event event;
         cle_sanitize_done_return(
                 reducevector(
                     cl::EnqueueArgs(
@@ -201,14 +202,43 @@ public:
                     NULL));
 
         ReduceVectorParcolTest reducetest;
-        if (reducetest(data, res_buffer)) {
-            std::cout << "Passed" << std::endl;
-        }
-        else {
-            std::cout << "Failed" << std::endl;
+        if (not reducetest(data, res_buffer)) {
+            std::cout << "ReduceVectorParcol failed" << std::endl;
+            return false;
         }
 
-        return CL_SUCCESS;
+        cle::Timer timer;
+
+        for (int run = 0; run < 10 + 2; ++run) {
+            cl::Event event;
+            timer.start();
+
+            cle_sanitize_done_return(
+                    reducevector(
+                        cl::EnqueueArgs(
+                            queue_,
+                            cl::NDRange(0),
+                            cl::NDRange(0)
+                            ),
+                        num_cols_,
+                        num_rows_,
+                        d_buffer,
+                        event));
+
+            cle_sanitize_val_return(
+                    queue_.finish());
+
+            uint64_t rt = timer.stop<std::chrono::microseconds>();
+            if (run >= 2) {
+                std::cout << rt;
+                if (run + 1 < 10 + 2) {
+                    std::cout << ", ";
+                }
+            }
+        }
+        std::cout << std::endl;
+
+        return true;
     }
 
     void set_context(cl::Context const& context) {
