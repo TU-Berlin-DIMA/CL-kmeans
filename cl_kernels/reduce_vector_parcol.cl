@@ -16,6 +16,11 @@
 #endif
 #endif
 
+/* Reduce to single vector
+ * Assume NUM_COLS * NUM_ROWS < 2 * local_size
+ * Assume NUM_ROWS % local_size == 0
+ * Assume local_size == global_size
+ */
 __kernel
 void reduce_vector_parcol_inner(
         __global CL_INT *const restrict g_data,
@@ -53,6 +58,7 @@ void reduce_vector_parcol_inner(
  * Partially reduce multiple vectors
  * Assume column-major format
  * Assume num_rows < global_size
+ * Assume global_size % num_rows == 0
  */
 __kernel
 void reduce_vector_parcol_compact(
