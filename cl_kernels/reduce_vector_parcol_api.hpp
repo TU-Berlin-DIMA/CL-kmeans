@@ -88,15 +88,6 @@ public:
       cle_sanitize_val_return(
           reduce_vector_parcol_compact_kernel_->setArg(1, data_size));
 
-      // cle_sanitize_val_return(
-      //         reduce_vector_parcol_kernel_->setArg(1, num_cols));
-      //
-      // cle_sanitize_val_return(
-      //         reduce_vector_parcol_kernel_->setArg(2, num_rows));
-      //
-      // cle_sanitize_val_return(
-      //         reduce_vector_parcol_kernel_->setArg(3, round));
-
       cle_sanitize_val_return(
               args.queue_.enqueueNDRangeKernel(
                   *reduce_vector_parcol_compact_kernel_,
