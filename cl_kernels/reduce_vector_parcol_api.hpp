@@ -81,6 +81,7 @@ public:
     CL_INT data_size = data.size();
     while (data_size > num_rows && data_size > 2 * MAX_WORKGROUP_SIZE) {
       assert(global_size * 2 == data_size);
+      assert(global_size % num_rows == 0);
 
       cle_sanitize_val_return(
           reduce_vector_parcol_compact_kernel_->setArg(0, (cl::Buffer &)data));
