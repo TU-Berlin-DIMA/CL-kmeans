@@ -18,6 +18,7 @@
 #include "cl_kernels/mass_sum_global_atomic_api.hpp"
 #include "cl_kernels/mass_sum_merge_api.hpp"
 #include "cl_kernels/aggregate_sum_api.hpp"
+#include "cl_kernels/reduce_vector_parcol_api.hpp"
 
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
@@ -46,7 +47,8 @@ public:
 
     enum class MassSumStrategy {
         GlobalAtomic,
-        Merge
+        Merge,
+        ReduceVectorParcol
     };
 
     enum class CentroidUpdateStrategy {
@@ -88,6 +90,7 @@ private:
     cle::MassSumGlobalAtomicAPI<CL_FP, CL_INT> mass_sum_kernel_;
     cle::MassSumMergeAPI<CL_INT> mass_sum_merge_kernel_;
     cle::AggregateSumAPI<CL_INT, CL_INT> aggregate_mass_kernel_;
+    cle::ReduceVectorParcolAPI<CL_INT, CL_INT> reduce_vector_parcol_kernel_;
     cl::Context context_;
     cl::CommandQueue queue_;
     cl::Device device_;

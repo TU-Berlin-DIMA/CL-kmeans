@@ -51,7 +51,8 @@ public:
         LloydCentroidsFeatureSum,
         LloydCentroidsMergeSum,
         AggregateMass,
-        AggregateCentroids
+        AggregateCentroids,
+        ReduceVectorParcol
     };
 
     DataPoint(Type type, int iteration, uint64_t nanoseconds);

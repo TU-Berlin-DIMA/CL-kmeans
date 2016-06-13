@@ -42,7 +42,8 @@ char const* cle_data_point_type_name[] = {
     "LloydCentroidsFeatureSum",
     "LloydCentroidsMergeSum",
     "AggregateMass",
-    "AggregateCentroids"
+    "AggregateCentroids",
+    "ReduceVectorParcol"
 };
 
 int cle::DataPoint::get_num_types() {

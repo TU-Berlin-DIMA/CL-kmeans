@@ -77,6 +77,9 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::initialize() {
             aggregate_mass_kernel_.initialize(context_));
 
     cle_sanitize_val_return(
+            reduce_vector_parcol_kernel_.initialize(context_));
+
+    cle_sanitize_val_return(
             queue_.getInfo(
                 CL_QUEUE_DEVICE,
                 &device_
@@ -111,6 +114,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
 
     uint32_t iterations;
     bool did_changes;
+    cl::Event event_dummy;
 
     uint64_t const labeling_local_size = warp_size_ * 4;
     uint64_t const labeling_global_size = labeling_local_size * 90 * 32;
@@ -316,6 +320,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
 
         if (did_changes == true) {
             // calculate cluster mass
+            Timer reduce_vector_parcol_timer;
             switch (mass_sum_strategy_) {
                 case MassSumStrategy::GlobalAtomic:
                     stats.data_points.emplace_back(
@@ -370,6 +375,26 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 d_mass,
                                 stats.data_points.back().get_event()
                                 ));
+                    break;
+                case MassSumStrategy::ReduceVectorParcol:
+                    reduce_vector_parcol_timer.start();
+                    cle_sanitize_done_return(
+                            reduce_vector_parcol_kernel_(
+                                cl::EnqueueArgs(
+                                    queue_,
+                                    cl::NullRange,
+                                    cl::NullRange
+                                    ),
+                                points.rows(),
+                                centroids.rows(),
+                                d_mass,
+                                event_dummy
+                                ));
+                    stats.data_points.emplace_back(
+                            cle::DataPoint::Type::ReduceVectorParcol,
+                            iterations,
+                            reduce_vector_parcol_timer.stop<std::chrono::nanoseconds>()
+                            );
                     break;
             }
 
