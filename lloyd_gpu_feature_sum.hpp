@@ -48,7 +48,7 @@ public:
     enum class MassSumStrategy {
         GlobalAtomic,
         Merge,
-        ReduceVectorParcol
+        MergeReduceVectorParcol
     };
 
     enum class CentroidUpdateStrategy {
@@ -96,7 +96,7 @@ private:
     cl::Device device_;
 
     LabelingStrategy labeling_strategy_ = LabelingStrategy::VpClcp;
-    MassSumStrategy mass_sum_strategy_ = MassSumStrategy::Merge;
+    MassSumStrategy mass_sum_strategy_ = MassSumStrategy::MergeReduceVectorParcol;
     CentroidUpdateStrategy centroid_update_strategy_ = CentroidUpdateStrategy::MergeSum;
     cl_uint warp_size_;
 };

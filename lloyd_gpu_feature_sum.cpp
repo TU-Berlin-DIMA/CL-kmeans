@@ -376,7 +376,26 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 stats.data_points.back().get_event()
                                 ));
                     break;
-                case MassSumStrategy::ReduceVectorParcol:
+
+                case MassSumStrategy::MergeReduceVectorParcol:
+                    stats.data_points.emplace_back(
+                            cle::DataPoint::Type::LloydMassSumMerge,
+                            iterations);
+                    cle_sanitize_done_return(
+                            mass_sum_merge_kernel_(
+                                cl::EnqueueArgs(
+                                    queue_,
+                                    cl::NDRange(mass_sum_merge_global_size),
+                                    cl::NDRange(warp_size_)
+                                    ),
+                                points.rows(),
+                                centroids.rows(),
+                                d_labels,
+                                d_mass,
+                                stats.data_points.back().get_event()
+                                ));
+
+                    // aggregate masses calculated by individual work groups
                     reduce_vector_parcol_timer.start();
                     cle_sanitize_done_return(
                             reduce_vector_parcol_kernel_(
@@ -385,7 +404,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                     cl::NullRange,
                                     cl::NullRange
                                     ),
-                                points.rows(),
+                                mass_sum_merge_num_work_groups,
                                 centroids.rows(),
                                 d_mass,
                                 event_dummy
