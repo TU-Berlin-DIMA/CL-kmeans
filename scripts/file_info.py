@@ -1,16 +1,22 @@
 #!/usr/bin/env python
 
+# This Source Code Form is subject to the terms of the Mozilla Public License,
+# v. 2.0. If a copy of the MPL was not distributed with this file, You can
+# obtain one at http://mozilla.org/MPL/2.0/.
+# 
+# 
+# Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+
 import sys
 import os
 import struct
 
 if len(sys.argv) != 2:
     print("Usage: file_info [FILE]")
+    print("Display information about a binary format file")
     sys.exit(0)
 
 file_name = sys.argv[1]
-
-print("File information for " + file_name)
 
 with open(file_name, "rb") as fin:
     header_size_bytes = 24
