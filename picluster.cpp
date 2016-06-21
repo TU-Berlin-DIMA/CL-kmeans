@@ -9,6 +9,7 @@
 
 #include "kmeans.hpp"
 #include "matrix.hpp"
+#include "measurement/measurement.hpp"
 
 #include "libs/jpeg_reader_writer/JPEGReader.h"
 #include "libs/jpeg_reader_writer/JPEGWriter.h"
@@ -137,11 +138,11 @@ int picture_cluster(
 
     cle::KmeansNaive64 kmeans;
     cle::KmeansInitializer64 kmeans_init;
-    cle::KmeansStats kmeans_stats;
+    Measurement::Measurement stats;
 
     kmeans_init.forgy(img_matrix, centroids);
     kmeans.initialize();
-    kmeans(100, img_matrix, centroids, cluster_mass, labels, kmeans_stats);
+    kmeans(100, img_matrix, centroids, cluster_mass, labels, stats);
     kmeans.finalize();
 
     uint8_t mycolors[2 * 3];

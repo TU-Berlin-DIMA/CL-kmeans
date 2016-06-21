@@ -15,6 +15,7 @@
 #include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
+#include "measurement/measurement.hpp"
 
 #include <cstdint>
 #include <type_traits>
@@ -53,7 +54,7 @@ public:
             cle::Matrix<FP, AllocFP, INT, true>& centroids,
             std::vector<INT, AllocINT>& cluster_size,
             std::vector<INT, AllocINT>& memberships,
-            KmeansStats& stats
+            Measurement::Measurement& stats
             );
 
 private:

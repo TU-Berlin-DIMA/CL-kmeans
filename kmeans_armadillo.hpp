@@ -12,6 +12,7 @@
 
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
+#include "measurement/measurement.hpp"
 
 #include <armadillo>
 #include <memory>
@@ -33,7 +34,7 @@ public:
             cle::Matrix<FP, AllocFP, INT, true>& centroids,
             std::vector<INT, AllocINT>&,
             std::vector<INT, AllocINT>&,
-            KmeansStats&
+            Measurement::Measurement&
             );
 
 private:

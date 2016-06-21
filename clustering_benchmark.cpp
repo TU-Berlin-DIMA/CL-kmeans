@@ -9,40 +9,23 @@
 
 #include "clustering_benchmark.hpp"
 
-#include <boost/filesystem/path.hpp>
+#include "measurement/measurement.hpp"
 
 #include <iostream>
-#include <fstream>
 #include <cstdint>
-#include <algorithm> // std::equal
-#include <string>
 #include <chrono>
 #include <vector>
-#include <deque>
-
+#include <string>
+#include <boost/filesystem/path.hpp>
 #include <unistd.h>
 
 #include <Version.h>
 
-char const *const cle::ClusteringBenchmarkStats::parameters_suffix_ =
-"_info";
-
-char const *const cle::ClusteringBenchmarkStats::iterated_measurements_suffix_ =
-"_iter";
-
-char const *const cle::ClusteringBenchmarkStats::onetime_measurements_suffix_ =
-"_once";
-
-uint32_t const cle::ClusteringBenchmarkStats::max_hostname_length_ = 30;
-uint32_t const cle::ClusteringBenchmarkStats::max_datetime_length_ = 30;
-
-char const *const cle::ClusteringBenchmarkStats::timestamp_format_ =
-"%F-%H-%M-%S";
+uint32_t const max_hostname_length = 30;
 
 cle::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
     :
         microseconds(num_runs),
-        kmeans_stats(num_runs),
         num_runs_(num_runs)
 {}
 
@@ -73,194 +56,47 @@ void cle::ClusteringBenchmarkStats::to_csv(
         char const* input_file
         ) {
 
-    boost::filesystem::path file_path(csv_file);
-    boost::filesystem::path file_parent = file_path.parent_path();
-    boost::filesystem::path file_stem = file_path.stem();
-    boost::filesystem::path file_suffix = file_path.extension();
+    assert(microseconds.size() == measurements.size());
 
-    char hostname[max_hostname_length_];
-    gethostname(hostname, max_hostname_length_);
+    char hostname[max_hostname_length];
+    gethostname(hostname, max_hostname_length);
 
-    boost::filesystem::path input_file_path(input_file);
-    boost::filesystem::path input_file_name = input_file_path.filename();
-
-    assert(microseconds.size() == kmeans_stats.size());
-    for (uint32_t run = 0; run < microseconds.size(); ++run) {
-
-        char datetime[max_datetime_length_];
-        std::chrono::system_clock::time_point chrono_date =
-            kmeans_stats[run].get_run_date();
-        std::time_t timet_date =
-            std::chrono::system_clock::to_time_t(chrono_date);
-        std::tm *timeinfo_date = std::gmtime(&timet_date);
-        std::strftime(
-                datetime,
-                max_datetime_length_,
-                timestamp_format_,
-                timeinfo_date
+    for (Measurement::Measurement& m : measurements) {
+        m.set_parameter(
+                Measurement::ParameterType::Version,
+                GIT_REVISION
+                );
+        m.set_parameter(
+                Measurement::ParameterType::Filename,
+                clean_input_filename(input_file)
+                );
+        m.set_parameter(
+                Measurement::ParameterType::Hostname,
+                hostname
+                );
+        m.set_parameter(
+                Measurement::ParameterType::NumFeatures,
+                std::to_string(num_features_)
+                );
+        m.set_parameter(
+                Measurement::ParameterType::NumPoints,
+                std::to_string(num_points_)
+                );
+        m.set_parameter(
+                Measurement::ParameterType::NumClusters,
+                std::to_string(num_clusters_)
                 );
 
-        boost::filesystem::path parameters_file;
-        parameters_file += file_parent;
-        parameters_file /= datetime;
-        parameters_file += '_';
-        parameters_file += file_stem;
-        parameters_file += parameters_suffix_;
-        parameters_file += file_suffix;
-
-        boost::filesystem::path onetime_file;
-        onetime_file += file_parent;
-        onetime_file /= datetime;
-        onetime_file += '_';
-        onetime_file += file_stem;
-        onetime_file += onetime_measurements_suffix_;
-        onetime_file += file_suffix;
-
-        boost::filesystem::path iterated_file;
-        iterated_file += file_parent;
-        iterated_file /= datetime;
-        iterated_file += '_';
-        iterated_file += file_stem;
-        iterated_file += iterated_measurements_suffix_;
-        iterated_file += file_suffix;
-
-        std::ofstream paf(parameters_file.c_str(),
-                std::ios_base::out | std::ios::trunc);
-
-        paf << "Timestamp";
-        paf << ',';
-        paf << "Version";
-        paf << ',';
-        paf << "Filename";
-        paf << ',';
-        paf << "Hostname";
-        paf << ',';
-        paf << "Device";
-        paf << ',';
-        paf << "NumIters";
-        paf << ',';
-        paf << "TimeUnit";
-        paf << ',';
-        paf << "SpaceUnit";
-        paf << ',';
-        paf << "NumFeatures";
-        paf << ',';
-        paf << "NumPoints";
-        paf << ',';
-        paf << "NumClusters";
-
-        paf << '\n';
-
-        paf << datetime;
-        paf << ',';
-        paf << GIT_REVISION;
-        paf << ',';
-        paf << input_file_name.c_str();
-        paf << ',';
-        paf << hostname;
-        paf << ',';
-        paf << kmeans_stats[run].get_device_name();
-        paf << ',';
-        paf << kmeans_stats[run].iterations;
-        paf << ',';
-        paf << "us";
-        paf << ',';
-        paf << "byte";
-        paf << ',';
-        paf << num_features_;
-        paf << ',';
-        paf << num_points_;
-        paf << ',';
-        paf << num_clusters_;
-
-        paf << '\n';
-
-        paf.close();
-        paf.clear();
-
-
-        std::ofstream otf(onetime_file.c_str(),
-                std::ios_base::out | std::ios::trunc);
-
-        otf << "Timestamp";
-
-        for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
-            otf << ',';
-            otf << cle::DataPoint::type_to_name((cle::DataPoint::Type) p);
-        }
-
-        for (int t = 0; t < cle::BufferInfo::get_num_types(); ++t) {
-            otf << ',';
-            otf << cle::BufferInfo::type_to_name((cle::BufferInfo::Type) t);
-        }
-
-        otf << '\n';
-
-        otf << datetime;
-
-        std::deque<cle::DataPoint>& dp = kmeans_stats[run].data_points;
-        for (int t = 0; t < cle::DataPoint::get_num_types(); ++t) {
-            otf << ',';
-
-            for (size_t p = 0; p < dp.size(); ++p) {
-                if (dp[p].get_iteration() == -1 && dp[p].get_type() == t) {
-                    otf << dp[p].get_nanoseconds() / 1000;
-                }
-            }
-        }
-
-        std::vector<cle::BufferInfo>& bi = kmeans_stats[run].buffer_info;
-        for (int t = 0; t < cle::BufferInfo::get_num_types(); ++t) {
-            otf << ',';
-
-            for (size_t b = 0; b < bi.size(); ++b) {
-                if (bi[b].get_type() == t) {
-                    otf << bi[b].get_size();
-                }
-            }
-        }
-
-        otf << '\n';
-
-        otf.close();
-        otf.clear();
-
-
-        std::ofstream itf(iterated_file.c_str(),
-                std::ios_base::out | std::ios::trunc);
-
-        itf << "Timestamp";
-        itf << ',';
-        itf << "Iteration";
-
-        for (int p = 0; p < cle::DataPoint::get_num_types(); ++p) {
-            itf << ',';
-            itf << cle::DataPoint::type_to_name((cle::DataPoint::Type) p);
-        }
-
-        itf << '\n';
-
-        for (int iter = 0; iter < kmeans_stats[run].iterations; ++iter) {
-            itf << datetime;
-            itf << ',';
-            itf << iter;
-
-            for (int t = 0; t < cle::DataPoint::get_num_types(); ++t) {
-                itf << ',';
-
-                for (size_t p = 0; p < dp.size(); ++p) {
-                    if (dp[p].get_iteration() == iter && dp[p].get_type() == t) {
-                        itf << dp[p].get_nanoseconds() / 1000;
-                    }
-                }
-            }
-
-            itf << '\n';
-        }
-
-        itf.close();
-        itf.clear();
+        m.write_csv(csv_file);
     }
+
+}
+
+char const* cle::ClusteringBenchmarkStats::clean_input_filename(char const* filename) {
+  boost::filesystem::path input_file_path(filename);
+  boost::filesystem::path input_file_name = input_file_path.filename();
+
+  return input_file_name.c_str();
 }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
@@ -320,7 +156,7 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
                 centroids_,
                 cluster_mass_,
                 labels_,
-                bs.kmeans_stats[r]
+                bs.measurements[r]
          );
         bs.microseconds[r] = timer.stop<std::chrono::microseconds>();
     }
@@ -338,7 +174,7 @@ template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool C
 int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerificationReference(
         ClusteringFunction ref) {
 
-    cle::KmeansStats stats;
+    Measurement::Measurement stats;
 
     reference_labels_.resize(num_points_);
 
@@ -362,7 +198,7 @@ int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerifica
 template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
 uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(ClusteringFunction f) {
 
-    cle::KmeansStats stats;
+    Measurement::Measurement stats;
 
     init_centroids_(
             points_,

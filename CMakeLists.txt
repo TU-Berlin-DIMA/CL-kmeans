@@ -66,6 +66,7 @@ SET(BENCH_SOURCES
     kmeans_naive.cpp
     kmeans_gpu_assisted.cpp
     lloyd_gpu_feature_sum.cpp
+    measurement/measurement.cpp
     )
 IF(ARMADILLO_FOUND)
     LIST(APPEND BENCH_SOURCES kmeans_armadillo.cpp)
@@ -101,6 +102,7 @@ IF(JPEG_FOUND)
         kmeans_common.cpp
         kmeans_initializer.cpp
         kmeans_naive.cpp
+        measurement/measurement.cpp
         libs/jpeg_reader_writer/JPEGReader.cpp
         libs/jpeg_reader_writer/JPEGWriter.cpp
         )

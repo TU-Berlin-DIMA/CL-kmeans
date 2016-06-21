@@ -22,6 +22,7 @@
 
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
+#include "measurement/measurement.hpp"
 
 #include <cstdint>
 #include <type_traits>
@@ -72,7 +73,7 @@ public:
             cle::Matrix<FP, AllocFP, INT, true>& centroids,
             std::vector<INT, AllocINT>& mass,
             std::vector<INT, AllocINT>& labels,
-            KmeansStats& stats
+            Measurement::Measurement& stats
             );
 
 private:

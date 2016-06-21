@@ -12,6 +12,7 @@
 #include <cassert>
 #include <algorithm>
 #include <limits>
+#include <string>
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT>
 char const* cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::name() const {
@@ -33,10 +34,12 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
         cle::Matrix<FP, AllocFP, INT, true>& centroids,
         std::vector<INT, AllocINT>& cluster_mass,
         std::vector<INT, AllocINT>& labels,
-        KmeansStats& stats) {
+        Measurement::Measurement& stats) {
 
     assert(labels.size() == points.rows());
     assert(cluster_mass.size() == centroids.rows());
+
+    stats.start();
 
     uint32_t iterations = 0;
     bool did_changes = true;
@@ -90,7 +93,11 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
         ++iterations;
     }
 
-    stats.iterations = iterations;
+    stats.end();
+    stats.set_parameter(
+            Measurement::ParameterType::NumIterations,
+            std::to_string(iterations)
+            );
 }
 
 template class cle::KmeansNaive<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;

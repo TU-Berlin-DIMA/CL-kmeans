@@ -13,6 +13,7 @@
 #include "timer.hpp"
 #include "kmeans.hpp"
 #include "matrix.hpp"
+#include "measurement/measurement.hpp"
 
 #include <vector>
 #include <memory>
@@ -35,9 +36,11 @@ public:
     void to_csv(char const* csv_file, char const* input_file);
 
     std::vector<uint64_t> microseconds;
-    std::vector<cle::KmeansStats> kmeans_stats;
+    std::vector<Measurement::Measurement> measurements;
 
 private:
+    char const* clean_input_filename(char const* filename);
+
     uint32_t num_runs_;
     uint64_t num_features_, num_points_, num_clusters_;
 
@@ -61,7 +64,7 @@ public:
             cle::Matrix<FP, AllocFP, INT, COL_MAJOR>&,
             std::vector<INT, AllocINT>&,
             std::vector<INT, AllocINT>&,
-            cle::KmeansStats&
+            Measurement::Measurement&
             )>;
 
     using InitCentroidsFunction = std::function<

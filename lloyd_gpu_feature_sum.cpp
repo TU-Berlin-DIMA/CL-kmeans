@@ -25,6 +25,7 @@
 #include <cstddef> // size_t
 #include <vector>
 #include <algorithm> // std::any_of
+#include <string>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -103,14 +104,20 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
         cle::Matrix<FP, AllocFP, INT, true>& centroids,
         std::vector<INT, AllocINT>& mass,
         std::vector<INT, AllocINT>& labels,
-        KmeansStats& stats
+        Measurement::Measurement& stats
         ) {
 
     assert(points.cols() == centroids.cols());
     assert(points.rows() == labels.size());
     assert(centroids.rows() == mass.size());
 
-    stats.start_experiment(device_);
+    std::string device_name;
+    cle_sanitize_val(
+            device_.getInfo(CL_DEVICE_NAME, &device_name));
+    stats.set_parameter(
+            Measurement::ParameterType::Device,
+            device_name
+            );
 
     uint32_t iterations;
     bool did_changes;
@@ -148,26 +155,28 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     cle::TypedBuffer<CL_INT> d_mass(context_, CL_MEM_READ_WRITE, aggregate_mass_num_work_items);
     cle::TypedBuffer<CL_INT> d_labels(context_, CL_MEM_READ_WRITE, points.rows());
 
-    stats.buffer_info.emplace_back(
-            cle::BufferInfo::Type::Changes,
-            d_did_changes.bytes());
-    stats.buffer_info.emplace_back(
-            cle::BufferInfo::Type::Points,
-            d_points.bytes());
-    stats.buffer_info.emplace_back(
-            cle::BufferInfo::Type::Centroids,
-            d_centroids.bytes());
-    stats.buffer_info.emplace_back(
-            cle::BufferInfo::Type::Mass,
-            d_mass.bytes());
-    stats.buffer_info.emplace_back(
-            cle::BufferInfo::Type::Labels,
-            d_labels.bytes());
+    stats
+        .add_datapoint(Measurement::DataPointType::ChangesBuffer)
+        .add_value()
+        = d_did_changes.bytes();
+    stats
+        .add_datapoint(Measurement::DataPointType::PointsBuffer)
+        .add_value()
+        = d_points.bytes();
+    stats
+        .add_datapoint(Measurement::DataPointType::CentroidsBuffer)
+        .add_value()
+        = d_centroids.bytes();
+    stats
+        .add_datapoint(Measurement::DataPointType::MassBuffer)
+        .add_value()
+        = d_mass.bytes();
+    stats
+        .add_datapoint(Measurement::DataPointType::LabelsBuffer)
+        .add_value()
+        = d_labels.bytes();
 
     // copy points (x,y) host -> device
-    stats.data_points.emplace_back(
-            cle::DataPoint::Type::H2DPoints,
-            -1);
     cle_sanitize_val_return(
             queue_.enqueueWriteBuffer(
                 d_points,
@@ -176,13 +185,14 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 d_points.bytes(),
                 points.data(),
                 NULL,
-                &stats.data_points.back().get_event()
+                &stats
+                .add_datapoint(
+                    Measurement::DataPointType::H2DPoints
+                    )
+                .add_opencl_event()
                 ));
 
     // copy labels host -> device
-    stats.data_points.emplace_back(
-            cle::DataPoint::Type::FillLables,
-            -1);
     cle_sanitize_val_return(
             queue_.enqueueFillBuffer(
                 d_labels,
@@ -190,13 +200,14 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 0,
                 d_labels.bytes(),
                 NULL,
-                &stats.data_points.back().get_event()
+                &stats
+                .add_datapoint(
+                    Measurement::DataPointType::FillLables
+                    )
+                .add_opencl_event()
                 ));
 
     // copy centroids host -> device
-    stats.data_points.emplace_back(
-            cle::DataPoint::Type::H2DCentroids,
-            -1);
     cle_sanitize_val_return(
             queue_.enqueueWriteBuffer(
                 d_centroids,
@@ -205,9 +216,14 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 d_centroids.bytes(),
                 centroids.data(),
                 NULL,
-                &stats.data_points.back().get_event()
+                &stats
+                .add_datapoint(
+                    Measurement::DataPointType::H2DCentroids
+                    )
+                .add_opencl_event()
                 ));
 
+    stats.start();
     Timer total_timer;
     total_timer.start();
 
@@ -216,9 +232,6 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
     while (did_changes == true && iterations < max_iterations) {
 
         // set did_changes to false on device
-        stats.data_points.emplace_back(
-                cle::DataPoint::Type::FillChanges,
-                iterations);
         cle_sanitize_val(
                 queue_.enqueueFillBuffer(
                     d_did_changes,
@@ -226,15 +239,17 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                     0,
                     d_did_changes.bytes(),
                     NULL,
-                    &stats.data_points.back().get_event()
+                    &stats
+                    .add_datapoint(
+                        Measurement::DataPointType::FillChanges,
+                        iterations
+                        )
+                    .add_opencl_event()
                     ));
 
         // execute kernel
         switch (labeling_strategy_) {
             case LabelingStrategy::Plain:
-                stats.data_points.emplace_back(
-                        cle::DataPoint::Type::LloydLabelingPlain,
-                        iterations);
                 cle_sanitize_done_return(
                         labeling_kernel_(
                             cl::EnqueueArgs(
@@ -249,13 +264,15 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                             d_points,
                             d_centroids,
                             d_labels,
-                            stats.data_points.back().get_event()
+                            stats
+                            .add_datapoint(
+                                Measurement::DataPointType::LloydLabelingPlain,
+                                iterations
+                                )
+                            .add_opencl_event()
                             ));
                 break;
             case LabelingStrategy::VpClc:
-                stats.data_points.emplace_back(
-                        cle::DataPoint::Type::LloydLabelingVpClc,
-                        iterations);
                 cle_sanitize_done_return(
                         labeling_vp_clc_kernel_(
                             cl::EnqueueArgs(
@@ -270,13 +287,15 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                             d_points,
                             d_centroids,
                             d_labels,
-                            stats.data_points.back().get_event()
+                            stats
+                            .add_datapoint(
+                                Measurement::DataPointType::LloydLabelingVpClc,
+                                iterations
+                                )
+                            .add_opencl_event()
                             ));
                 break;
             case LabelingStrategy::VpClcp:
-                stats.data_points.emplace_back(
-                        cle::DataPoint::Type::LloydLabelingVpClcp,
-                        iterations);
                 cle_sanitize_done_return(
                         labeling_vp_clcp_kernel_(
                             cl::EnqueueArgs(
@@ -291,15 +310,17 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                             d_points,
                             d_centroids,
                             d_labels,
-                            stats.data_points.back().get_event()
+                            stats
+                            .add_datapoint(
+                                Measurement::DataPointType::LloydLabelingVpClcp,
+                                iterations
+                                )
+                            .add_opencl_event()
                             ));
                 break;
         }
 
         // copy did_changes device -> host
-        stats.data_points.emplace_back(
-                cle::DataPoint::Type::D2HChanges,
-                iterations);
         cle_sanitize_val(
                 queue_.enqueueReadBuffer(
                     d_did_changes,
@@ -308,7 +329,12 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                     d_did_changes.bytes(),
                     h_did_changes.data(),
                     NULL,
-                    &stats.data_points.back().get_event()
+                    &stats
+                    .add_datapoint(
+                        Measurement::DataPointType::D2HChanges,
+                        iterations
+                        )
+                    .add_opencl_event()
                     ));
 
         // inspect did_changes
@@ -323,9 +349,6 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
             Timer reduce_vector_parcol_timer;
             switch (mass_sum_strategy_) {
                 case MassSumStrategy::GlobalAtomic:
-                    stats.data_points.emplace_back(
-                            cle::DataPoint::Type::LloydMassSumGlobalAtomic,
-                            iterations);
                     cle_sanitize_done_return(
                             mass_sum_kernel_(
                                 cl::EnqueueArgs(
@@ -337,14 +360,16 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.rows(),
                                 d_labels,
                                 d_mass,
-                                stats.data_points.back().get_event()
+                                stats
+                                .add_datapoint(
+                                    Measurement::DataPointType::LloydMassSumGlobalAtomic,
+                                    iterations
+                                    )
+                                .add_opencl_event()
                                 ));
                     break;
 
                 case MassSumStrategy::Merge:
-                    stats.data_points.emplace_back(
-                            cle::DataPoint::Type::LloydMassSumMerge,
-                            iterations);
                     cle_sanitize_done_return(
                             mass_sum_merge_kernel_(
                                 cl::EnqueueArgs(
@@ -356,13 +381,15 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.rows(),
                                 d_labels,
                                 d_mass,
-                                stats.data_points.back().get_event()
+                                stats
+                                .add_datapoint(
+                                    Measurement::DataPointType::LloydMassSumMerge,
+                                    iterations
+                                    )
+                                .add_opencl_event()
                                 ));
 
                     // aggregate masses calculated by individual work groups
-                    stats.data_points.emplace_back(
-                            cle::DataPoint::Type::AggregateMass,
-                            iterations);
                     cle_sanitize_done_return(
                             aggregate_mass_kernel_(
                                 cl::EnqueueArgs(
@@ -373,14 +400,16 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.rows(),
                                 mass_sum_merge_num_work_groups,
                                 d_mass,
-                                stats.data_points.back().get_event()
+                                stats
+                                .add_datapoint(
+                                    Measurement::DataPointType::AggregateMass,
+                                    iterations
+                                    )
+                                .add_opencl_event()
                                 ));
                     break;
 
                 case MassSumStrategy::MergeReduceVectorParcol:
-                    stats.data_points.emplace_back(
-                            cle::DataPoint::Type::LloydMassSumMerge,
-                            iterations);
                     cle_sanitize_done_return(
                             mass_sum_merge_kernel_(
                                 cl::EnqueueArgs(
@@ -392,7 +421,12 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.rows(),
                                 d_labels,
                                 d_mass,
-                                stats.data_points.back().get_event()
+                                stats
+                                .add_datapoint(
+                                    Measurement::DataPointType::LloydMassSumMerge,
+                                    iterations
+                                    )
+                                .add_opencl_event()
                                 ));
 
                     // aggregate masses calculated by individual work groups
@@ -409,20 +443,19 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 d_mass,
                                 event_dummy
                                 ));
-                    stats.data_points.emplace_back(
-                            cle::DataPoint::Type::ReduceVectorParcol,
-                            iterations,
-                            reduce_vector_parcol_timer.stop<std::chrono::nanoseconds>()
-                            );
+                    stats
+                        .add_datapoint(
+                                Measurement::DataPointType::ReduceVectorParcol,
+                                iterations
+                                )
+                        .add_value()
+                        = reduce_vector_parcol_timer.stop<std::chrono::nanoseconds>();
                     break;
             }
 
             // calculate sum of points per cluster
             switch (centroid_update_strategy_) {
                 case CentroidUpdateStrategy::FeatureSum:
-                    stats.data_points.emplace_back(
-                            cle::DataPoint::Type::LloydCentroidsFeatureSum,
-                            iterations);
                     cle_sanitize_done_return(
                             feature_sum_kernel_(
                                 cl::EnqueueArgs(
@@ -437,13 +470,15 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 d_centroids,
                                 d_mass,
                                 d_labels,
-                                stats.data_points.back().get_event()
+                                stats
+                                .add_datapoint(
+                                    Measurement::DataPointType::LloydCentroidsFeatureSum,
+                                    iterations
+                                    )
+                                .add_opencl_event()
                                 ));
                     break;
                 case CentroidUpdateStrategy::MergeSum:
-                    stats.data_points.emplace_back(
-                            cle::DataPoint::Type::LloydCentroidsMergeSum,
-                            iterations);
                     cle_sanitize_done_return(
                             merge_sum_kernel_(
                                 cl::EnqueueArgs(
@@ -458,12 +493,14 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 d_centroids,
                                 d_mass,
                                 d_labels,
-                                stats.data_points.back().get_event()
+                                stats
+                                .add_datapoint(
+                                    Measurement::DataPointType::LloydCentroidsMergeSum,
+                                    iterations
+                                    )
+                                .add_opencl_event()
                                 ));
 
-                    stats.data_points.emplace_back(
-                            cle::DataPoint::Type::AggregateCentroids,
-                            iterations);
                     cle_sanitize_done_return(
                             aggregate_centroid_kernel_(
                                 cl::EnqueueArgs(
@@ -474,7 +511,12 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                                 centroids.size(),
                                 centroid_merge_sum_num_blocks,
                                 d_centroids,
-                                stats.data_points.back().get_event()
+                                stats
+                                .add_datapoint(
+                                    Measurement::DataPointType::AggregateCentroids,
+                                    iterations
+                                    )
+                                .add_opencl_event()
                                 ));
                     break;
             }
@@ -483,9 +525,8 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
         ++iterations;
     }
 
-    stats.data_points.emplace_back(
-            cle::DataPoint::Type::D2HLabels,
-            -1);
+    stats.end();
+
     cle_sanitize_val(
             queue_.enqueueReadBuffer(
                 d_labels,
@@ -494,15 +535,24 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
                 d_labels.bytes(),
                 labels.data(),
                 NULL,
-                &stats.data_points.back().get_event()
+                &stats
+                .add_datapoint(
+                    Measurement::DataPointType::D2HLabels
+                    )
+                .add_opencl_event()
                 ));
 
     uint64_t total_time = total_timer.stop<std::chrono::nanoseconds>();
-    stats.data_points.emplace_back(
-            cle::DataPoint::Type::TotalTime,
-            -1,
-            total_time);
-    stats.iterations = iterations;
+    stats
+        .add_datapoint(
+                Measurement::DataPointType::TotalTime
+                )
+        .add_value()
+        = total_time;
+    stats.set_parameter(
+            Measurement::ParameterType::NumIterations,
+            std::to_string(iterations)
+            );
 
     return 1;
 }
