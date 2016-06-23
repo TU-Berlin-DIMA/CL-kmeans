@@ -79,15 +79,11 @@ public:
   void set_parameter(ParameterType::t, std::string value);
 
   inline DataPoint &add_datapoint(DataPointType::t type) {
-    assert(is_initialized_ == true);
-
     data_points_.push_back(DataPoint(type));
     return data_points_.back();
   }
 
   inline DataPoint &add_datapoint(DataPointType::t type, int iteration) {
-    assert(is_initialized_ == true);
-
     data_points_.push_back(DataPoint(type, iteration));
     return data_points_.back();
   }
@@ -110,7 +106,7 @@ private:
 
   std::string format_filename(std::string basefile, std::string suffix);
 
-  bool is_initialized_;
+  bool is_started_;
   std::deque<DataPoint> data_points_;
   std::map<ParameterType::t, std::string> parameters_;
   std::chrono::system_clock::time_point run_date_;

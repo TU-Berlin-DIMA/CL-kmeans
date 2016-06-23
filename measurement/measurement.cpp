@@ -81,24 +81,23 @@ Measurement::DataPointType::t Measurement::DataPoint::get_type() {  return type_
 }
 
 void Measurement::Measurement::start() {
-  assert(is_initialized_ == false);
+  assert(is_started_ == false);
 
-  is_initialized_ = true;
+  is_started_ = true;
   run_date_ = std::chrono::system_clock::now();
 }
 
-void Measurement::Measurement::end() { assert(is_initialized_ == true); }
+void Measurement::Measurement::end() { assert(is_started_ == true); }
 
 void Measurement::Measurement::set_parameter(
         ParameterType::t type,
         std::string value
         ) {
-  assert(is_initialized_ == true);
   parameters_[type] = value;
 }
 
 void Measurement::Measurement::write_csv(std::string filename) {
-  assert(is_initialized_ == true);
+  assert(is_started_ == true);
 
   {
     std::string parameters_file =
