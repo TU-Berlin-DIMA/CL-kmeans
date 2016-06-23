@@ -116,7 +116,7 @@ int cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>::operator() (
             device_.getInfo(CL_DEVICE_NAME, &device_name));
     stats.set_parameter(
             Measurement::ParameterType::Device,
-            device_name
+            device_name.c_str() // remove trailing '\0'
             );
 
     uint32_t iterations;
