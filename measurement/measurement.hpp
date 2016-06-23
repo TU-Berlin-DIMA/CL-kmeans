@@ -102,9 +102,10 @@ private:
   bool exists_parameter(ParameterType::t type);
   std::string get_parameter_value(ParameterType::t type);
 
+  std::string get_unique_id();
   std::string get_datetime();
 
-  std::string format_filename(std::string basefile, std::string suffix);
+  std::string format_filename(std::string basefile, std::string experiment_id, std::string suffix);
 
   bool is_started_;
   std::deque<DataPoint> data_points_;

@@ -17,11 +17,13 @@
 #include <chrono>
 #include <fstream>
 #include <unistd.h>
+#include <random>
+#include <sstream>
 
 uint32_t const max_datetime_length = 30;
 char const *const timestamp_format = "%F-%H-%M-%S";
 
-char const *const parameters_file_suffix = "_para";
+char const *const experiment_file_suffix = "_expm";
 char const *const measurements_file_suffix = "_mnts";
 char const *const types_file_suffix = "_type";
 
@@ -99,12 +101,16 @@ void Measurement::Measurement::set_parameter(
 void Measurement::Measurement::write_csv(std::string filename) {
   assert(is_started_ == true);
 
+  std::string experiment_id = get_unique_id();
+
   {
-    std::string parameters_file =
-        format_filename(filename, parameters_file_suffix);
+    std::string experiment_file =
+        format_filename(filename, experiment_id, experiment_file_suffix);
 
-    std::ofstream pf(parameters_file, std::ios_base::out | std::ios::trunc);
+    std::ofstream pf(experiment_file, std::ios_base::out | std::ios::trunc);
 
+    pf << "ID";
+    pf << ',';
     pf << "Timestamp";
 
     for (ParameterType::t type = (ParameterType::t)0;
@@ -119,6 +125,8 @@ void Measurement::Measurement::write_csv(std::string filename) {
 
     pf << '\n';
 
+    pf << experiment_id;
+    pf << ',';
     pf << get_datetime();
 
     for (ParameterType::t type = (ParameterType::t)0;
@@ -141,11 +149,11 @@ void Measurement::Measurement::write_csv(std::string filename) {
 
   {
     std::string measurements_file =
-        format_filename(filename, measurements_file_suffix);
+        format_filename(filename, experiment_id, measurements_file_suffix);
 
     std::ofstream mf(measurements_file, std::ios_base::out | std::ios::trunc);
 
-    mf << "Timestamp";
+    mf << "ExperimentID";
     mf << ',';
     mf << "TypeID";
     mf << ',';
@@ -158,7 +166,7 @@ void Measurement::Measurement::write_csv(std::string filename) {
     for (DataPoint dp : data_points_) {
         int type_id = get_datapoint_type_id(dp.get_type());
 
-        mf << get_datetime();
+        mf << experiment_id;
         mf << ',';
         mf << type_id;
         mf << ',';
@@ -175,7 +183,7 @@ void Measurement::Measurement::write_csv(std::string filename) {
   }
 
   {
-    std::string types_file = format_filename(filename, types_file_suffix);
+    std::string types_file = format_filename(filename, experiment_id, types_file_suffix);
 
     std::ofstream tf(types_file, std::ios_base::out | std::ios::trunc);
 
@@ -247,6 +255,16 @@ std::string Measurement::Measurement::get_parameter_value(ParameterType::t type)
   return value;
 }
 
+std::string Measurement::Measurement::get_unique_id() {
+  std::random_device rand;
+  std::stringstream ss;
+
+  ss << std::hex;
+  ss << rand();
+
+  return ss.str();
+}
+
 std::string Measurement::Measurement::get_datetime() {
   char datetime[max_datetime_length];
   std::time_t timet_date = std::chrono::system_clock::to_time_t(run_date_);
@@ -256,8 +274,11 @@ std::string Measurement::Measurement::get_datetime() {
   return datetime;
 }
 
-std::string Measurement::Measurement::format_filename(std::string base_file,
-                                                      std::string data_suffix) {
+std::string Measurement::Measurement::format_filename(
+        std::string base_file,
+        std::string experiment_id,
+        std::string data_suffix
+        ) {
   boost::filesystem::path file_path(base_file);
   boost::filesystem::path file_parent = file_path.parent_path();
   boost::filesystem::path file_stem = file_path.stem();
@@ -266,6 +287,8 @@ std::string Measurement::Measurement::format_filename(std::string base_file,
   boost::filesystem::path filename;
   filename += file_parent;
   filename /= get_datetime();
+  filename += '_';
+  filename += experiment_id;
   filename += '_';
   filename += file_stem;
   filename += data_suffix;
