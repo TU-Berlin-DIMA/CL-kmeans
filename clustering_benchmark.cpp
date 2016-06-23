@@ -62,6 +62,9 @@ void cle::ClusteringBenchmarkStats::to_csv(
     char hostname[max_hostname_length];
     gethostname(hostname, max_hostname_length);
 
+    boost::filesystem::path input_file_path(input_file);
+    boost::filesystem::path input_file_name = input_file_path.filename();
+
     for (Measurement::Measurement& m : measurements) {
         m.set_parameter(
                 Measurement::ParameterType::Version,
@@ -69,7 +72,7 @@ void cle::ClusteringBenchmarkStats::to_csv(
                 );
         m.set_parameter(
                 Measurement::ParameterType::Filename,
-                clean_input_filename(input_file)
+                input_file_name.c_str()
                 );
         m.set_parameter(
                 Measurement::ParameterType::Hostname,
@@ -91,13 +94,6 @@ void cle::ClusteringBenchmarkStats::to_csv(
         m.write_csv(csv_file);
     }
 
-}
-
-char const* cle::ClusteringBenchmarkStats::clean_input_filename(char const* filename) {
-  boost::filesystem::path input_file_path(filename);
-  boost::filesystem::path input_file_name = input_file_path.filename();
-
-  return input_file_name.c_str();
 }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>

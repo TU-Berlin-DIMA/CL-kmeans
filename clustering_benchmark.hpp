@@ -39,8 +39,6 @@ public:
     std::vector<Measurement::Measurement> measurements;
 
 private:
-    char const* clean_input_filename(char const* filename);
-
     uint32_t num_runs_;
     uint64_t num_features_, num_points_, num_clusters_;
 
