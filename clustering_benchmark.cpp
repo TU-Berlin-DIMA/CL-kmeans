@@ -26,6 +26,7 @@ uint32_t const max_hostname_length = 30;
 cle::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
     :
         microseconds(num_runs),
+        measurements(num_runs),
         num_runs_(num_runs)
 {}
 
