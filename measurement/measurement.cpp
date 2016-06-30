@@ -25,7 +25,6 @@ char const *const timestamp_format = "%F-%H-%M-%S";
 
 char const *const experiment_file_suffix = "_expm";
 char const *const measurements_file_suffix = "_mnts";
-char const *const types_file_suffix = "_type";
 
 bool Measurement::DataPoint::is_iterative() { return iterative_; }
 
@@ -157,59 +156,35 @@ void Measurement::Measurement::write_csv(std::string filename) {
     mf << ',';
     mf << "TypeID";
     mf << ',';
+    mf << "TypeName";
+    mf << ',';
     mf << "Iteration";
     mf << ',';
     mf << "Value";
+    mf << ',';
+    mf << "Unit";
 
     mf << '\n';
 
     for (DataPoint dp : data_points_) {
-        int type_id = get_datapoint_type_id(dp.get_type());
-
         mf << experiment_id;
         mf << ',';
-        mf << type_id;
+        mf << get_datapoint_type_id(dp.get_type());
+        mf << ',';
+        mf << get_datapoint_type_name(dp.get_type());
         mf << ',';
         if (dp.is_iterative() == true) {
             mf << dp.get_iteration();
         }
         mf << ',';
         mf << dp.get_value();
+        mf << ',';
+        mf << get_datapoint_type_unit(dp.get_type());
         mf << '\n';
     }
 
     mf.close();
     mf.clear();
-  }
-
-  {
-    std::string types_file = format_filename(filename, experiment_id, types_file_suffix);
-
-    std::ofstream tf(types_file, std::ios_base::out | std::ios::trunc);
-
-    tf << "ID";
-    tf << ',';
-    tf << "Name";
-    tf << ',';
-    tf << "Unit";
-
-    tf << '\n';
-
-    for (
-            DataPointType::t type = (DataPointType::t)0;
-            type < get_num_datapoint_types();
-            type = DataPointType::t(type+1)
-        ) {
-      tf << get_datapoint_type_id(type);
-      tf << ',';
-      tf << get_datapoint_type_name(type);
-      tf << ',';
-      tf << get_datapoint_type_unit(type);
-      tf << '\n';
-    }
-
-    tf.close();
-    tf.clear();
   }
 }
 
@@ -259,7 +234,7 @@ std::string Measurement::Measurement::get_unique_id() {
   std::random_device rand;
   std::stringstream ss;
 
-  ss << std::hex;
+  ss << std::dec;
   ss << rand();
 
   return ss.str();
