@@ -7,8 +7,8 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifndef MASS_SUM_MERGE_API_HPP
-#define MASS_SUM_MERGE_API_HPP
+#ifndef HISTOGRAM_GLOBAL_API_HPP
+#define HISTOGRAM_GLOBAL_API_HPP
 
 #include "kernel_path.hpp"
 
@@ -27,17 +27,17 @@
 
 namespace cle {
 
-    template <typename CL_INT>
-    class MassSumMergeAPI {
+    template <typename CL_FP, typename CL_INT>
+    class HistogramGlobalAPI {
     public:
         cl_int initialize(cl::Context& context) {
             cl_int error_code = CL_SUCCESS;
 
             std::string defines;
-            if (std::is_same<cl_uint, CL_INT>::value) {
+            if (std::is_same<cl_float, CL_FP>::value) {
                 defines = "-DTYPE32";
             }
-            else if (std::is_same<cl_ulong, CL_INT>::value) {
+            else if (std::is_same<cl_double, CL_FP>::value) {
                 defines = "-DTYPE64";
             }
             else {
@@ -56,48 +56,40 @@ namespace cle {
         }
 
         /*
-        * kernel prefix_sum
-        * 
-        * Performs exclusive prefix sum on input
+        * kernel histogram
+        *
+        * Calculates complete histogram
         *
         * Input
-        *       Buffer with cl_uint array
+        *       Buffer with data items
         *
         * Output
-        *       Buffer with cl_uint array 
-        *       cl_uint with total sum
+        *       Buffer with histogram
         *
         */
         cl_int operator() (
                 cl::EnqueueArgs const& args,
-                CL_INT num_points,
-                CL_INT num_clusters,
-                TypedBuffer<CL_INT>& labels,
-                TypedBuffer<CL_INT>& mass,
+                CL_INT num_items,
+                CL_INT num_bins,
+                TypedBuffer<CL_INT>& in_items,
+                TypedBuffer<CL_INT>& out_bins,
                 cl::Event& event
                 ) {
 
-            assert(labels.size() == num_points);
-            assert(mass.size() >=
-                    num_clusters * (args.global_[0] / args.local_[0]));
-
-            cl::LocalSpaceArg local_labels =
-                cl::Local(num_clusters * sizeof(CL_INT));
+            assert(in_items.size() == num_items);
+            assert(out_bins.size() == num_bins);
 
             cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(0, (cl::Buffer&)labels));
+                    mass_sum_kernel_->setArg(0, (cl::Buffer&)in_items));
 
             cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(1, (cl::Buffer&)mass));
+                    mass_sum_kernel_->setArg(1, (cl::Buffer&)out_bins));
 
             cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(2, local_labels));
+                    mass_sum_kernel_->setArg(2, num_items));
 
             cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(3, num_points));
-
-            cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(4, num_clusters));
+                    mass_sum_kernel_->setArg(3, num_bins));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
@@ -113,11 +105,11 @@ namespace cle {
         }
 
     private:
-        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("mass_sum_merge.cl");
-        static constexpr const char* KERNEL_NAME = "mass_sum_merge";
+        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("histogram_global.cl");
+        static constexpr const char* KERNEL_NAME = "histogram_global";
 
         std::shared_ptr<cl::Kernel> mass_sum_kernel_;
     };
 }
 
-#endif /* MASS_SUM_MERGE_API_HPP */
+#endif /* HISTOGRAM_GLOBAL_API_HPP */

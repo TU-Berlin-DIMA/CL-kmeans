@@ -19,32 +19,32 @@
 #endif
 
 __kernel
-void mass_sum_global_atomic(
-            __global CL_INT *const g_labels,
-            __global CL_INT *const g_mass,
-            const CL_INT NUM_POINTS,
-            const CL_INT NUM_CLUSTERS
+void histogram_global(
+            __global CL_INT *const g_in,
+            __global CL_INT *const g_out,
+            const CL_INT NUM_ITEMS,
+            const CL_INT NUM_BINS
        ) {
 
-    for (CL_INT r = 0; r < NUM_CLUSTERS; r += get_global_size(0)) {
+    for (CL_INT r = 0; r < NUM_BINS; r += get_global_size(0)) {
         CL_INT c = r + get_global_id(0);
 
-        if (c < NUM_CLUSTERS) {
-            g_mass[c] = 0;
+        if (c < NUM_BINS) {
+            g_out[c] = 0;
         }
     }
 
-    for (CL_INT r = 0; r < NUM_POINTS; r += get_global_size(0)) {
+    for (CL_INT r = 0; r < NUM_ITEMS; r += get_global_size(0)) {
         // Current point ID
         CL_INT p = r + get_global_id(0);
 
-        if (p < NUM_POINTS) {
-            CL_INT cluster = g_labels[p];
+        if (p < NUM_ITEMS) {
+            CL_INT cluster = g_in[p];
 #ifdef TYPE32
-            atomic_inc(&g_mass[cluster]);
+            atomic_inc(&g_out[cluster]);
 #else
 #ifdef TYPE64
-            atom_inc(&g_mass[cluster]);
+            atom_inc(&g_out[cluster]);
 #endif
 #endif
         }

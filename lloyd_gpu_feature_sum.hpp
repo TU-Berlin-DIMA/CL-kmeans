@@ -15,8 +15,8 @@
 #include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/lloyd_merge_sum_api.hpp"
-#include "cl_kernels/mass_sum_global_atomic_api.hpp"
-#include "cl_kernels/mass_sum_merge_api.hpp"
+#include "cl_kernels/histogram_global_api.hpp"
+#include "cl_kernels/histogram_part_local_api.hpp"
 #include "cl_kernels/aggregate_sum_api.hpp"
 #include "cl_kernels/reduce_vector_parcol_api.hpp"
 
@@ -88,8 +88,8 @@ private:
     cle::LloydFeatureSumAPI<CL_FP, CL_INT> feature_sum_kernel_;
     cle::LloydMergeSumAPI<CL_FP, CL_INT> merge_sum_kernel_;
     cle::AggregateSumAPI<CL_FP, CL_INT> aggregate_centroid_kernel_;
-    cle::MassSumGlobalAtomicAPI<CL_FP, CL_INT> mass_sum_kernel_;
-    cle::MassSumMergeAPI<CL_INT> mass_sum_merge_kernel_;
+    cle::HistogramGlobalAPI<CL_FP, CL_INT> mass_sum_kernel_;
+    cle::HistogramPartLocalAPI<CL_INT> mass_sum_merge_kernel_;
     cle::AggregateSumAPI<CL_INT, CL_INT> aggregate_mass_kernel_;
     cle::ReduceVectorParcolAPI<CL_INT, CL_INT> reduce_vector_parcol_kernel_;
     cl::Context context_;

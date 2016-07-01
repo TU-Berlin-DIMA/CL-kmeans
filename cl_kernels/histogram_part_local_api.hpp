@@ -7,8 +7,8 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifndef MASS_SUM_GLOBAL_ATOMIC_API_HPP
-#define MASS_SUM_GLOBAL_ATOMIC_API_HPP
+#ifndef HISTOGRAM_PART_LOCAL_HPP
+#define HISTOGRAM_PART_LOCAL_HPP
 
 #include "kernel_path.hpp"
 
@@ -27,17 +27,17 @@
 
 namespace cle {
 
-    template <typename CL_FP, typename CL_INT>
-    class MassSumGlobalAtomicAPI {
+    template <typename CL_INT>
+    class HistogramPartLocalAPI {
     public:
         cl_int initialize(cl::Context& context) {
             cl_int error_code = CL_SUCCESS;
 
             std::string defines;
-            if (std::is_same<cl_float, CL_FP>::value) {
+            if (std::is_same<cl_uint, CL_INT>::value) {
                 defines = "-DTYPE32";
             }
-            else if (std::is_same<cl_double, CL_FP>::value) {
+            else if (std::is_same<cl_ulong, CL_INT>::value) {
                 defines = "-DTYPE64";
             }
             else {
@@ -56,41 +56,48 @@ namespace cle {
         }
 
         /*
-        * kernel prefix_sum
+        * kernel HistogramPartLocal
         * 
-        * Performs exclusive prefix sum on input
+        * Calculate histogram in partion per work group
+        * using local memory
         *
         * Input
-        *       Buffer with cl_uint array
+        *       Buffer with data item array
         *
         * Output
-        *       Buffer with cl_uint array 
-        *       cl_uint with total sum
+        *       Buffer with #(work groups) partial histograms array
         *
         */
         cl_int operator() (
                 cl::EnqueueArgs const& args,
-                CL_INT num_points,
-                CL_INT num_clusters,
-                TypedBuffer<CL_INT>& labels,
-                TypedBuffer<CL_INT>& mass,
+                CL_INT num_items,
+                CL_INT num_bins,
+                TypedBuffer<CL_INT>& in_items,
+                TypedBuffer<CL_INT>& out_bins,
                 cl::Event& event
                 ) {
 
-            assert(labels.size() == num_points);
-            assert(mass.size() == num_clusters);
+            assert(in_items.size() == num_items);
+            assert(out_bins.size() >=
+                    num_bins * (args.global_[0] / args.local_[0]));
+
+            cl::LocalSpaceArg local_bins =
+                cl::Local(num_bins * sizeof(CL_INT));
 
             cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(0, (cl::Buffer&)labels));
+                    mass_sum_kernel_->setArg(0, (cl::Buffer&)in_items));
 
             cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(1, (cl::Buffer&)mass));
+                    mass_sum_kernel_->setArg(1, (cl::Buffer&)out_bins));
 
             cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(2, num_points));
+                    mass_sum_kernel_->setArg(2, local_bins));
 
             cle_sanitize_val_return(
-                    mass_sum_kernel_->setArg(3, num_clusters));
+                    mass_sum_kernel_->setArg(3, num_items));
+
+            cle_sanitize_val_return(
+                    mass_sum_kernel_->setArg(4, num_bins));
 
             cle_sanitize_val_return(
                     args.queue_.enqueueNDRangeKernel(
@@ -106,11 +113,11 @@ namespace cle {
         }
 
     private:
-        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("mass_sum_global_atomic.cl");
-        static constexpr const char* KERNEL_NAME = "mass_sum_global_atomic";
+        static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("histogram_part_local.cl");
+        static constexpr const char* KERNEL_NAME = "histogram_part_local";
 
         std::shared_ptr<cl::Kernel> mass_sum_kernel_;
     };
 }
 
-#endif /* MASS_SUM_GLOBAL_ATOMIC_API_HPP */
+#endif /* HISTOGRAM_PART_LOCAL_HPP */

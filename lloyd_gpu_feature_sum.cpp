@@ -14,8 +14,8 @@
 #include "cl_kernels/lloyd_labeling_vp_clcp_api.hpp"
 #include "cl_kernels/lloyd_feature_sum_api.hpp"
 #include "cl_kernels/lloyd_merge_sum_api.hpp"
-#include "cl_kernels/mass_sum_global_atomic_api.hpp"
-#include "cl_kernels/mass_sum_merge_api.hpp"
+#include "cl_kernels/histogram_global_api.hpp"
+#include "cl_kernels/histogram_part_local_api.hpp"
 #include "cl_kernels/aggregate_sum_api.hpp"
 #include "timer.hpp"
 
