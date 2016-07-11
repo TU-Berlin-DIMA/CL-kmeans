@@ -1,0 +1,20 @@
+FIND_PACKAGE(Boost COMPONENTS unit_test_framework system filesystem REQUIRED)
+
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
+
+ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK)
+
+FUNCTION(add_test_module TEST_NAME TEST_SOURCE)
+    GET_FILENAME_COMPONENT(TEST_TARGET ${TEST_SOURCE} NAME_WE)
+    ADD_EXECUTABLE(${TEST_TARGET} ${TEST_SOURCE} ../measurement/measurement.cpp)
+    TARGET_LINK_LIBRARIES(${TEST_TARGET}
+        ${Boost_LIBRARIES}
+        ${OPENCL_LIBRARIES}
+        ${CLEXT_LIBRARIES}
+        )
+ENDFUNCTION()
+
+
+ENABLE_TESTING()
+ADD_TEST_MODULE("histogram" histogram.cpp)
+ADD_TEST_MODULE("reduce_vector" reduce_vector.cpp)

@@ -37,7 +37,7 @@ void histogram_part_global(
             r < NUM_BINS * get_num_groups(0);
             r += get_global_size(0)
             ) {
-        g_bin[r] = 0;
+        g_out[r] = 0;
     }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
@@ -49,10 +49,10 @@ void histogram_part_global(
         if (p < NUM_ITEMS) {
             CL_INT bin_indx = g_in[p];
 #ifdef TYPE32
-            atomic_inc(&g_bins[group_offset + bin_indx]);
+            atomic_inc(&g_out[group_offset + bin_indx]);
 #else
 #ifdef TYPE64
-            atom_inc(&g_bins[group_offset + bin_indx]);
+            atom_inc(&g_out[group_offset + bin_indx]);
 #endif
 #endif
         }

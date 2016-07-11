@@ -81,6 +81,9 @@ uint64_t Measurement::DataPoint::get_value() {
 Measurement::DataPointType::t Measurement::DataPoint::get_type() {  return type_;
 }
 
+Measurement::Measurement::Measurement() : is_started_(false) {}
+Measurement::Measurement::~Measurement() {}
+
 void Measurement::Measurement::start() {
   assert(is_started_ == false);
 

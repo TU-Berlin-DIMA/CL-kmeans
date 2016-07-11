@@ -37,7 +37,8 @@ enum t {
     LloydCentroidsMergeSum,
     AggregateMass,
     AggregateCentroids,
-    ReduceVectorParcol
+    ReduceVectorParcol,
+    HistogramPartGlobal
 };
 };
 

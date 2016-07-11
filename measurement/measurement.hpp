@@ -73,6 +73,9 @@ private:
 
 class Measurement {
 public:
+  Measurement();
+  ~Measurement();
+
   void start();
   void end();
 
