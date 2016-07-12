@@ -1,5 +1,6 @@
 #include <cl_kernels/histogram_part_local_api.hpp>
 #include <cl_kernels/histogram_part_global_api.hpp>
+#include <cl_kernels/histogram_part_private_api.hpp>
 #include <cl_kernels/reduce_vector_parcol_api.hpp>
 #include <matrix.hpp>
 #include <measurement/measurement.hpp>
@@ -15,6 +16,9 @@
 #include "data_generator.hpp"
 #include "opencl_setup.hpp"
 
+#define MEGABYTE (1024 * 1024)
+#define GIGABYTE (1024 * 1024 * 1024)
+
 void histogram_verify(
         std::vector<uint32_t> const& data,
         std::vector<uint32_t>& histogram
@@ -25,333 +29,270 @@ void histogram_verify(
     for_each(data.begin(), data.end(), [&](uint32_t x){ ++histogram[x]; });
 }
 
-void histogram_part_local_run(
-        cl::Context context,
-        cl::CommandQueue queue,
-        uint32_t work_group_size,
-        std::vector<uint32_t> const& data,
-        std::vector<uint32_t>& histogram,
-        cl::Event& event
-        ) {
+template <typename Kernel>
+class Histogram {
+public:
+    void set_work_group_size(int size) {
+        work_group_size_ = size;
+    }
 
-    uint32_t num_work_groups = data.size() / work_group_size;
+    void set_num_bins(int bins) {
+        num_bins_ = bins;
+    }
 
-    cle::TypedBuffer<uint32_t> d_data(context, CL_MEM_READ_WRITE, data.size());
-    cle::TypedBuffer<uint32_t> d_histogram(context, CL_MEM_READ_WRITE, histogram.size() * num_work_groups);
+    void test(
+            std::vector<uint32_t> const& data,
+            std::vector<uint32_t>& histogram
+       ) {
+        histogram.resize(num_bins_);
+        uint32_t num_work_groups = data.size() / work_group_size_;
 
-    cle::HistogramPartLocalAPI<cl_uint> kernel;
-    kernel.initialize(context);
+        cle::TypedBuffer<uint32_t> d_data(clenv->context, CL_MEM_READ_WRITE, data.size());
+        cle::TypedBuffer<uint32_t> d_histogram(clenv->context, CL_MEM_READ_WRITE, num_bins_ * num_work_groups);
 
-    cle::ReduceVectorParcolAPI<cl_uint, cl_uint> reduce;
-    reduce.initialize(context);
-    cl::Event reduce_event;
+        Kernel kernel;
+        kernel.initialize(clenv->context);
+        cl::Event histogram_event;
 
-    queue.enqueueWriteBuffer(
-            d_data,
-            CL_FALSE,
-            0,
-            d_data.bytes(),
-            data.data(),
-            NULL,
-            NULL);
+        cle::ReduceVectorParcolAPI<cl_uint, cl_uint> reduce;
+        reduce.initialize(clenv->context);
+        cl::Event reduce_event;
 
-    kernel(
-            cl::EnqueueArgs(
-                queue,
-                cl::NDRange(data.size()),
-                cl::NDRange(work_group_size)),
-            data.size(),
-            histogram.size(),
-            d_data,
-            d_histogram,
-            event
-            );
-
-    reduce(
-            cl::EnqueueArgs(
-                queue,
-                cl::NDRange(histogram.size() * num_work_groups),
-                cl::NullRange),
-            num_work_groups,
-            histogram.size(),
-            d_histogram,
-            reduce_event
-            );
-
-    queue.enqueueReadBuffer(
-            d_histogram,
-            CL_TRUE,
-            0,
-            histogram.size() * sizeof(uint32_t),
-            histogram.data(),
-            NULL,
-            NULL);
-}
-
-void histogram_part_local_performance(
-        cl::Context context,
-        cl::CommandQueue queue,
-        uint32_t work_group_size,
-        std::vector<uint32_t> const& data,
-        uint32_t NUM_BUCKETS,
-        Measurement::Measurement& measurement,
-        int num_runs
-        ) {
-
-    uint32_t num_work_groups = data.size() / work_group_size;
-
-    cle::TypedBuffer<uint32_t> d_data(context, CL_MEM_READ_WRITE, data.size());
-    cle::TypedBuffer<uint32_t> d_histogram(context, CL_MEM_READ_WRITE, NUM_BUCKETS * num_work_groups);
-
-    cle::HistogramPartLocalAPI<cl_uint> kernel;
-    kernel.initialize(context);
-
-    cle::ReduceVectorParcolAPI<cl_uint, cl_uint> reduce;
-    reduce.initialize(context);
-    cl::Event reduce_event;
-
-    queue.enqueueWriteBuffer(
-            d_data,
-            CL_FALSE,
-            0,
-            d_data.bytes(),
-            data.data(),
-            NULL,
-            NULL);
-
-    measurement.start();
-    for (int r = 0; r < num_runs; ++r) {
+        clenv->queue.enqueueWriteBuffer(
+                d_data,
+                CL_FALSE,
+                0,
+                d_data.bytes(),
+                data.data(),
+                NULL,
+                NULL);
 
         kernel(
                 cl::EnqueueArgs(
-                    queue,
+                    clenv->queue,
                     cl::NDRange(data.size()),
-                    cl::NDRange(work_group_size)),
+                    cl::NDRange(work_group_size_)),
                 data.size(),
-                NUM_BUCKETS,
+                num_bins_,
                 d_data,
                 d_histogram,
-                measurement.add_datapoint(Measurement::DataPointType::LloydMassSumMerge, r).add_opencl_event()
-                );
+                histogram_event
+              );
 
-    }
-    measurement.end();
-}
-
-void histogram_part_global_run(
-        cl::Context context,
-        cl::CommandQueue queue,
-        uint32_t work_group_size,
-        std::vector<uint32_t> const& data,
-        std::vector<uint32_t>& histogram,
-        cl::Event& event
-        ) {
-
-    uint32_t num_work_groups = data.size() / work_group_size;
-
-    cle::TypedBuffer<uint32_t> d_data(context, CL_MEM_READ_WRITE, data.size());
-    cle::TypedBuffer<uint32_t> d_histogram(context, CL_MEM_READ_WRITE, histogram.size() * num_work_groups);
-
-    cle::HistogramPartGlobalAPI<cl_uint> kernel;
-    kernel.initialize(context);
-
-    cle::ReduceVectorParcolAPI<cl_uint, cl_uint> reduce;
-    reduce.initialize(context);
-    cl::Event reduce_event;
-
-    queue.enqueueWriteBuffer(
-            d_data,
-            CL_FALSE,
-            0,
-            d_data.bytes(),
-            data.data(),
-            NULL,
-            NULL);
-
-    kernel(
-            cl::EnqueueArgs(
-                queue,
-                cl::NDRange(data.size()),
-                cl::NDRange(work_group_size)),
-            data.size(),
-            histogram.size(),
-            d_data,
-            d_histogram,
-            event
-            );
-
-    reduce(
-            cl::EnqueueArgs(
-                queue,
-                cl::NDRange(histogram.size() * num_work_groups),
-                cl::NullRange),
-            num_work_groups,
-            histogram.size(),
-            d_histogram,
-            reduce_event
-            );
-
-    queue.enqueueReadBuffer(
-            d_histogram,
-            CL_TRUE,
-            0,
-            histogram.size() * sizeof(uint32_t),
-            histogram.data(),
-            NULL,
-            NULL);
-}
-
-void histogram_part_global_performance(
-        cl::Context context,
-        cl::CommandQueue queue,
-        uint32_t work_group_size,
-        std::vector<uint32_t> const& data,
-        uint32_t NUM_BUCKETS,
-        Measurement::Measurement& measurement,
-        int num_runs
-        ) {
-
-    uint32_t num_work_groups = data.size() / work_group_size;
-
-    cle::TypedBuffer<uint32_t> d_data(context, CL_MEM_READ_WRITE, data.size());
-    cle::TypedBuffer<uint32_t> d_histogram(context, CL_MEM_READ_WRITE, NUM_BUCKETS * num_work_groups);
-
-    cle::HistogramPartGlobalAPI<cl_uint> kernel;
-    kernel.initialize(context);
-
-    cle::ReduceVectorParcolAPI<cl_uint, cl_uint> reduce;
-    reduce.initialize(context);
-    cl::Event reduce_event;
-
-    queue.enqueueWriteBuffer(
-            d_data,
-            CL_FALSE,
-            0,
-            d_data.bytes(),
-            data.data(),
-            NULL,
-            NULL);
-
-    measurement.start();
-    for (int r = 0; r < num_runs; ++r) {
-
-        kernel(
+        reduce(
                 cl::EnqueueArgs(
-                    queue,
-                    cl::NDRange(data.size()),
-                    cl::NDRange(work_group_size)),
-                data.size(),
-                NUM_BUCKETS,
-                d_data,
+                    clenv->queue,
+                    cl::NDRange(num_bins_ * num_work_groups),
+                    cl::NullRange),
+                num_work_groups,
+                num_bins_,
                 d_histogram,
-                measurement.add_datapoint(Measurement::DataPointType::HistogramPartGlobal, r).add_opencl_event()
-                );
+                reduce_event
+              );
 
+        clenv->queue.enqueueReadBuffer(
+                d_histogram,
+                CL_TRUE,
+                0,
+                num_bins_ * sizeof(uint32_t),
+                histogram.data(),
+                NULL,
+                NULL);
     }
-    measurement.end();
+
+    void performance(
+            std::vector<uint32_t> const& data,
+            int num_runs,
+            Measurement::Measurement& measurement
+            ) {
+
+        uint32_t num_work_groups = data.size() / work_group_size_;
+
+        cle::TypedBuffer<uint32_t> d_data(clenv->context, CL_MEM_READ_WRITE, data.size());
+        cle::TypedBuffer<uint32_t> d_histogram(clenv->context, CL_MEM_READ_WRITE, num_bins_ * num_work_groups);
+
+        Kernel kernel;
+        kernel.initialize(clenv->context);
+
+        clenv->queue.enqueueWriteBuffer(
+                d_data,
+                CL_FALSE,
+                0,
+                d_data.bytes(),
+                data.data(),
+                NULL,
+                NULL);
+
+        measurement.start();
+        for (int r = 0; r < num_runs; ++r) {
+
+            kernel(
+                    cl::EnqueueArgs(
+                        clenv->queue,
+                        cl::NDRange(data.size()),
+                        cl::NDRange(work_group_size_)),
+                    data.size(),
+                    num_bins_,
+                    d_data,
+                    d_histogram,
+                    measurement.add_datapoint(Measurement::DataPointType::LloydMassSumMerge, r).add_opencl_event()
+                  );
+
+        }
+        measurement.end();
+    }
+
+private:
+    size_t work_group_size_ = 32;
+    size_t num_bins_ = 2;
+};
+
+template <typename Kernel>
+class HistogramTest :
+    public ::testing::TestWithParam<std::tuple<size_t, size_t>>
+{
+protected:
+    virtual void SetUp() {
+        size_t work_group_size, num_bins;
+        std::tie(work_group_size, num_bins) = GetParam();
+
+        histogram_.set_work_group_size(work_group_size);
+        histogram_.set_num_bins(num_bins);
+    }
+
+    virtual void TearDown() {
+    }
+
+    Histogram<Kernel> histogram_;
+};
+
+template <typename Kernel>
+class HistogramPerformance :
+    public ::testing::TestWithParam<std::tuple<size_t, size_t, size_t>>
+{
+protected:
+    virtual void SetUp() {
+        size_t work_group_size, num_bins, num_data;
+        std::tie(work_group_size, num_bins, num_data) = GetParam();
+
+        histogram_.set_work_group_size(work_group_size);
+        histogram_.set_num_bins(num_bins);
+    }
+
+    virtual void TearDown() {
+    }
+
+    Histogram<Kernel> histogram_;
+};
+
+#define HistogramGenericTest(TypeName)                                      \
+TEST_P(TypeName, UniformDistribution) {                                     \
+                                                                            \
+    size_t const num_data = 1 * MEGABYTE;                                    \
+                                                                            \
+    size_t work_group_size, num_bins;                                       \
+    std::tie(work_group_size, num_bins) = GetParam();                       \
+                                                                            \
+    std::vector<uint32_t> data(num_data);                                   \
+    std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);   \
+                                                                            \
+    std::default_random_engine rgen;                                        \
+    std::uniform_int_distribution<uint32_t> uniform(0, num_bins - 1);       \
+    std::generate(                                                          \
+            data.begin(),                                                   \
+            data.end(),                                                     \
+            [&](){ return uniform(rgen); }                                  \
+            );                                                              \
+                                                                            \
+    histogram_.test(data, test_output);                                     \
+    histogram_verify(data, verify_output);                                  \
+                                                                            \
+    EXPECT_TRUE(std::equal(                                                 \
+                test_output.begin(),                                        \
+                test_output.end(),                                          \
+                verify_output.begin()));                                    \
 }
 
-TEST(HistogramPartLocal, UniformDistribution) {
 
-    const size_t NUM_DATA = 1024 * 1024;
-    const size_t NUM_BUCKETS = 16;
-    const uint32_t WORK_GROUP_SIZE = 32;
+using HistogramPartPrivateTest = HistogramTest<cle::HistogramPartPrivateAPI<cl_uint>>;
+HistogramGenericTest(HistogramPartPrivateTest);
+INSTANTIATE_TEST_CASE_P(StandardParameters,
+        HistogramPartPrivateTest,
+        ::testing::Combine(
+            ::testing::Values(32, 64),
+            ::testing::Values(2, 4)));
 
-    std::vector<uint32_t> data(NUM_DATA);
-    std::vector<uint32_t> test_output(NUM_BUCKETS), verify_output(NUM_BUCKETS);
+using HistogramPartLocalTest = HistogramTest<cle::HistogramPartLocalAPI<cl_uint>>;
+HistogramGenericTest(HistogramPartLocalTest);
+INSTANTIATE_TEST_CASE_P(StandardParameters,
+        HistogramPartLocalTest,
+        ::testing::Combine(
+            ::testing::Values(32, 64),
+            ::testing::Values(2, 4, 8, 16)));
 
-    std::default_random_engine rgen;
-    std::uniform_int_distribution<uint32_t> uniform(0, NUM_BUCKETS - 1);
-    std::generate(
-            data.begin(),
-            data.end(),
-            [&](){ return uniform(rgen); }
-            );
+using HistogramPartGlobalTest = HistogramTest<cle::HistogramPartGlobalAPI<cl_uint>>;
+HistogramGenericTest(HistogramPartGlobalTest);
+INSTANTIATE_TEST_CASE_P(StandardParameters,
+        HistogramPartGlobalTest,
+        ::testing::Combine(
+            ::testing::Values(32, 64),
+            ::testing::Values(2, 4, 8, 16)));
 
-    cl::Event event;
-    histogram_part_local_run(clenv->context, clenv->queue, WORK_GROUP_SIZE, data, test_output, event);
-    histogram_verify(data, verify_output);
-
-    EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
+#define HistogramGenericPerformance(TypeName)                               \
+TEST_P(TypeName, UniformDistribution) {                                     \
+                                                                            \
+    const size_t num_runs = 5;                                              \
+                                                                            \
+    size_t work_group_size, num_bins, num_data;                             \
+    std::tie(work_group_size, num_bins, num_data) = GetParam();             \
+                                                                            \
+    std::vector<uint32_t> data(num_data);                                   \
+    std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);   \
+                                                                            \
+    std::default_random_engine rgen;                                        \
+    std::uniform_int_distribution<uint32_t> uniform(0, num_bins - 1);       \
+    std::generate(                                                          \
+            data.begin(),                                                   \
+            data.end(),                                                     \
+            [&](){ return uniform(rgen); }                                  \
+            );                                                              \
+                                                                            \
+    Measurement::Measurement measurement;                                   \
+    measurement_setup(measurement, clenv->device, num_runs);                \
+                                                                            \
+    histogram_.performance(data, num_runs, measurement);                    \
+                                                                            \
+    measurement.write_csv(#TypeName ".csv");                                \
+                                                                            \
+    EXPECT_TRUE(true);                                                      \
 }
 
-TEST(HistogramPartGlobal, UniformDistribution) {
+using HistogramPartPrivatePerformance = HistogramPerformance<cle::HistogramPartPrivateAPI<cl_uint>>;
+HistogramGenericPerformance(HistogramPartPrivatePerformance);
+INSTANTIATE_TEST_CASE_P(StandardParameters,
+        HistogramPartPrivatePerformance,
+        ::testing::Combine(
+            ::testing::Values(32, 64),
+            ::testing::Values(2, 4),
+            ::testing::Values(64 * MEGABYTE, 128 * MEGABYTE)));
 
-    const size_t NUM_DATA = 1024 * 1024;
-    const size_t NUM_BUCKETS = 16;
-    const uint32_t WORK_GROUP_SIZE = 32;
+using HistogramPartLocalPerformance = HistogramPerformance<cle::HistogramPartLocalAPI<cl_uint>>;
+HistogramGenericPerformance(HistogramPartLocalPerformance);
+INSTANTIATE_TEST_CASE_P(StandardParameters,
+        HistogramPartLocalPerformance,
+        ::testing::Combine(
+            ::testing::Values(32, 64),
+            ::testing::Values(2, 4, 8, 16),
+            ::testing::Values(64 * MEGABYTE, 128 * MEGABYTE)));
 
-    std::vector<uint32_t> data(NUM_DATA);
-    std::vector<uint32_t> test_output(NUM_BUCKETS), verify_output(NUM_BUCKETS);
-
-    std::default_random_engine rgen;
-    std::uniform_int_distribution<uint32_t> uniform(0, NUM_BUCKETS - 1);
-    std::generate(
-            data.begin(),
-            data.end(),
-            [&](){ return uniform(rgen); }
-            );
-
-    cl::Event event;
-    histogram_part_global_run(clenv->context, clenv->queue, WORK_GROUP_SIZE, data, test_output, event);
-    histogram_verify(data, verify_output);
-
-    EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
-}
-
-TEST(HistogramPartLocal, UniformDistributionPerformance) {
-
-    const size_t NUM_DATA = 128 * 1024 * 1024;
-    const size_t NUM_BUCKETS = 16;
-    const uint32_t WORK_GROUP_SIZE = 32;
-    const int NUM_RUNS = 5;
-
-    std::vector<uint32_t> data(NUM_DATA);
-
-    std::default_random_engine rgen;
-    std::uniform_int_distribution<uint32_t> uniform(0, NUM_BUCKETS - 1);
-    std::generate(
-            data.begin(),
-            data.end(),
-            [&](){ return uniform(rgen); }
-            );
-
-    Measurement::Measurement measurement;
-    measurement_setup(measurement, clenv->device, NUM_RUNS);
-
-    histogram_part_local_performance(clenv->context, clenv->queue, WORK_GROUP_SIZE, data, NUM_BUCKETS, measurement, NUM_RUNS);
-
-    measurement.write_csv("histogram_part_local.csv");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(HistogramPartGlobal, UniformDistributionPerformance) {
-
-    const size_t NUM_DATA = 128 * 1024 * 1024;
-    const size_t NUM_BUCKETS = 16;
-    const uint32_t WORK_GROUP_SIZE = 32;
-    const int NUM_RUNS = 5;
-
-    std::vector<uint32_t> data(NUM_DATA);
-
-    std::default_random_engine rgen;
-    std::uniform_int_distribution<uint32_t> uniform(0, NUM_BUCKETS - 1);
-    std::generate(
-            data.begin(),
-            data.end(),
-            [&](){ return uniform(rgen); }
-            );
-
-    Measurement::Measurement measurement;
-    measurement_setup(measurement, clenv->device, NUM_RUNS);
-
-    histogram_part_global_performance(clenv->context, clenv->queue, WORK_GROUP_SIZE, data, NUM_BUCKETS, measurement, NUM_RUNS);
-
-    measurement.write_csv("histogram_part_global.csv");
-
-    EXPECT_TRUE(true);
-}
+using HistogramPartGlobalPerformance = HistogramPerformance<cle::HistogramPartGlobalAPI<cl_uint>>;
+HistogramGenericPerformance(HistogramPartGlobalPerformance);
+INSTANTIATE_TEST_CASE_P(StandardParameters,
+        HistogramPartGlobalPerformance,
+        ::testing::Combine(
+            ::testing::Values(32, 64),
+            ::testing::Values(2, 4, 8, 16),
+            ::testing::Values(64 * MEGABYTE, 128 * MEGABYTE)));
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
