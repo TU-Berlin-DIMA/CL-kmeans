@@ -4,6 +4,7 @@
 #include <clext.hpp>
 
 #include <measurement/measurement.hpp>
+#include <gtest/gtest.h>
 
 #include <unistd.h>
 #include <cstdint>
@@ -13,24 +14,27 @@
 
 uint32_t const max_hostname_length = 30;
 
-struct CLSetup : cle::CLInitializer {
+class CLEnvironment : public ::testing::Environment {
+public:
+    virtual ~CLEnvironment() {}
 
-    CLSetup() {
-        this->init(0, 0);
-        context = this->get_context();
-        queue = this->get_commandqueue();
+    virtual void SetUp() {
+        clinit.init(0, 0);
+        context = clinit.get_context();
+        queue = clinit.get_commandqueue();
         queue.getInfo(CL_QUEUE_DEVICE, &device);
-    }
-
-    ~CLSetup() {
     }
 
     cl::Context context;
     cl::CommandQueue queue;
     cl::Device device;
+
+private:
+    cle::CLInitializer clinit;
+
 };
 
-BOOST_FIXTURE_TEST_SUITE(ClusteringTest, CLSetup)
+CLEnvironment *clenv;
 
 void measurement_setup(
         Measurement::Measurement& m,

@@ -10,8 +10,7 @@
 #include <algorithm>
 #include <random>
 
-#define BOOST_TEST_MODULE TestHistogram
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 
 #include "data_generator.hpp"
 #include "opencl_setup.hpp"
@@ -252,7 +251,7 @@ void histogram_part_global_performance(
     measurement.end();
 }
 
-BOOST_AUTO_TEST_CASE(HistogramPartLocalUniformDistribution) {
+TEST(HistogramPartLocal, UniformDistribution) {
 
     const size_t NUM_DATA = 1024 * 1024;
     const size_t NUM_BUCKETS = 16;
@@ -270,13 +269,13 @@ BOOST_AUTO_TEST_CASE(HistogramPartLocalUniformDistribution) {
             );
 
     cl::Event event;
-    histogram_part_local_run(context, queue, WORK_GROUP_SIZE, data, test_output, event);
+    histogram_part_local_run(clenv->context, clenv->queue, WORK_GROUP_SIZE, data, test_output, event);
     histogram_verify(data, verify_output);
 
-    BOOST_TEST(test_output == verify_output, boost::test_tools::per_element());
+    EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
 }
 
-BOOST_AUTO_TEST_CASE(HistogramPartGlobalUniformDistribution) {
+TEST(HistogramPartGlobal, UniformDistribution) {
 
     const size_t NUM_DATA = 1024 * 1024;
     const size_t NUM_BUCKETS = 16;
@@ -294,13 +293,13 @@ BOOST_AUTO_TEST_CASE(HistogramPartGlobalUniformDistribution) {
             );
 
     cl::Event event;
-    histogram_part_global_run(context, queue, WORK_GROUP_SIZE, data, test_output, event);
+    histogram_part_global_run(clenv->context, clenv->queue, WORK_GROUP_SIZE, data, test_output, event);
     histogram_verify(data, verify_output);
 
-    BOOST_TEST(test_output == verify_output, boost::test_tools::per_element());
+    EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
 }
 
-BOOST_AUTO_TEST_CASE(HistogramPartLocalUniformDistributionPerformance) {
+TEST(HistogramPartLocal, UniformDistributionPerformance) {
 
     const size_t NUM_DATA = 128 * 1024 * 1024;
     const size_t NUM_BUCKETS = 16;
@@ -318,16 +317,16 @@ BOOST_AUTO_TEST_CASE(HistogramPartLocalUniformDistributionPerformance) {
             );
 
     Measurement::Measurement measurement;
-    measurement_setup(measurement, device, NUM_RUNS);
+    measurement_setup(measurement, clenv->device, NUM_RUNS);
 
-    histogram_part_local_performance(context, queue, WORK_GROUP_SIZE, data, NUM_BUCKETS, measurement, NUM_RUNS);
+    histogram_part_local_performance(clenv->context, clenv->queue, WORK_GROUP_SIZE, data, NUM_BUCKETS, measurement, NUM_RUNS);
 
     measurement.write_csv("histogram_part_local.csv");
 
-    BOOST_TEST(true);
+    EXPECT_TRUE(true);
 }
 
-BOOST_AUTO_TEST_CASE(HistogramPartGlobalUniformDistributionPerformance) {
+TEST(HistogramPartGlobal, UniformDistributionPerformance) {
 
     const size_t NUM_DATA = 128 * 1024 * 1024;
     const size_t NUM_BUCKETS = 16;
@@ -345,13 +344,18 @@ BOOST_AUTO_TEST_CASE(HistogramPartGlobalUniformDistributionPerformance) {
             );
 
     Measurement::Measurement measurement;
-    measurement_setup(measurement, device, NUM_RUNS);
+    measurement_setup(measurement, clenv->device, NUM_RUNS);
 
-    histogram_part_global_performance(context, queue, WORK_GROUP_SIZE, data, NUM_BUCKETS, measurement, NUM_RUNS);
+    histogram_part_global_performance(clenv->context, clenv->queue, WORK_GROUP_SIZE, data, NUM_BUCKETS, measurement, NUM_RUNS);
 
     measurement.write_csv("histogram_part_global.csv");
 
-    BOOST_TEST(true);
+    EXPECT_TRUE(true);
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    clenv = new CLEnvironment;
+    ::testing::AddGlobalTestEnvironment(clenv);
+    return RUN_ALL_TESTS();
+}

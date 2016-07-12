@@ -6,15 +6,10 @@
 #include <vector>
 #include <algorithm>
 
-#define BOOST_TEST_MODULE TestReduceVector
-#include <boost/test/unit_test.hpp>
-#include <boost/test/data/test_case.hpp>
-#include <boost/test/data/monomorphic.hpp>
+#include <gtest/gtest.h>
 
 #include "data_generator.hpp"
 #include "opencl_setup.hpp"
-
-namespace bdata = boost::unit_test::data;
 
 void reduce_vector_verify(
         cle::Matrix<uint32_t, std::allocator<uint32_t>, uint32_t> const& data,
@@ -75,40 +70,45 @@ void reduce_vector_run(
         NULL);
 }
 
-BOOST_AUTO_TEST_CASE(ReduceVectorParcolAscending) {
+TEST(ReduceVectorParcol, Ascending) {
 
     auto const& data = dgen.ascending();
     std::vector<uint32_t> test_output;
     std::vector<uint32_t> verify_output;
 
-    reduce_vector_run(context, queue, data, test_output);
+    reduce_vector_run(clenv->context, clenv->queue, data, test_output);
     reduce_vector_verify(data, verify_output);
 
-    BOOST_TEST(test_output == verify_output, boost::test_tools::per_element());
+    EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
 }
 
-BOOST_AUTO_TEST_CASE(ReduceVectorParcolLarge) {
+TEST(ReduceVectorParcol, Large) {
 
     auto const& data = dgen.large();
     std::vector<uint32_t> test_output;
     std::vector<uint32_t> verify_output;
 
-    reduce_vector_run(context, queue, data, test_output);
+    reduce_vector_run(clenv->context, clenv->queue, data, test_output);
     reduce_vector_verify(data, verify_output);
 
-    BOOST_TEST(test_output == verify_output, boost::test_tools::per_element());
+    EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
 }
 
-BOOST_AUTO_TEST_CASE(ReduceVectorParcolRandom) {
+TEST(ReduceVectorParcol, Random) {
 
     auto const& data = dgen.random();
     std::vector<uint32_t> test_output;
     std::vector<uint32_t> verify_output;
 
-    reduce_vector_run(context, queue, data, test_output);
+    reduce_vector_run(clenv->context, clenv->queue, data, test_output);
     reduce_vector_verify(data, verify_output);
 
-    BOOST_TEST(test_output == verify_output, boost::test_tools::per_element());
+    EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  clenv = new CLEnvironment;
+  ::testing::AddGlobalTestEnvironment(clenv);
+  return RUN_ALL_TESTS();
+}
