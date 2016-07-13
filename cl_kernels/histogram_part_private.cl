@@ -16,20 +16,28 @@
 #endif
 #endif
 
-#define NUM_BINS 2
+#define CASE_STMT(X) case (X): ++p_bins[X]; break;
+
+#define CASE_REPL_2(BASE) CASE_STMT(BASE) CASE_STMT(BASE+1)
+#define CASE_REPL_4(BASE) CASE_REPL_2(BASE) CASE_REPL_2(BASE+2)
+#define CASE_REPL_8(BASE) CASE_REPL_4(BASE) CASE_REPL_4(BASE+4)
+#define CASE_REPL_16(BASE) CASE_REPL_8(BASE) CASE_REPL_8(BASE+8)
+
+#define CASE_REPL_E(NUM) CASE_REPL_##NUM(0)
+#define CASE_REPL(NUM) CASE_REPL_E(NUM)
 
 /*
  * Calculate histogram in paritions per work group
  * 
  * g_in: global_size
  * g_out: num_work_groups * NUM_BINS
- * l_bins: NUM_BINS
+ *
+ * NUM_BINS defined as power of 2 at compile time
  */
 __kernel
 void histogram_part_private(
             __global CL_INT const *const restrict g_in,
             __global CL_INT *const restrict g_out,
-            __local CL_INT *const restrict l_bins,
             const CL_INT NUM_ITEMS
        ) {
 
@@ -51,12 +59,7 @@ void histogram_part_private(
             CL_INT cluster = g_in[p];
 
             switch (cluster) {
-                case 0:
-                    ++p_bins[0];
-                    break;
-                case 1:
-                    ++p_bins[1];
-                    break;
+                CASE_REPL(NUM_BINS);
             }
         }
     }
@@ -65,6 +68,7 @@ void histogram_part_private(
 
     CL_INT group_offset = get_group_id(0) * NUM_BINS;
 
+#pragma unroll NUM_BINS
     for (CL_INT bin = 0; bin < NUM_BINS; ++bin) {
         __global CL_INT *g_bin = &g_out[group_offset + bin];
         CL_INT val = p_bins[bin];
