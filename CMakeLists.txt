@@ -28,6 +28,9 @@ OPTION(MATRIX_BOUNDSCHECK "Enable matrix bounds checking" OFF)
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -ffp-contract=fast -march=native -Wall -Wextra -DUNIX")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 
+ADD_SUBDIRECTORY(libs)
+SET(GTEST_ROOT "${PROJECT_SOURCE_DIR}/libs/gtest/build")
+
 FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS program_options system filesystem)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
