@@ -9,9 +9,11 @@
 
 #ifdef TYPE32
 #define CL_INT uint
+#define ATOMIC_ADD atomic_add
 #else
 #ifdef TYPE64
 #define CL_INT ulong
+#define ATOMIC_ADD atom_add
 #pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
 #endif
 #endif
@@ -25,6 +27,16 @@
 
 #define CASE_REPL_E(NUM) CASE_REPL_##NUM(0)
 #define CASE_REPL(NUM) CASE_REPL_E(NUM)
+
+#define WRITE_STMT(X) ATOMIC_ADD(&g_out[group_offset + X], p_bins[X]);
+
+#define WRITE_REPL_2(BASE) WRITE_STMT(BASE) WRITE_STMT(BASE+1)
+#define WRITE_REPL_4(BASE) WRITE_REPL_2(BASE) WRITE_REPL_2(BASE+2)
+#define WRITE_REPL_8(BASE) WRITE_REPL_4(BASE) WRITE_REPL_4(BASE+4)
+#define WRITE_REPL_16(BASE) WRITE_REPL_8(BASE) WRITE_REPL_8(BASE+8)
+
+#define WRITE_REPL_E(NUM) WRITE_REPL_##NUM(0)
+#define WRITE_REPL(NUM) WRITE_REPL_E(NUM)
 
 /*
  * Calculate histogram in paritions per work group
@@ -67,17 +79,5 @@ void histogram_part_private(
     barrier(CLK_GLOBAL_MEM_FENCE);
 
     CL_INT group_offset = get_group_id(0) * NUM_BINS;
-
-#pragma unroll NUM_BINS
-    for (CL_INT bin = 0; bin < NUM_BINS; ++bin) {
-        __global CL_INT *g_bin = &g_out[group_offset + bin];
-        CL_INT val = p_bins[bin];
-#ifdef TYPE32
-        atomic_add(g_bin, val);
-#else
-#ifdef TYPE64
-        atom_add(g_bin, val);
-#endif
-#endif
-    }
+    WRITE_REPL(NUM_BINS);
 }
