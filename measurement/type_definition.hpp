@@ -51,7 +51,11 @@ enum t {
     NumIterations,
     NumFeatures,
     NumPoints,
-    NumClusters
+    NumClusters,
+    IntType,
+    FloatType,
+    CLGlobalSize,
+    CLLocalSize
 };
 };
 

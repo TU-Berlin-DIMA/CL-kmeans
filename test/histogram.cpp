@@ -259,6 +259,21 @@ TEST_P(TypeName, UniformDistribution) {                                     \
                                                                             \
     Measurement::Measurement measurement;                                   \
     measurement_setup(measurement, clenv->device, num_runs);                \
+    measurement.set_parameter(                                              \
+            Measurement::ParameterType::NumFeatures,                        \
+            std::to_string(1));                                             \
+    measurement.set_parameter(                                              \
+            Measurement::ParameterType::NumPoints,                          \
+            std::to_string(num_data));                                      \
+    measurement.set_parameter(                                              \
+            Measurement::ParameterType::NumClusters,                        \
+            std::to_string(num_bins));                                      \
+    measurement.set_parameter(                                              \
+            Measurement::ParameterType::IntType,                            \
+            "uint32_t");                                                   \
+    measurement.set_parameter(                                              \
+            Measurement::ParameterType::CLLocalSize,                        \
+            std::to_string(work_group_size));                               \
                                                                             \
     histogram_.performance(data, num_runs, measurement);                    \
                                                                             \

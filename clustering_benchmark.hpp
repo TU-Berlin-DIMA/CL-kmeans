@@ -19,6 +19,7 @@
 #include <memory>
 #include <functional>
 #include <cstdint>
+#include <type_traits>
 
 namespace cle {
 
@@ -32,6 +33,12 @@ public:
             uint64_t num_clusters
             );
 
+    template <typename FP, typename INT>
+    void set_types() {
+        is_uint32 = std::is_same<uint32_t, INT>::value;
+        is_float32 = std::is_same<float, FP>::value;
+    }
+
     void print_times();
     void to_csv(char const* csv_file, char const* input_file);
 
@@ -41,6 +48,7 @@ public:
 private:
     uint32_t num_runs_;
     uint64_t num_features_, num_points_, num_clusters_;
+    bool is_uint32, is_float32;
 
     static char const *const parameters_suffix_;
     static char const *const iterated_measurements_suffix_;

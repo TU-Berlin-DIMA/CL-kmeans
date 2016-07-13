@@ -65,6 +65,9 @@ void cle::ClusteringBenchmarkStats::to_csv(
     boost::filesystem::path input_file_path(input_file);
     boost::filesystem::path input_file_name = input_file_path.filename();
 
+    std::string int_type = is_uint32 ? "uint32_t" : "uint64_t";
+    std::string float_type = is_float32 ? "float" : "double";
+
     for (Measurement::Measurement& m : measurements) {
         m.set_parameter(
                 Measurement::ParameterType::Version,
@@ -89,6 +92,14 @@ void cle::ClusteringBenchmarkStats::to_csv(
         m.set_parameter(
                 Measurement::ParameterType::NumClusters,
                 std::to_string(num_clusters_)
+                );
+        m.set_parameter(
+                Measurement::ParameterType::IntType,
+                int_type
+                );
+        m.set_parameter(
+                Measurement::ParameterType::FloatType,
+                float_type
                 );
 
         m.write_csv(csv_file);
@@ -139,6 +150,7 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
     cle::Timer timer;
     ClusteringBenchmarkStats bs(this->num_runs_);
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
+    bs.set_types<FP, INT>();
 
     for (uint32_t r = 0; r < this->num_runs_; ++r) {
         init_centroids_(

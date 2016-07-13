@@ -106,7 +106,11 @@ std::map<ParameterType::t, std::string> parameter_name = {
     {ParameterType::NumIterations, "NumIterations"},
     {ParameterType::NumFeatures, "NumFeatures"},
     {ParameterType::NumPoints, "NumPoints"},
-    {ParameterType::NumClusters, "NumClusters"}
+    {ParameterType::NumClusters, "NumClusters"},
+    {ParameterType::IntType, "IntType"},
+    {ParameterType::FloatType, "FloatType"},
+    {ParameterType::CLGlobalSize, "CLGlobalSize"},
+    {ParameterType::CLLocalSize, "CLLocalSize"}
 };
 
 } // namespace Mapping
