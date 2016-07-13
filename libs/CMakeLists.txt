@@ -11,4 +11,8 @@ IF (NOT EXISTS ${PROJECT_SOURCE_DIR}/libs/gtest/build)
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/libs/gtest/build"
         RESULT_VARIABLE rv
         )
+    FILE(
+        COPY "${PROJECT_SOURCE_DIR}/libs/gtest/include"
+        DESTINATION "${PROJECT_SOURCE_DIR}/libs/gtest/build"
+        )
 ENDIF(NOT EXISTS ${PROJECT_SOURCE_DIR}/libs/gtest/build)
