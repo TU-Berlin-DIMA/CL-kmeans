@@ -244,7 +244,7 @@ TEST_P(UniformDistribution, Performance) {
     histogram->set_num_bins(num_bins);
     histogram->performance(data, num_runs, measurement);
 
-    measurement.write_csv("performance.csv");
+    measurement.write_csv("histogram.csv");
 
     SUCCEED();
 }
