@@ -42,19 +42,14 @@ void histogram_part_global(
 
     barrier(CLK_GLOBAL_MEM_FENCE);
 
-    for (CL_INT r = 0; r < NUM_ITEMS; r += get_global_size(0)) {
-        // Current point ID
-        CL_INT p = r + get_global_id(0);
-
-        if (p < NUM_ITEMS) {
-            CL_INT bin_indx = g_in[p];
+    for (CL_INT p = get_global_id(0); p < NUM_ITEMS; p += get_global_size(0)) {
+        CL_INT bin_indx = g_in[p];
 #ifdef TYPE32
-            atomic_inc(&g_out[group_offset + bin_indx]);
+        atomic_inc(&g_out[group_offset + bin_indx]);
 #else
 #ifdef TYPE64
-            atom_inc(&g_out[group_offset + bin_indx]);
+        atom_inc(&g_out[group_offset + bin_indx]);
 #endif
 #endif
-        }
     }
 }
