@@ -29,7 +29,7 @@ void histogram_verify(
     for_each(data.begin(), data.end(), [&](uint32_t x){ ++histogram[x]; });
 }
 
-template <typename Kernel>
+template <typename Kernel, Measurement::DataPointType::t point_type>
 class Histogram {
 public:
     void set_work_group_size(int size) {
@@ -147,7 +147,7 @@ private:
     size_t num_bins_ = 2;
 };
 
-template <typename Kernel>
+template <typename Kernel, Measurement::DataPointType::t point_type>
 class HistogramTest :
     public ::testing::TestWithParam<std::tuple<size_t, size_t>>
 {
@@ -163,10 +163,10 @@ protected:
     virtual void TearDown() {
     }
 
-    Histogram<Kernel> histogram_;
+    Histogram<Kernel, point_type> histogram_;
 };
 
-template <typename Kernel>
+template <typename Kernel, Measurement::DataPointType::t point_type>
 class HistogramPerformance :
     public ::testing::TestWithParam<std::tuple<size_t, size_t, size_t>>
 {
@@ -182,7 +182,7 @@ protected:
     virtual void TearDown() {
     }
 
-    Histogram<Kernel> histogram_;
+    Histogram<Kernel, point_type> histogram_;
 };
 
 #define HistogramGenericTest(TypeName)                                      \
@@ -214,7 +214,7 @@ TEST_P(TypeName, UniformDistribution) {                                     \
 }
 
 
-using HistogramPartPrivateTest = HistogramTest<cle::HistogramPartPrivateAPI<cl_uint>>;
+using HistogramPartPrivateTest = HistogramTest<cle::HistogramPartPrivateAPI<cl_uint>, Measurement::DataPointType::HistogramPartPrivate>;
 HistogramGenericTest(HistogramPartPrivateTest);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartPrivateTest,
@@ -222,7 +222,7 @@ INSTANTIATE_TEST_CASE_P(StandardParameters,
             ::testing::Values(32, 64),
             ::testing::Values(2, 4)));
 
-using HistogramPartLocalTest = HistogramTest<cle::HistogramPartLocalAPI<cl_uint>>;
+using HistogramPartLocalTest = HistogramTest<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>;
 HistogramGenericTest(HistogramPartLocalTest);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartLocalTest,
@@ -230,7 +230,7 @@ INSTANTIATE_TEST_CASE_P(StandardParameters,
             ::testing::Values(32, 64),
             ::testing::Values(2, 4, 8, 16)));
 
-using HistogramPartGlobalTest = HistogramTest<cle::HistogramPartGlobalAPI<cl_uint>>;
+using HistogramPartGlobalTest = HistogramTest<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>;
 HistogramGenericTest(HistogramPartGlobalTest);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartGlobalTest,
@@ -282,7 +282,7 @@ TEST_P(TypeName, UniformDistribution) {                                     \
     SUCCEED();                                                      \
 }
 
-using HistogramPartPrivatePerformance = HistogramPerformance<cle::HistogramPartPrivateAPI<cl_uint>>;
+using HistogramPartPrivatePerformance = HistogramPerformance<cle::HistogramPartPrivateAPI<cl_uint>, Measurement::DataPointType::HistogramPartPrivate>;
 HistogramGenericPerformance(HistogramPartPrivatePerformance);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartPrivatePerformance,
@@ -291,7 +291,7 @@ INSTANTIATE_TEST_CASE_P(StandardParameters,
             ::testing::Values(2, 4),
             ::testing::Values(64 * MEGABYTE, 128 * MEGABYTE)));
 
-using HistogramPartLocalPerformance = HistogramPerformance<cle::HistogramPartLocalAPI<cl_uint>>;
+using HistogramPartLocalPerformance = HistogramPerformance<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>;
 HistogramGenericPerformance(HistogramPartLocalPerformance);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartLocalPerformance,
@@ -300,7 +300,7 @@ INSTANTIATE_TEST_CASE_P(StandardParameters,
             ::testing::Values(2, 4, 8, 16),
             ::testing::Values(64 * MEGABYTE, 128 * MEGABYTE)));
 
-using HistogramPartGlobalPerformance = HistogramPerformance<cle::HistogramPartGlobalAPI<cl_uint>>;
+using HistogramPartGlobalPerformance = HistogramPerformance<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>;
 HistogramGenericPerformance(HistogramPartGlobalPerformance);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartGlobalPerformance,

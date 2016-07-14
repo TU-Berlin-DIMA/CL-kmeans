@@ -56,7 +56,8 @@ std::map<DataPointType::t, std::string> type_name = {
     {DataPointType::AggregateMass, "AggregateMass"},
     {DataPointType::AggregateCentroids, "AggregateCentroids"},
     {DataPointType::ReduceVectorParcol, "ReduceVectorParcol"},
-    {DataPointType::HistogramPartGlobal, "HistogramPartGlobal"}
+    {DataPointType::HistogramPartGlobal, "HistogramPartGlobal"},
+    {DataPointType::HistogramPartPrivate, "HistogramPartPrivate"}
 };
 
 std::map<DataPointType::t, Unit::u> type_unit = {
@@ -84,7 +85,8 @@ std::map<DataPointType::t, Unit::u> type_unit = {
     {DataPointType::AggregateMass, Unit::Microsecond},
     {DataPointType::AggregateCentroids, Unit::Microsecond},
     {DataPointType::ReduceVectorParcol, Unit::Microsecond},
-    {DataPointType::HistogramPartGlobal, Unit::Microsecond}
+    {DataPointType::HistogramPartGlobal, Unit::Microsecond},
+    {DataPointType::HistogramPartPrivate, Unit::Microsecond}
 };
 
 std::map<Unit::u, std::string> unit_name = {

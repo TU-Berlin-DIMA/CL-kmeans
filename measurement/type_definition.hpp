@@ -38,7 +38,8 @@ enum t {
     AggregateMass,
     AggregateCentroids,
     ReduceVectorParcol,
-    HistogramPartGlobal
+    HistogramPartGlobal,
+    HistogramPartPrivate
 };
 };
 
