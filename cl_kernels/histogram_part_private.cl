@@ -63,16 +63,11 @@ void histogram_part_private(
         g_out[r] = 0;
     }
 
-    for (CL_INT r = 0; r < NUM_ITEMS; r += get_global_size(0)) {
-        // Current point ID
-        CL_INT p = r + get_global_id(0);
+    for (CL_INT p = get_global_id(0); p < NUM_ITEMS; p += get_global_size(0)) {
+        CL_INT cluster = g_in[p];
 
-        if (p < NUM_ITEMS) {
-            CL_INT cluster = g_in[p];
-
-            switch (cluster) {
-                CASE_REPL(NUM_BINS);
-            }
+        switch (cluster) {
+            CASE_REPL(NUM_BINS);
         }
     }
 
