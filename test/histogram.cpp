@@ -29,8 +29,7 @@ void histogram_verify(
     for_each(data.begin(), data.end(), [&](uint32_t x){ ++histogram[x]; });
 }
 
-template <typename Kernel, Measurement::DataPointType::t point_type>
-class Histogram {
+class AbstractHistogram {
 public:
     void set_cl_dimensions(size_t global_size, size_t local_size) {
         global_size_ = global_size;
@@ -41,6 +40,26 @@ public:
         num_bins_ = bins;
     }
 
+    virtual void test(
+            std::vector<uint32_t> const& data,
+            std::vector<uint32_t>& histogram
+            ) = 0;
+
+    virtual void performance(
+            std::vector<uint32_t> const& data,
+            int num_runs,
+            Measurement::Measurement& measurement
+            ) = 0;
+
+protected:
+    size_t global_size_ = 32 * 8;
+    size_t local_size_ = 32;
+    size_t num_bins_ = 2;
+};
+
+template <typename Kernel, Measurement::DataPointType::t point_type>
+class Histogram : public AbstractHistogram {
+public:
     void test(
             std::vector<uint32_t> const& data,
             std::vector<uint32_t>& histogram
@@ -142,181 +161,105 @@ public:
         }
         measurement.end();
     }
-
-private:
-    size_t global_size_ = 32 * 8;
-    size_t local_size_ = 32;
-    size_t num_bins_ = 2;
 };
 
-template <typename Kernel, Measurement::DataPointType::t point_type>
-class HistogramTest :
-    public ::testing::TestWithParam<std::tuple<size_t, size_t, size_t>>
+class UniformDistribution :
+    public ::testing::TestWithParam<std::tuple<size_t, std::shared_ptr<AbstractHistogram>, size_t, size_t>>
 {
 protected:
     virtual void SetUp() {
-        size_t global_size, local_size, num_bins;
-        std::tie(global_size, local_size, num_bins) = GetParam();
+        std::shared_ptr<AbstractHistogram> histogram;
+        size_t num_bins, global_size, local_size;
+        std::tie(num_bins, histogram, global_size, local_size) = GetParam();
 
-        histogram_.set_cl_dimensions(global_size, local_size);
-        histogram_.set_num_bins(num_bins);
+        data.resize(num_data);
+
+        std::default_random_engine rgen;
+        std::uniform_int_distribution<uint32_t> uniform(0, num_bins - 1);
+        std::generate(
+                data.begin(),
+                data.end(),
+                [&](){ return uniform(rgen); }
+                );
     }
 
     virtual void TearDown() {
     }
 
-    Histogram<Kernel, point_type> histogram_;
+    static constexpr size_t num_data = 1 * MEGABYTE;
+    std::vector<uint32_t> data;
 };
 
-template <typename Kernel, Measurement::DataPointType::t point_type>
-class HistogramPerformance :
-    public ::testing::TestWithParam<std::tuple<size_t, size_t, size_t>>
-{
-protected:
-    virtual void SetUp() {
-        size_t global_size, local_size, num_bins;
-        std::tie(global_size, local_size, num_bins) = GetParam();
+TEST_P(UniformDistribution, Test) {
+    std::shared_ptr<AbstractHistogram> histogram;
+    size_t num_bins, global_size, local_size;
+    std::tie(num_bins, histogram, global_size, local_size) = GetParam();
 
-        histogram_.set_cl_dimensions(global_size, local_size);
-        histogram_.set_num_bins(num_bins);
-    }
+    std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);
 
-    virtual void TearDown() {
-    }
+    histogram->set_cl_dimensions(global_size, local_size);
+    histogram->set_num_bins(num_bins);
+    histogram->test(data, test_output);
 
-    Histogram<Kernel, point_type> histogram_;
-};
+    histogram_verify(data, verify_output);
 
-#define HistogramGenericTest(TypeName)                                      \
-TEST_P(TypeName, UniformDistribution) {                                     \
-                                                                            \
-    size_t const num_data = 1 * MEGABYTE;                                   \
-                                                                            \
-    size_t global_size, local_size, num_bins;                               \
-    std::tie(global_size, local_size, num_bins) = GetParam();               \
-                                                                            \
-    std::vector<uint32_t> data(num_data);                                   \
-    std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);   \
-                                                                            \
-    std::default_random_engine rgen;                                        \
-    std::uniform_int_distribution<uint32_t> uniform(0, num_bins - 1);       \
-    std::generate(                                                          \
-            data.begin(),                                                   \
-            data.end(),                                                     \
-            [&](){ return uniform(rgen); }                                  \
-            );                                                              \
-                                                                            \
-    histogram_.test(data, test_output);                                     \
-    histogram_verify(data, verify_output);                                  \
-                                                                            \
-    EXPECT_TRUE(std::equal(                                                 \
-                test_output.begin(),                                        \
-                test_output.end(),                                          \
-                verify_output.begin()));                                    \
+    EXPECT_TRUE(std::equal(
+                test_output.begin(),
+                test_output.end(),
+                verify_output.begin()));
 }
 
+TEST_P(UniformDistribution, Performance) {
 
-using HistogramPartPrivateTest = HistogramTest<cle::HistogramPartPrivateAPI<cl_uint>, Measurement::DataPointType::HistogramPartPrivate>;
-HistogramGenericTest(HistogramPartPrivateTest);
-INSTANTIATE_TEST_CASE_P(StandardParameters,
-        HistogramPartPrivateTest,
-        ::testing::Combine(
-            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
-            ::testing::Values(32, 64),
-            ::testing::Values(2, 4)));
+    const size_t num_runs = 5;
 
-using HistogramPartLocalTest = HistogramTest<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>;
-HistogramGenericTest(HistogramPartLocalTest);
-INSTANTIATE_TEST_CASE_P(StandardParameters,
-        HistogramPartLocalTest,
-        ::testing::Combine(
-            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
-            ::testing::Values(32, 64),
-            ::testing::Values(2, 4, 8, 16)));
+    std::shared_ptr<AbstractHistogram> histogram;
+    size_t num_bins, global_size, local_size;
+    std::tie(num_bins, histogram, global_size, local_size) = GetParam();
 
-using HistogramPartGlobalTest = HistogramTest<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>;
-HistogramGenericTest(HistogramPartGlobalTest);
-INSTANTIATE_TEST_CASE_P(StandardParameters,
-        HistogramPartGlobalTest,
-        ::testing::Combine(
-            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
-            ::testing::Values(32, 64),
-            ::testing::Values(2, 4, 8, 16)));
+    Measurement::Measurement measurement;
+    measurement_setup(measurement, clenv->device, num_runs);
+    measurement.set_parameter(
+            Measurement::ParameterType::NumFeatures,
+            std::to_string(1));
+    measurement.set_parameter(
+            Measurement::ParameterType::NumPoints,
+            std::to_string(num_data));
+    measurement.set_parameter(
+            Measurement::ParameterType::NumClusters,
+            std::to_string(num_bins));
+    measurement.set_parameter(
+            Measurement::ParameterType::IntType,
+            "uint32_t");
+    measurement.set_parameter(
+            Measurement::ParameterType::CLLocalSize,
+            std::to_string(local_size));
+    measurement.set_parameter(
+            Measurement::ParameterType::CLGlobalSize,
+            std::to_string(global_size));
 
-#define HistogramGenericPerformance(TypeName)                               \
-TEST_P(TypeName, UniformDistribution) {                                     \
-                                                                            \
-    const size_t num_runs = 5;                                              \
-    const size_t num_data = 128 * MEGABYTE;                                 \
-                                                                            \
-    size_t global_size, local_size, num_bins;                               \
-    std::tie(global_size, local_size, num_bins) = GetParam();               \
-                                                                            \
-    std::vector<uint32_t> data(num_data);                                   \
-    std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);   \
-                                                                            \
-    std::default_random_engine rgen;                                        \
-    std::uniform_int_distribution<uint32_t> uniform(0, num_bins - 1);       \
-    std::generate(                                                          \
-            data.begin(),                                                   \
-            data.end(),                                                     \
-            [&](){ return uniform(rgen); }                                  \
-            );                                                              \
-                                                                            \
-    Measurement::Measurement measurement;                                   \
-    measurement_setup(measurement, clenv->device, num_runs);                \
-    measurement.set_parameter(                                              \
-            Measurement::ParameterType::NumFeatures,                        \
-            std::to_string(1));                                             \
-    measurement.set_parameter(                                              \
-            Measurement::ParameterType::NumPoints,                          \
-            std::to_string(num_data));                                      \
-    measurement.set_parameter(                                              \
-            Measurement::ParameterType::NumClusters,                        \
-            std::to_string(num_bins));                                      \
-    measurement.set_parameter(                                              \
-            Measurement::ParameterType::IntType,                            \
-            "uint32_t");                                                    \
-    measurement.set_parameter(                                              \
-            Measurement::ParameterType::CLLocalSize,                        \
-            std::to_string(local_size));                                    \
-    measurement.set_parameter(                                              \
-            Measurement::ParameterType::CLGlobalSize,                       \
-            std::to_string(global_size));                                   \
-                                                                            \
-    histogram_.performance(data, num_runs, measurement);                    \
-                                                                            \
-    measurement.write_csv(#TypeName ".csv");                                \
-                                                                            \
-    SUCCEED();                                                              \
+    std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);
+
+    histogram->set_cl_dimensions(global_size, local_size);
+    histogram->set_num_bins(num_bins);
+    histogram->performance(data, num_runs, measurement);
+
+    measurement.write_csv("performance.csv");
+
+    SUCCEED();
 }
 
-using HistogramPartPrivatePerformance = HistogramPerformance<cle::HistogramPartPrivateAPI<cl_uint>, Measurement::DataPointType::HistogramPartPrivate>;
-HistogramGenericPerformance(HistogramPartPrivatePerformance);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
-        HistogramPartPrivatePerformance,
+        UniformDistribution,
         ::testing::Combine(
-            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
-            ::testing::Values(32, 64),
-            ::testing::Values(2, 4)));
-
-using HistogramPartLocalPerformance = HistogramPerformance<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>;
-HistogramGenericPerformance(HistogramPartLocalPerformance);
-INSTANTIATE_TEST_CASE_P(StandardParameters,
-        HistogramPartLocalPerformance,
-        ::testing::Combine(
-            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
-            ::testing::Values(32, 64),
-            ::testing::Values(2, 4, 8, 16)));
-
-using HistogramPartGlobalPerformance = HistogramPerformance<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>;
-HistogramGenericPerformance(HistogramPartGlobalPerformance);
-INSTANTIATE_TEST_CASE_P(StandardParameters,
-        HistogramPartGlobalPerformance,
-        ::testing::Combine(
-            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
-            ::testing::Values(32, 64),
-            ::testing::Values(2, 4, 8, 16)));
+            ::testing::Values(2, 4, 8, 16),
+            ::testing::Values(
+                new Histogram<cle::HistogramPartPrivateAPI<cl_uint>, Measurement::DataPointType::HistogramPartPrivate>,
+                new Histogram<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>,
+                new Histogram<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>
+                ),
+            ::testing::Values((1 * MEGABYTE), (32 * 4 * 90), (32 * 4 * 90 * 32)),
+            ::testing::Values(32, 64)));
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
