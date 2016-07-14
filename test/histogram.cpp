@@ -32,8 +32,9 @@ void histogram_verify(
 template <typename Kernel, Measurement::DataPointType::t point_type>
 class Histogram {
 public:
-    void set_work_group_size(int size) {
-        work_group_size_ = size;
+    void set_cl_dimensions(size_t global_size, size_t local_size) {
+        global_size_ = global_size;
+        local_size_ = local_size;
     }
 
     void set_num_bins(int bins) {
@@ -45,7 +46,7 @@ public:
             std::vector<uint32_t>& histogram
        ) {
         histogram.resize(num_bins_);
-        uint32_t num_work_groups = data.size() / work_group_size_;
+        uint32_t num_work_groups = data.size() / local_size_;
 
         cle::TypedBuffer<uint32_t> d_data(clenv->context, CL_MEM_READ_WRITE, data.size());
         cle::TypedBuffer<uint32_t> d_histogram(clenv->context, CL_MEM_READ_WRITE, num_bins_ * num_work_groups);
@@ -70,8 +71,8 @@ public:
         kernel(
                 cl::EnqueueArgs(
                     clenv->queue,
-                    cl::NDRange(data.size()),
-                    cl::NDRange(work_group_size_)),
+                    cl::NDRange(global_size_),
+                    cl::NDRange(local_size_)),
                 data.size(),
                 num_bins_,
                 d_data,
@@ -106,7 +107,7 @@ public:
             Measurement::Measurement& measurement
             ) {
 
-        uint32_t num_work_groups = data.size() / work_group_size_;
+        uint32_t num_work_groups = data.size() / local_size_;
 
         cle::TypedBuffer<uint32_t> d_data(clenv->context, CL_MEM_READ_WRITE, data.size());
         cle::TypedBuffer<uint32_t> d_histogram(clenv->context, CL_MEM_READ_WRITE, num_bins_ * num_work_groups);
@@ -129,13 +130,13 @@ public:
             kernel(
                     cl::EnqueueArgs(
                         clenv->queue,
-                        cl::NDRange(data.size()),
-                        cl::NDRange(work_group_size_)),
+                        cl::NDRange(global_size_),
+                        cl::NDRange(local_size_)),
                     data.size(),
                     num_bins_,
                     d_data,
                     d_histogram,
-                    measurement.add_datapoint(Measurement::DataPointType::LloydMassSumMerge, r).add_opencl_event()
+                    measurement.add_datapoint(point_type, r).add_opencl_event()
                   );
 
         }
@@ -143,20 +144,21 @@ public:
     }
 
 private:
-    size_t work_group_size_ = 32;
+    size_t global_size_ = 32 * 8;
+    size_t local_size_ = 32;
     size_t num_bins_ = 2;
 };
 
 template <typename Kernel, Measurement::DataPointType::t point_type>
 class HistogramTest :
-    public ::testing::TestWithParam<std::tuple<size_t, size_t>>
+    public ::testing::TestWithParam<std::tuple<size_t, size_t, size_t>>
 {
 protected:
     virtual void SetUp() {
-        size_t work_group_size, num_bins;
-        std::tie(work_group_size, num_bins) = GetParam();
+        size_t global_size, local_size, num_bins;
+        std::tie(global_size, local_size, num_bins) = GetParam();
 
-        histogram_.set_work_group_size(work_group_size);
+        histogram_.set_cl_dimensions(global_size, local_size);
         histogram_.set_num_bins(num_bins);
     }
 
@@ -172,10 +174,10 @@ class HistogramPerformance :
 {
 protected:
     virtual void SetUp() {
-        size_t work_group_size, num_bins, num_data;
-        std::tie(work_group_size, num_bins, num_data) = GetParam();
+        size_t global_size, local_size, num_bins;
+        std::tie(global_size, local_size, num_bins) = GetParam();
 
-        histogram_.set_work_group_size(work_group_size);
+        histogram_.set_cl_dimensions(global_size, local_size);
         histogram_.set_num_bins(num_bins);
     }
 
@@ -188,10 +190,10 @@ protected:
 #define HistogramGenericTest(TypeName)                                      \
 TEST_P(TypeName, UniformDistribution) {                                     \
                                                                             \
-    size_t const num_data = 1 * MEGABYTE;                                    \
+    size_t const num_data = 1 * MEGABYTE;                                   \
                                                                             \
-    size_t work_group_size, num_bins;                                       \
-    std::tie(work_group_size, num_bins) = GetParam();                       \
+    size_t global_size, local_size, num_bins;                               \
+    std::tie(global_size, local_size, num_bins) = GetParam();               \
                                                                             \
     std::vector<uint32_t> data(num_data);                                   \
     std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);   \
@@ -219,6 +221,7 @@ HistogramGenericTest(HistogramPartPrivateTest);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartPrivateTest,
         ::testing::Combine(
+            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
             ::testing::Values(32, 64),
             ::testing::Values(2, 4)));
 
@@ -227,6 +230,7 @@ HistogramGenericTest(HistogramPartLocalTest);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartLocalTest,
         ::testing::Combine(
+            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
             ::testing::Values(32, 64),
             ::testing::Values(2, 4, 8, 16)));
 
@@ -235,6 +239,7 @@ HistogramGenericTest(HistogramPartGlobalTest);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartGlobalTest,
         ::testing::Combine(
+            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
             ::testing::Values(32, 64),
             ::testing::Values(2, 4, 8, 16)));
 
@@ -242,9 +247,10 @@ INSTANTIATE_TEST_CASE_P(StandardParameters,
 TEST_P(TypeName, UniformDistribution) {                                     \
                                                                             \
     const size_t num_runs = 5;                                              \
+    const size_t num_data = 128 * MEGABYTE;                                 \
                                                                             \
-    size_t work_group_size, num_bins, num_data;                             \
-    std::tie(work_group_size, num_bins, num_data) = GetParam();             \
+    size_t global_size, local_size, num_bins;                               \
+    std::tie(global_size, local_size, num_bins) = GetParam();               \
                                                                             \
     std::vector<uint32_t> data(num_data);                                   \
     std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);   \
@@ -270,16 +276,19 @@ TEST_P(TypeName, UniformDistribution) {                                     \
             std::to_string(num_bins));                                      \
     measurement.set_parameter(                                              \
             Measurement::ParameterType::IntType,                            \
-            "uint32_t");                                                   \
+            "uint32_t");                                                    \
     measurement.set_parameter(                                              \
             Measurement::ParameterType::CLLocalSize,                        \
-            std::to_string(work_group_size));                               \
+            std::to_string(local_size));                                    \
+    measurement.set_parameter(                                              \
+            Measurement::ParameterType::CLGlobalSize,                       \
+            std::to_string(global_size));                                   \
                                                                             \
     histogram_.performance(data, num_runs, measurement);                    \
                                                                             \
     measurement.write_csv(#TypeName ".csv");                                \
                                                                             \
-    SUCCEED();                                                      \
+    SUCCEED();                                                              \
 }
 
 using HistogramPartPrivatePerformance = HistogramPerformance<cle::HistogramPartPrivateAPI<cl_uint>, Measurement::DataPointType::HistogramPartPrivate>;
@@ -287,27 +296,27 @@ HistogramGenericPerformance(HistogramPartPrivatePerformance);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartPrivatePerformance,
         ::testing::Combine(
+            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
             ::testing::Values(32, 64),
-            ::testing::Values(2, 4),
-            ::testing::Values(64 * MEGABYTE, 128 * MEGABYTE)));
+            ::testing::Values(2, 4)));
 
 using HistogramPartLocalPerformance = HistogramPerformance<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>;
 HistogramGenericPerformance(HistogramPartLocalPerformance);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartLocalPerformance,
         ::testing::Combine(
+            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
             ::testing::Values(32, 64),
-            ::testing::Values(2, 4, 8, 16),
-            ::testing::Values(64 * MEGABYTE, 128 * MEGABYTE)));
+            ::testing::Values(2, 4, 8, 16)));
 
 using HistogramPartGlobalPerformance = HistogramPerformance<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>;
 HistogramGenericPerformance(HistogramPartGlobalPerformance);
 INSTANTIATE_TEST_CASE_P(StandardParameters,
         HistogramPartGlobalPerformance,
         ::testing::Combine(
+            ::testing::Values((32 * 4 * 90), (32 * 4 * 90 * 32)),
             ::testing::Values(32, 64),
-            ::testing::Values(2, 4, 8, 16),
-            ::testing::Values(64 * MEGABYTE, 128 * MEGABYTE)));
+            ::testing::Values(2, 4, 8, 16)));
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
