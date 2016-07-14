@@ -258,7 +258,7 @@ INSTANTIATE_TEST_CASE_P(StandardParameters,
                 new Histogram<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>,
                 new Histogram<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>
                 ),
-            ::testing::Values((32 * 4 * 90), (32 * 4 * 64 * 32)),
+            ::testing::Values((32 * 4 * 64), (32 * 4 * 64 * 32)),
             ::testing::Values(32, 64)));
 
 int main(int argc, char **argv) {
