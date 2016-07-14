@@ -279,7 +279,7 @@ TEST_P(TypeName, UniformDistribution) {                                     \
                                                                             \
     measurement.write_csv(#TypeName ".csv");                                \
                                                                             \
-    EXPECT_TRUE(true);                                                      \
+    SUCCEED();                                                      \
 }
 
 using HistogramPartPrivatePerformance = HistogramPerformance<cle::HistogramPartPrivateAPI<cl_uint>>;
