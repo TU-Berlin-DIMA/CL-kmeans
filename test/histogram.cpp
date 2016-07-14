@@ -65,7 +65,7 @@ public:
             std::vector<uint32_t>& histogram
        ) {
         histogram.resize(num_bins_);
-        uint32_t num_work_groups = data.size() / local_size_;
+        uint32_t num_work_groups = global_size_ / local_size_;
 
         cle::TypedBuffer<uint32_t> d_data(clenv->context, CL_MEM_READ_WRITE, data.size());
         cle::TypedBuffer<uint32_t> d_histogram(clenv->context, CL_MEM_READ_WRITE, num_bins_ * num_work_groups);
@@ -102,7 +102,7 @@ public:
         reduce(
                 cl::EnqueueArgs(
                     clenv->queue,
-                    cl::NDRange(num_bins_ * num_work_groups),
+                    cl::NullRange,
                     cl::NullRange),
                 num_work_groups,
                 num_bins_,
@@ -258,7 +258,7 @@ INSTANTIATE_TEST_CASE_P(StandardParameters,
                 new Histogram<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>,
                 new Histogram<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>
                 ),
-            ::testing::Values((1 * MEGABYTE), (32 * 4 * 90), (32 * 4 * 90 * 32)),
+            ::testing::Values((32 * 4 * 90), (32 * 4 * 64 * 32)),
             ::testing::Values(32, 64)));
 
 int main(int argc, char **argv) {
