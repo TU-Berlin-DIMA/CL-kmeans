@@ -172,36 +172,45 @@ protected:
         size_t num_bins, global_size, local_size;
         std::tie(num_bins, histogram, global_size, local_size) = GetParam();
 
-        data.resize(num_data);
+        if (cur_num_bins != num_bins) {
+            cur_num_bins = num_bins;
+            verify_output.resize(num_bins);
 
-        std::default_random_engine rgen;
-        std::uniform_int_distribution<uint32_t> uniform(0, num_bins - 1);
-        std::generate(
-                data.begin(),
-                data.end(),
-                [&](){ return uniform(rgen); }
-                );
+            std::default_random_engine rgen;
+            std::uniform_int_distribution<uint32_t> uniform(0, num_bins - 1);
+            std::generate(
+                    data.begin(),
+                    data.end(),
+                    [&](){ return uniform(rgen); }
+                    );
+
+            histogram_verify(data, verify_output);
+        }
     }
 
     virtual void TearDown() {
     }
 
     static constexpr size_t num_data = 1 * MEGABYTE;
-    std::vector<uint32_t> data;
+    static size_t cur_num_bins;
+    static std::vector<uint32_t> data, verify_output;
 };
+size_t UniformDistribution::cur_num_bins = 0;
+std::vector<uint32_t> UniformDistribution::data(
+        UniformDistribution::num_data
+        );
+std::vector<uint32_t> UniformDistribution::verify_output;
 
 TEST_P(UniformDistribution, Test) {
     std::shared_ptr<AbstractHistogram> histogram;
     size_t num_bins, global_size, local_size;
     std::tie(num_bins, histogram, global_size, local_size) = GetParam();
 
-    std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);
+    std::vector<uint32_t> test_output(num_bins);
 
     histogram->set_cl_dimensions(global_size, local_size);
     histogram->set_num_bins(num_bins);
     histogram->test(data, test_output);
-
-    histogram_verify(data, verify_output);
 
     EXPECT_TRUE(std::equal(
                 test_output.begin(),
