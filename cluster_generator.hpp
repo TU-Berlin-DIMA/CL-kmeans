@@ -10,7 +10,10 @@
 #ifndef CLUSTER_GENERATOR_HPP
 #define CLUSTER_GENERATOR_HPP
 
+#include "matrix.hpp"
+
 #include <cstdint>
+#include <vector>
 
 namespace cle {
 class ClusterGenerator {
@@ -21,6 +24,12 @@ public:
     void domain(float min, float max);
     void total_size(uint64_t bytes);
     void point_multiple(uint64_t multiple);
+
+    void generate_matrix(
+        Matrix<float, std::allocator<float>, uint32_t>& points,
+        Matrix<float, std::allocator<float>, uint32_t>& centroids,
+        std::vector<uint32_t>& labels
+        );
 
     void generate_csv(char const* file_name);
     void generate_bin(char const* file_name);
