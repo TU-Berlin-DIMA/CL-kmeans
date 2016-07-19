@@ -6,7 +6,7 @@ INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
 
 FUNCTION(add_test_module TEST_NAME TEST_SOURCE)
     GET_FILENAME_COMPONENT(TEST_TARGET ${TEST_SOURCE} NAME_WE)
-    ADD_EXECUTABLE(${TEST_TARGET} ${TEST_SOURCE} ../measurement/measurement.cpp)
+    ADD_EXECUTABLE(${TEST_TARGET} ${TEST_SOURCE} ../measurement/measurement.cpp ../cluster_generator.cpp)
     TARGET_LINK_LIBRARIES(${TEST_TARGET}
         ${Boost_LIBRARIES}
         ${GTEST_LIBRARIES}
@@ -18,3 +18,4 @@ ENDFUNCTION()
 ENABLE_TESTING()
 ADD_TEST_MODULE("histogram" histogram.cpp)
 ADD_TEST_MODULE("reduce_vector" reduce_vector.cpp)
+ADD_TEST_MODULE("feature_sum" feature_sum.cpp)
