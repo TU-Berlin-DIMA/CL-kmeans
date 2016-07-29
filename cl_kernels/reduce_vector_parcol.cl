@@ -23,12 +23,12 @@
  */
 __kernel
 void reduce_vector_parcol_inner(
-        __global CL_INT *const restrict g_data,
+        __global CL_TYPE *const restrict g_data,
         CL_INT const NUM_COLS,
         CL_INT const NUM_ROWS
         ) {
 
-    __local CL_INT l_data[2 * MAX_WORKGROUP_SIZE];
+    __local CL_TYPE l_data[2 * MAX_WORKGROUP_SIZE];
 
     CL_INT base = get_group_id(0) * get_local_size(0);
 
@@ -62,11 +62,11 @@ void reduce_vector_parcol_inner(
  */
 __kernel
 void reduce_vector_parcol_compact(
-        __global CL_INT *const restrict g_data,
+        __global CL_TYPE *const restrict g_data,
         CL_INT const N
         ) {
 
-    CL_INT sum = 0;
+    CL_TYPE sum = 0;
     for (CL_INT i = get_global_id(0); i < N; i += get_global_size(0)) {
         sum += g_data[i];
     }
