@@ -227,7 +227,7 @@ protected:
             clugen.total_size(points_bytes);
             clugen.num_features(num_features);
             clugen.point_multiple(point_multiple);
-            clugen.num_clusters(100);
+            clugen.num_clusters(10);
             clugen.domain(-100.0, 100.0);
             clugen.cluster_radius(10.0);
 

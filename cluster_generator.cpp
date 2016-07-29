@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <random>
 #include <fstream>
+#include <cassert>
 
 void cle::ClusterGenerator::num_features(uint64_t features) {
     features_ = features;
@@ -59,6 +60,10 @@ void cle::ClusterGenerator::generate_matrix(
     num_points = points_per_cluster * clusters_;
     uint64_t remainder = num_points % multiple_;
     num_points = num_points - remainder;
+
+    assert(features_ > 0);
+    assert(clusters_ > 0);
+    assert(num_points > 0);
 
     std::default_random_engine rgen;
     std::uniform_real_distribution<float> uniform(domain_min_, domain_max_);
