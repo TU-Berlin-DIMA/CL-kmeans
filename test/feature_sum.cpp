@@ -203,6 +203,84 @@ public:
             uint32_t num_runs,
             Measurement::Measurement& measurement
             ) {
+        Kernel fsum_kernel;
+        fsum_kernel.initialize(clenv->context);
+        cl::Event fsum_event;
+
+        size_t num_features = points.cols();
+        size_t num_clusters = mass.size();
+
+        size_t num_centroid_blocks = fsum_kernel.get_num_global_blocks(
+                global_size_,
+                local_size_,
+                num_features,
+                num_clusters
+                );
+        size_t d_centroids_size = num_features * num_clusters * num_centroid_blocks;
+
+        cle::TypedBuffer<cl_float> d_points(
+                clenv->context,
+                CL_MEM_READ_WRITE,
+                points.size()
+                );
+        cle::TypedBuffer<cl_float> d_centroids(
+                clenv->context,
+                CL_MEM_READ_WRITE,
+                d_centroids_size
+                );
+        cle::TypedBuffer<cl_uint> d_mass(
+                clenv->context,
+                CL_MEM_READ_WRITE,
+                mass.size()
+                );
+        cle::TypedBuffer<cl_uint> d_labels(
+                clenv->context,
+                CL_MEM_READ_WRITE,
+                labels.size()
+                );
+
+        clenv->queue.enqueueWriteBuffer(
+                d_points,
+                CL_FALSE,
+                0,
+                d_points.bytes(),
+                points.data()
+                );
+
+        clenv->queue.enqueueWriteBuffer(
+                d_mass,
+                CL_FALSE,
+                0,
+                d_mass.bytes(),
+                mass.data()
+                );
+
+        clenv->queue.enqueueWriteBuffer(
+                d_labels,
+                CL_FALSE,
+                0,
+                d_labels.bytes(),
+                labels.data()
+                );
+
+        measurement.start();
+        for (uint32_t r = 0; r < num_runs; ++r) {
+            fsum_kernel(
+                    cl::EnqueueArgs(
+                        clenv->queue,
+                        cl::NDRange(global_size_),
+                        cl::NDRange(local_size_)),
+                    num_features,
+                    points.rows(),
+                    num_clusters,
+                    d_points,
+                    d_centroids,
+                    d_mass,
+                    d_labels,
+                    measurement.add_datapoint(point_type, r).add_opencl_event()
+                    );
+        }
+        measurement.end();
     }
 };
 
@@ -265,7 +343,8 @@ protected:
     virtual void TearDown() {
     }
 
-    static constexpr size_t points_bytes = 1 * 1024;
+    static constexpr size_t points_bytes = 64 * MEGABYTE;
+    // static constexpr size_t points_bytes = 1024;
     static constexpr size_t point_multiple = 32;
     static Matrix32 points, verify_centroids;
     static std::vector<uint32_t> labels, mass;
@@ -292,6 +371,49 @@ TEST_P(UniformDistribution, Test) {
     }
 }
 
+TEST_P(UniformDistribution, Performance) {
+
+    const size_t num_runs = 5;
+
+    std::shared_ptr<AbstractFeatureSum> fsum;
+    size_t num_features, num_clusters, global_size, local_size;
+    std::tie(num_features, num_clusters, global_size, local_size, fsum) = GetParam();
+
+    Measurement::Measurement measurement;
+    measurement_setup(measurement, clenv->device, num_runs);
+    measurement.set_parameter(
+            Measurement::ParameterType::NumFeatures,
+            std::to_string(num_features));
+    measurement.set_parameter(
+            Measurement::ParameterType::NumPoints,
+            std::to_string(points.rows()));
+    measurement.set_parameter(
+            Measurement::ParameterType::NumClusters,
+            std::to_string(num_clusters));
+    measurement.set_parameter(
+            Measurement::ParameterType::IntType,
+            "uint32_t");
+    measurement.set_parameter(
+            Measurement::ParameterType::FloatType,
+            "float");
+    measurement.set_parameter(
+            Measurement::ParameterType::CLLocalSize,
+            std::to_string(local_size));
+    measurement.set_parameter(
+            Measurement::ParameterType::CLGlobalSize,
+            std::to_string(global_size));
+
+    cle::Matrix<float, std::allocator<float>, uint32_t> test_centroids;
+    test_centroids.resize(num_clusters, num_features);
+
+    fsum->set_cl_dimensions(global_size, local_size);
+    fsum->performance(points, mass, labels, num_runs, measurement);
+
+    measurement.write_csv("feature_sum.csv");
+
+    SUCCEED();
+}
+
 INSTANTIATE_TEST_CASE_P(
         StandardParameters,
         UniformDistribution,
@@ -299,7 +421,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::Values(2, 4),
             ::testing::Values(2, 4),
             ::testing::Values((32 * 4 * 64), (32 * 4 * 64 * 32)),
-            ::testing::Values(32, 64),
+            ::testing::Values(32, 64, 128, 256),
             ::testing::Values(
                 new FeatureSum<cle::LloydMergeSumAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsMergeSum>,
                 new FeatureSum<cle::LloydMergeSumAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsMergeSum>
