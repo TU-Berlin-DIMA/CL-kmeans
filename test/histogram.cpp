@@ -25,8 +25,8 @@
 #include "data_generator.hpp"
 #include "opencl_setup.hpp"
 
-#define MEGABYTE (1024 * 1024 / sizeof(uint32_t))
-#define GIGABYTE (1024 * 1024 * 1024 / sizeof(uint32_t))
+#define MEGABYTE (1024ull * 1024 / sizeof(uint32_t))
+#define GIGABYTE (1024ull * 1024 * 1024 / sizeof(uint32_t))
 
 void histogram_verify(
         std::vector<uint32_t> const& data,

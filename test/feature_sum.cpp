@@ -23,8 +23,8 @@
 
 #include "opencl_setup.hpp"
 
-#define MEGABYTE (1024 * 1024)
-#define GIGABYTE (1024 * 1024 * 1024)
+#define MEGABYTE (1024ull * 1024)
+#define GIGABYTE (1024ull * 1024 * 1024)
 
 using Matrix32 = cle::Matrix<float, std::allocator<float>, uint32_t>;
 
