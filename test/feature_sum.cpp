@@ -9,6 +9,7 @@
 
 #include <cl_kernels/lloyd_feature_sum_api.hpp>
 #include <cl_kernels/lloyd_merge_sum_api.hpp>
+#include <cl_kernels/lloyd_feature_sum_pardim_api.hpp>
 #include <cl_kernels/reduce_vector_parcol_api.hpp>
 #include <measurement/measurement.hpp>
 #include <matrix.hpp>
@@ -343,8 +344,8 @@ protected:
     virtual void TearDown() {
     }
 
-    static constexpr size_t points_bytes = 64 * MEGABYTE;
-    // static constexpr size_t points_bytes = 1024;
+    // static constexpr size_t points_bytes = 64 * MEGABYTE;
+    static constexpr size_t points_bytes = 1024;
     static constexpr size_t point_multiple = 32;
     static Matrix32 points, verify_centroids;
     static std::vector<uint32_t> labels, mass;
@@ -424,7 +425,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::Values(32, 64, 128, 256),
             ::testing::Values(
                 new FeatureSum<cle::LloydMergeSumAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsMergeSum>,
-                new FeatureSum<cle::LloydMergeSumAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsMergeSum>
+                new FeatureSum<cle::LloydFeatureSumPardimAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsMergeSum>
                 )
             ));
 
