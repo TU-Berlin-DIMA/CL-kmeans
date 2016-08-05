@@ -139,6 +139,7 @@ namespace cle {
         }
 
         void set_num_features_per_thread(size_t n) {
+            num_features_per_thread_ = n;
         }
 
         size_t get_num_global_blocks(
