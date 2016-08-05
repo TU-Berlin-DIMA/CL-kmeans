@@ -57,7 +57,8 @@ std::map<DataPointType::t, std::string> type_name = {
     {DataPointType::AggregateCentroids, "AggregateCentroids"},
     {DataPointType::ReduceVectorParcol, "ReduceVectorParcol"},
     {DataPointType::HistogramPartGlobal, "HistogramPartGlobal"},
-    {DataPointType::HistogramPartPrivate, "HistogramPartPrivate"}
+    {DataPointType::HistogramPartPrivate, "HistogramPartPrivate"},
+    {DataPointType::LloydCentroidsFeatureSumPardim, "LloydCentroidsFeatureSumPardim"}
 };
 
 std::map<DataPointType::t, Unit::u> type_unit = {
@@ -86,7 +87,8 @@ std::map<DataPointType::t, Unit::u> type_unit = {
     {DataPointType::AggregateCentroids, Unit::Microsecond},
     {DataPointType::ReduceVectorParcol, Unit::Microsecond},
     {DataPointType::HistogramPartGlobal, Unit::Microsecond},
-    {DataPointType::HistogramPartPrivate, Unit::Microsecond}
+    {DataPointType::HistogramPartPrivate, Unit::Microsecond},
+    {DataPointType::LloydCentroidsFeatureSumPardim, Unit::Microsecond}
 };
 
 std::map<Unit::u, std::string> unit_name = {

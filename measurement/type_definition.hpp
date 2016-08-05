@@ -39,7 +39,8 @@ enum t {
     AggregateCentroids,
     ReduceVectorParcol,
     HistogramPartGlobal,
-    HistogramPartPrivate
+    HistogramPartPrivate,
+    LloydCentroidsFeatureSumPardim
 };
 };
 

@@ -425,7 +425,7 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::Values(32, 64, 128, 256),
             ::testing::Values(
                 new FeatureSum<cle::LloydMergeSumAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsMergeSum>,
-                new FeatureSum<cle::LloydFeatureSumPardimAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsMergeSum>
+                new FeatureSum<cle::LloydFeatureSumPardimAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsFeatureSumPardim>
                 )
             ));
 
