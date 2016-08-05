@@ -41,37 +41,45 @@ void lloyd_feature_sum_pardim(
         CL_INT const NUM_CLUSTERS
         ) {
 
-    CL_INT l_feature = get_local_id(1);
-    CL_INT l_num_features = get_local_size(1);
-    CL_INT l_block = get_local_id(0);
-    CL_INT l_num_blocks = get_local_size(0);
-    CL_INT l_offset = l_num_features * NUM_CLUSTERS * l_block;
-    CL_INT g_feature = get_global_id(1);
-    CL_INT g_tile = get_group_id(0);
+    CL_INT block = get_local_id(0);
+    CL_INT block_offset = block * get_local_size(1)
+        * NUM_THREAD_FEATURES * NUM_CLUSTERS;
+    CL_INT tile_row = get_global_id(0);
+    CL_INT tile_col = get_global_id(1);
+    CL_INT num_col_tiles = get_global_size(1);
+    CL_INT l_feature_base = NUM_THREAD_FEATURES * get_local_id(1);
+    CL_INT g_feature_base = NUM_THREAD_FEATURES * get_global_id(1);
+    CL_INT g_cluster_offset = (num_col_tiles * tile_row)
+        * NUM_THREAD_FEATURES * NUM_CLUSTERS;
 
-    for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-        l_centroids[
-            l_offset + ccoord2ind(NUM_CLUSTERS, c, l_feature)
-        ] = 0;
+    for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
+        for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+            l_centroids[
+                block_offset + ccoord2ind(NUM_CLUSTERS, c, l_feature_base + f)
+            ] = 0;
+        }
     }
 
-    for (CL_INT r = get_global_id(0); r < NUM_POINTS; r += get_global_size(0)) {
-        CL_INT label = g_labels[r];
-        CL_FP point = g_points[ccoord2ind(NUM_POINTS, r, g_feature)];
-        l_centroids[
-            l_offset + ccoord2ind(NUM_CLUSTERS, label, l_feature)
-        ] += point;
+    for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
+        for (CL_INT r = get_global_id(0); r < NUM_POINTS; r += get_global_size(0)) {
+            CL_INT label = g_labels[r];
+            CL_FP point = g_points[ccoord2ind(NUM_POINTS, r, g_feature_base + f)];
+            l_centroids[
+                block_offset + ccoord2ind(NUM_CLUSTERS, label, l_feature_base + f)
+            ] += point;
+        }
     }
 
-    CL_INT g_clusters_base = NUM_CLUSTERS * NUM_FEATURES * l_num_blocks * g_tile;
-    for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-        CL_INT mass = g_mass[c];
-        CL_FP centroid = l_centroids[
-            l_offset + ccoord2ind(NUM_CLUSTERS, c, l_feature)
-        ];
-        centroid = centroid / mass;
-        g_centroids[
-            g_clusters_base + ccoord2ind(NUM_CLUSTERS, c, g_feature)
-        ] = centroid;
+    for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
+        for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+            CL_INT mass = g_mass[c];
+            CL_FP centroid = l_centroids[
+                block_offset + ccoord2ind(NUM_CLUSTERS, c, l_feature_base + f)
+            ];
+            centroid = centroid / mass;
+            g_centroids[
+                g_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, g_feature_base + f)
+            ] = centroid;
+        }
     }
 }

@@ -44,6 +44,8 @@ namespace cle {
             else {
                 assert(false);
             }
+            defines += " -DNUM_THREAD_FEATURES="
+                + std::to_string(num_features_per_thread_);
 
             cl::Program program = make_program(context, PROGRAM_FILE, defines, error_code);
             if (error_code != CL_SUCCESS) {
@@ -80,18 +82,24 @@ namespace cle {
                 TypedBuffer<CL_INT>& labels,
                 cl::Event& event
                 ) {
+            size_t const num_feature_tiles = num_features / num_features_per_thread_;
+            size_t const num_local_features = 2; // essentially local_range[1]
+            cl::NDRange global_range(args.global_[0] / num_feature_tiles, num_feature_tiles);
+            cl::NDRange local_range;
+            if (num_feature_tiles == 1) {
+                local_range = cl::NDRange(args.local_[0], 1);
+            }
+            else {
+                local_range = cl::NDRange(args.local_[0] / num_local_features, num_local_features);
+            }
 
-            assert(args.global_[0] >= num_features * num_clusters);
+            assert(num_feature_tiles > 0);
+            assert(global_range[1] == num_feature_tiles);
             assert(labels.size() == num_points);
-            assert(centroids.size() >= num_features * num_clusters);
-
-            // cl::NDRange global_range(args.global_[0] / num_features, num_features);
-            // cl::NDRange local_range(args.local_[0] / num_features, num_features);
-            cl::NDRange global_range(128, num_features);
-            cl::NDRange local_range(1, num_features);
+            assert(centroids.size() >= global_range[0] * num_features * num_clusters);
 
             cl::LocalSpaceArg local_centroids =
-                cl::Local(args.local_[0] * args.local_[1] * num_clusters * sizeof(CL_FP));
+                cl::Local(local_range[0] * local_range[1] * num_features_per_thread_ * num_clusters * sizeof(CL_FP));
 
             cle_sanitize_val_return(
                     lloyd_feature_sum_pardim_kernel_->setArg(0, (cl::Buffer&)points));
@@ -130,14 +138,17 @@ namespace cle {
             return CL_SUCCESS;
         }
 
+        void set_num_features_per_thread(size_t n) {
+        }
+
         size_t get_num_global_blocks(
                 size_t const global_size,
                 size_t const /* local_size */,
                 size_t const num_features,
-                size_t const num_clusters
+                size_t const /* num_clusters */
                 ) const {
 
-            return global_size / (num_features * num_clusters);
+            return global_size / (num_features / num_features_per_thread_);
         }
 
     private:
@@ -145,6 +156,7 @@ namespace cle {
         static constexpr const char* KERNEL_NAME = "lloyd_feature_sum_pardim";
 
         std::shared_ptr<cl::Kernel> lloyd_feature_sum_pardim_kernel_;
+        size_t num_features_per_thread_ = 1;
     };
 }
 
