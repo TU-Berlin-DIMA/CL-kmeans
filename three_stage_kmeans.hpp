@@ -2,6 +2,9 @@
 #define THREE_STAGE_KMEANS_HPP
 
 #include "abstract_kmeans.hpp"
+#include "labeling_factory.hpp"
+#include "mass_update_factory.hpp"
+#include "centroid_update_factory.hpp"
 
 #include <functional>
 #include <algorithm>
@@ -26,39 +29,9 @@ public:
     using VectorPtr = std::shared_ptr<Vector<T>>;
     using Event = boost::compute::event;
 
-    using LabelingFunction = std::function<
-        boost::compute::event(
-                boost::compute::command_queue queue,
-                Vector<int>& did_changes,
-                Vector<const PointT>& points,
-                Vector<PointT>& centroids,
-                Vector<LabelT>& labels,
-                MeasurementLogger& logger,
-                boost::compute::wait_list const& events
-            )
-        >;
-
-    using MassUpdateFunction = std::function<
-        boost::compute::event(
-                boost::compute::command_queue queue,
-                Vector<LabelT>& labels,
-                Vector<MassT>& masses,
-                MeasurementLogger& logger,
-                boost::compute::wait_list const& events
-                )
-        >;
-
-    using CentroidUpdateFunction = std::function<
-        boost::compute::event(
-                boost::compute::command_queue queue,
-                Vector<const PointT>& points,
-                Vector<PointT>& centroids,
-                Vector<LabelT>& labels,
-                Vector<MassT>& masses,
-                MeasurementLogger& logger,
-                boost::compute::wait_list const& events
-                )
-        >;
+    using LabelingFunction = typename LabelingFactory<PointT, LabelT, ColMajor>::LabelingFunction;
+    using MassUpdateFunction = typename MassUpdateFactory<LabelT, MassT>::MassUpdateFunction;
+    using CentroidUpdateFunction = typename CentroidUpdateFactory<PointT, LabelT, MassT, ColMajor>::CentroidUpdateFunction;
 
     ThreeStageKmeans(boost::compute::context const& context = boost::compute::system::default_context()) :
         AbstractKmeans<PointT, LabelT, MassT, ColMajor>(context)
@@ -179,16 +152,19 @@ public:
                 sync_centroids_event);
     }
 
-    void set_labeler(LabelingFunction f) {
-        f_labeling = f;
+    void set_labeler(std::string flavor, LabelingConfiguration config) {
+        LabelingFactory<PointT, LabelT, ColMajor> factory;
+        f_labeling = factory.create(flavor, config);
     }
 
-    void set_mass_updater(MassUpdateFunction f) {
-        f_mass_update = f;
+    void set_mass_updater(std::string flavor, MassUpdateConfiguration config) {
+        MassUpdateFactory<LabelT, MassT> factory;
+        f_mass_update = factory.create(flavor, config);
     }
 
-    void set_centroid_updater(CentroidUpdateFunction f) {
-        f_centroid_update = f;
+    void set_centroid_updater(std::string flavor, CentroidUpdateConfiguration config) {
+        CentroidUpdateFactory<PointT, LabelT, MassT, ColMajor> factory;
+        f_centroid_update = factory.create(flavor, config);
     }
 
     void set_labeling_queue(boost::compute::command_queue q) {

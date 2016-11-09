@@ -1,6 +1,8 @@
 #ifndef ABSTRACT_KMEANS_HPP
 #define ABSTRACT_KMEANS_HPP
 
+#include "temp.hpp"
+
 #include <functional>
 #include <cstdint>
 #include <memory>
@@ -9,8 +11,6 @@
 #include <boost/compute/container/vector.hpp>
 
 namespace Clustering {
-
-class MeasurementLogger {};
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor = true>
 class AbstractKmeans {
