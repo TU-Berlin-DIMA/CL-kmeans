@@ -12,6 +12,8 @@
 #include "kmeans.hpp"
 #include "matrix.hpp"
 
+#include "three_stage_kmeans.hpp"
+
 #include "SystemConfig.h"
 
 #ifdef ARMADILLO_FOUND
@@ -471,6 +473,8 @@ int main(int argc, char **argv) {
             return ret;
         }
     }
+
+    Clustering::ThreeStageKmeans<float, int, int, true> threestage;
 
 #ifdef CUDA_FOUND
     cudaDeviceReset();
