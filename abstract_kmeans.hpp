@@ -37,20 +37,20 @@ public:
 
     virtual ~AbstractKmeans() {}
 
-    virtual void set_max_iterations(uint32_t i) {
+    virtual void set_max_iterations(size_t i) {
         this->max_iterations = i;
     }
 
-    virtual void set_points(VectorPtr<const PointT> p, uint64_t num_points) {
+    virtual void set_points(VectorPtr<const PointT> p, size_t num_points) {
         this->points = p;
         this->num_points = num_points;
     }
 
-    virtual void set_dimensions(uint32_t d) {
-        this->num_dimensions = d;
+    virtual void set_features(size_t f) {
+        this->num_features = f;
     }
 
-    virtual void set_clusters(uint32_t c) {
+    virtual void set_clusters(size_t c) {
         this->num_clusters = c;
     }
 
@@ -78,10 +78,10 @@ public:
 
 protected:
     boost::compute::context context;
-    uint32_t max_iterations;
-    uint64_t num_points;
-    uint32_t num_dimensions;
-    uint32_t num_clusters;
+    size_t max_iterations;
+    size_t num_features;
+    size_t num_points;
+    size_t num_clusters;
     VectorPtr<const PointT> points;
     VectorPtr<PointT> centroids;
     VectorPtr<LabelT> labels;

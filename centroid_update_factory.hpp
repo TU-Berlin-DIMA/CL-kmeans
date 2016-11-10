@@ -3,6 +3,8 @@
 
 #include "temp.hpp"
 
+#include "centroid_update_configuration.hpp"
+
 #include <functional>
 #include <string>
 
@@ -30,7 +32,7 @@ public:
                 )
         >;
 
-    CentroidUpdateFunction create(std::string flavor, CentroidUpdateConfiguration config) {
+    CentroidUpdateFunction create(std::string flavor, boost::compute::context context, CentroidUpdateConfiguration config) {
 
     }
 };

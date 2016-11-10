@@ -3,7 +3,9 @@
 
 #include "temp.hpp"
 
-#include "cl_kernels/lloyd_labeling_api.hpp"
+#include "labeling_configuration.hpp"
+
+#include "cl_kernels/labeling_unroll_vector.hpp"
 
 #include <functional>
 #include <string>
@@ -22,6 +24,9 @@ public:
     using LabelingFunction = std::function<
         boost::compute::event(
                 boost::compute::command_queue queue,
+                size_t num_features,
+                size_t num_points,
+                size_t num_clusters,
                 Vector<int>& did_changes,
                 Vector<const PointT>& points,
                 Vector<PointT>& centroids,
@@ -31,9 +36,12 @@ public:
             )
         >;
 
-    LabelingFunction create(std::string flavor, LabelingConfiguration config) {
+    LabelingFunction create(std::string flavor, boost::compute::context context, LabelingConfiguration config) {
 
-        if (flavor.compare("normal")) {
+        if (flavor.compare("unroll_vector")) {
+            LabelingUnrollVector<PointT, LabelT, ColMajor> flavor;
+            flavor.prepare(context, config);
+            return flavor;
         }
     }
 };

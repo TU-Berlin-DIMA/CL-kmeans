@@ -59,8 +59,8 @@ public:
                 this->q_centroid_update);
 
         this->buffer_map.set_parameters(
+                this->num_features,
                 this->num_points,
-                this->num_dimensions,
                 this->num_clusters);
 
         this->buffer_map.set_buffers(
@@ -86,6 +86,9 @@ public:
                     sync_centroids_event);
             ll_event = this->f_labeling(
                     this->q_labeling,
+                    this->num_features,
+                    this->num_points,
+                    this->num_clusters,
                     *ll_did_changes,
                     buffer_map.get_points(BufferMap::ll),
                     buffer_map.get_centroids(BufferMap::ll),
@@ -117,6 +120,8 @@ public:
                         sync_labels_event);
                 mu_event = this->f_mass_update(
                         this->q_mass_update,
+                        this->num_points,
+                        this->num_clusters,
                         buffer_map.get_labels(BufferMap::mu),
                         buffer_map.get_masses(BufferMap::mu),
                         this->logger,
@@ -154,17 +159,17 @@ public:
 
     void set_labeler(std::string flavor, LabelingConfiguration config) {
         LabelingFactory<PointT, LabelT, ColMajor> factory;
-        f_labeling = factory.create(flavor, config);
+        f_labeling = factory.create(flavor, this->context, config);
     }
 
     void set_mass_updater(std::string flavor, MassUpdateConfiguration config) {
         MassUpdateFactory<LabelT, MassT> factory;
-        f_mass_update = factory.create(flavor, config);
+        f_mass_update = factory.create(flavor, this->context, config);
     }
 
     void set_centroid_updater(std::string flavor, CentroidUpdateConfiguration config) {
         CentroidUpdateFactory<PointT, LabelT, MassT, ColMajor> factory;
-        f_centroid_update = factory.create(flavor, config);
+        f_centroid_update = factory.create(flavor, this->context, config);
     }
 
     void set_labeling_queue(boost::compute::command_queue q) {
@@ -213,10 +218,10 @@ private:
             device_map[cu][cu] = true;
         }
 
-        void set_parameters(uint64_t num_points, uint32_t num_dimensions, uint32_t num_clusters) {
+        void set_parameters(size_t num_features, size_t num_points, size_t num_clusters) {
 
+            this->num_features = num_features;
             this->num_points = num_points;
-            this->num_dimensions = num_dimensions;
             this->num_clusters = num_clusters;
         }
 
@@ -228,7 +233,7 @@ private:
             points[cu] = device_map[ll][cu] ? points[ll] :
                 std::make_shared<Vector<const PointT>>(*points[ll], queue[cu]);
 
-            c_buf->resize(num_clusters * num_dimensions);
+            c_buf->resize(num_clusters * num_features);
             centroids.resize(3);
             centroids[ll] = c_buf;
             centroids[mu] = nullptr;
@@ -317,9 +322,9 @@ private:
             return *masses[p];
         }
 
-        uint64_t num_points;
-        uint32_t num_dimensions;
-        uint32_t num_clusters;
+        size_t num_features;
+        size_t num_points;
+        size_t num_clusters;
         std::vector<std::vector<int>> device_map;
         std::vector<boost::compute::command_queue> queue;
         std::vector<VectorPtr<const PointT>> points;
