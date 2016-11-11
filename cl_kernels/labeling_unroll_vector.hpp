@@ -63,13 +63,14 @@ public:
             Clustering::MeasurementLogger&,
             boost::compute::wait_list const& events) {
 
-        this->kernel.set_arg(did_changes);
-        this->kernel.set_arg(points);
-        this->kernel.set_arg(centroids);
-        this->kernel.set_arg(labels);
-        this->kernel.set_arg(num_features);
-        this->kernel.set_arg(num_points);
-        this->kernel.set_arg(num_clusters);
+        this->kernel.set_args(
+                did_changes,
+                points,
+                centroids,
+                labels,
+                num_features,
+                num_points,
+                num_clusters);
 
         size_t work_offset[3] = {0, 0, 0};
 

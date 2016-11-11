@@ -1,10 +1,10 @@
-#ifndef MASS_UPDATE_GLOBAL_ATOMIC_HPP
-#define MASS_UPDATE_GLOBAL_ATOMIC_HPP
+#ifndef CENTROID_UPDATE_FEATURE_SUM_HPP
+#define CENTROID_UPDATE_FEATURE_SUM_HPP
 
 #include "kernel_path.hpp"
 
 #include "../temp.hpp"
-#include "../mass_update_configuration.hpp"
+#include "../centroid_update_configuration.hpp"
 
 #include <cassert>
 #include <string>
@@ -12,11 +12,12 @@
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
+#include <boost/compute/memory/local_buffer.hpp>
 
 namespace Clustering {
 
-template <typename LabelT, typename MassT>
-class MassUpdateGlobalAtomic {
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+class CentroidUpdateFeatureSum {
 public:
     using Event = boost::compute::event;
     using Context = boost::compute::context;
@@ -24,17 +25,19 @@ public:
     using Program = boost::compute::program;
     template <typename T>
     using Vector = boost::compute::vector<T>;
+    template <typename T>
+    using LocalBuffer = boost::compute::local_buffer<T>;
 
     void prepare(
             Context context,
-            MassUpdateConfiguration config) {
+            CentroidUpdateConfiguration config) {
         this->config = config;
 
         std::string defines;
-        if (std::is_same<cl_uint, LabelT>::value) {
+        if (std::is_same<float, PointT>::value) {
             defines = "-DTYPE32";
         }
-        else if (std::is_same<cl_ulong, LabelT>::value) {
+        else if (std::is_same<double, PointT>::value) {
             defines = "-DTYPE64";
         }
         else {
@@ -52,17 +55,35 @@ public:
 
     Event operator() (
             boost::compute::command_queue queue,
+            size_t num_features,
             size_t num_points,
             size_t num_clusters,
+            Vector<const PointT>& points,
+            Vector<PointT>& centroids,
             Vector<LabelT>& labels,
             Vector<MassT>& masses,
             MeasurementLogger&,
             boost::compute::wait_list const& events
             ) {
 
+        assert(points.size() == num_points * num_features);
+        assert(labels.size() == num_points);
+        assert(centroids.size() == num_clusters * num_features);
+        assert(masses.size() >= num_clusters);
+
+        LocalBuffer<PointT> local_centroids(
+                num_clusters * this->config.local_size[0]);
+        LocalBuffer<PointT> local_points(
+                this->config.local_size[0] * this->config.local_size[0]);
+
         this->kernel.set_args(
-                labels,
+                points,
+                centroids,
                 masses,
+                labels,
+                local_centroids,
+                local_points,
+                num_features,
                 num_points,
                 num_clusters);
 
@@ -77,15 +98,16 @@ public:
                 events);
     }
 
+
 private:
-    static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("histogram_global.cl");
-    static constexpr const char* KERNEL_NAME = "histogram_global";
+    static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_feature_sum.cl");
+    static constexpr const char* KERNEL_NAME = "lloyd_feature_sum";
 
     Kernel kernel;
-    MassUpdateConfiguration config;
+    CentroidUpdateConfiguration config;
 };
-
 
 }
 
-#endif /* MASS_UPDATE_GLOBAL_ATOMIC_HPP */
+
+#endif /* CENTROID_UPDATE_FEATURE_SUM_HPP */

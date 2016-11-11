@@ -136,6 +136,9 @@ public:
                         sync_masses_event);
                 cu_event = this->f_centroid_update(
                         this->q_centroid_update,
+                        this->num_features,
+                        this->num_points,
+                        this->num_clusters,
                         buffer_map.get_points(BufferMap::cu),
                         buffer_map.get_centroids(BufferMap::cu),
                         buffer_map.get_labels(BufferMap::cu),

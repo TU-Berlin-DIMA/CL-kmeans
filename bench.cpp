@@ -22,6 +22,7 @@
 
 #include <clext.hpp>
 #include <boost/program_options.hpp>
+#include <boost/compute/core.hpp>
 
 #include <iostream>
 #include <cstdint>
@@ -42,7 +43,7 @@ namespace po = boost::program_options;
 
 class CmdOptions {
 public:
-    enum class Algorithm {Armadillo, Naive, GPUAssisted, FeatureSum};
+    enum class Algorithm {Armadillo, Naive, GPUAssisted, FeatureSum, ThreeStageKmeans};
 
     int parse(int argc, char **argv) {
         char help_msg[] =
@@ -376,6 +377,66 @@ public:
                             bs = bm.run(lloyd_gpu_feature_sum);
                         }
                         lloyd_gpu_feature_sum.finalize();
+                    }
+                    break;
+                case CmdOptions::Algorithm::ThreeStageKmeans:
+                    {
+                        // TODO: setup configurations
+                        Clustering::LabelingConfiguration labeling_config;
+                        Clustering::MassUpdateConfiguration mass_update_config;
+                        Clustering::CentroidUpdateConfiguration centroid_update_config;
+                        boost::compute::context context(clinit.get_context()());
+                        boost::compute::command_queue queue(clinit.get_commandqueue()());
+                        Clustering::ThreeStageKmeans<FP, INT, INT, true> kmeans(context);
+                        kmeans.set_labeler("unroll_vector", labeling_config);
+                        kmeans.set_mass_updater("global_atomic", mass_update_config);
+                        kmeans.set_centroid_updater("feature_sum", centroid_update_config);
+                        kmeans.set_labeling_queue(queue);
+                        kmeans.set_mass_update_queue(queue);
+                        kmeans.set_centroid_update_queue(queue);
+
+                        kmeans.set_max_iterations(options.max_iterations());
+
+                        std::shared_ptr<boost::compute::vector<const FP>> boost_points = std::make_shared<boost::compute::vector<const FP>>(points.begin(), points.end(), queue);
+                        kmeans.set_points(boost_points, points.rows());
+                        kmeans.set_features(points.cols());
+                        kmeans.set_clusters(options.k());
+
+
+                        auto kmeans_function =
+                            [&](
+                                    uint32_t,
+                                    cle::Matrix<FP, AllocFP, INT, COL_MAJOR> const&,
+                                    cle::Matrix<FP, AllocFP, INT, COL_MAJOR>& centroids,
+                                    std::vector<INT, AllocINT>& masses,
+                                    std::vector<INT, AllocINT>& labels,
+                                    Measurement::Measurement&
+                               ) {
+
+                                auto init_function =
+                                    [&](
+                                            boost::compute::vector<const FP>,
+                                            boost::compute::vector<FP>& c) {
+                                        boost::compute::vector<FP> boost_centroids(centroids.get_data(), queue);
+                                        c = boost_centroids;
+                                    };
+
+                                kmeans.set_initializer(init_function);
+                                kmeans.run();
+
+                                // TODO: convert to std::vector
+                                // centroids = kmeans.get_centroids();
+                                // masses = kmeans.get_cluster_masses();
+                                // labels = kmeans.get_labels();
+
+                            };
+
+                        if (options.verify()) {
+                            verify_res = bm.verify(kmeans_function);
+                        }
+                        else {
+                            bs = bm.run(kmeans_function);
+                        }
                     }
                     break;
             }

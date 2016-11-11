@@ -5,6 +5,8 @@
 
 #include "centroid_update_configuration.hpp"
 
+#include "cl_kernels/centroid_update_feature_sum.hpp"
+
 #include <functional>
 #include <string>
 
@@ -23,6 +25,9 @@ public:
     using CentroidUpdateFunction = std::function<
         boost::compute::event(
                 boost::compute::command_queue queue,
+                size_t num_features,
+                size_t num_points,
+                size_t num_clusters,
                 Vector<const PointT>& points,
                 Vector<PointT>& centroids,
                 Vector<LabelT>& labels,
@@ -33,6 +38,12 @@ public:
         >;
 
     CentroidUpdateFunction create(std::string flavor, boost::compute::context context, CentroidUpdateConfiguration config) {
+
+        if (flavor.compare("feature_sum")) {
+            CentroidUpdateFeatureSum<PointT, LabelT, MassT, ColMajor> flavor;
+            flavor.prepare(context, config);
+            return flavor;
+        }
 
     }
 };
