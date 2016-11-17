@@ -65,6 +65,18 @@ public:
                 host_did_changes.size(),
                 this->context);
 
+        boost::compute::fill(
+                this->labels->begin(),
+                this->labels->end(),
+                0,
+                this->q_labeling);
+
+        boost::compute::fill(
+                this->masses->begin(),
+                this->masses->end(),
+                0,
+                this->q_mass_update);
+
         // If centroids initializer function is callable, then call
         if (this->centroids_initializer) {
             this->centroids_initializer(
