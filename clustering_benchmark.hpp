@@ -146,18 +146,10 @@ private:
 
 using ClusteringBenchmark32 = ClusteringBenchmark<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>, true>;
 using ClusteringBenchmark64 = ClusteringBenchmark<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>, true>;
-#ifdef USE_ALIGNED_ALLOCATOR
-using ClusteringBenchmark32Aligned = ClusteringBenchmark<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32, true>;
-using ClusteringBenchmark64Aligned = ClusteringBenchmark<double, uint64_t, AlignedAllocatorFP64, AlignedAllocatorINT64, true>;
-#endif
 
 }
 
 extern template class cle::ClusteringBenchmark<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>, true>;
 extern template class cle::ClusteringBenchmark<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>, true>;
-#ifdef USE_ALIGNED_ALLOCATOR
-extern template class cle::ClusteringBenchmark<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32, true>;
-extern template class cle::ClusteringBenchmark<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64, true>;
-#endif
 
 #endif /* CLUSTERING_BENCHMARK_HPP */
