@@ -351,9 +351,22 @@ public:
                 case CmdOptions::Algorithm::ThreeStageKmeans:
                     {
                         // TODO: setup configurations
-                        Clustering::LabelingConfiguration labeling_config;
-                        Clustering::MassUpdateConfiguration mass_update_config;
-                        Clustering::CentroidUpdateConfiguration centroid_update_config;
+                        Clustering::LabelingConfiguration labeling_config
+                            = {
+                                {1024, 1, 1},
+                                {32, 1, 1},
+                                1, 1, 1
+                            };
+                        Clustering::MassUpdateConfiguration mass_update_config
+                            = {
+                                {1024, 1, 1},
+                                {32, 1, 1}
+                            };
+                        Clustering::CentroidUpdateConfiguration centroid_update_config
+                            = {
+                                {1024, 1, 1},
+                                {32, 1, 1}
+                            };
                         boost::compute::context context(clinit.get_context()());
                         boost::compute::command_queue queue(clinit.get_commandqueue()());
                         Clustering::ThreeStageKmeans<FP, INT, INT, true> kmeans(context);
