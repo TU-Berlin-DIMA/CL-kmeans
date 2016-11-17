@@ -46,15 +46,15 @@ public:
 
         // If don't have points device vector but do have host map,
         // create device vector and measure copy time
-        if ((not this->points) and (not this->points_view.empty())) {
+        if ((not this->points) and this->host_points) {
             this->points = std::make_shared<Vector<const PointT>>(
-                    this->points_view.size(),
+                    this->host_points->size(),
                     this->context);
 
             boost::compute::future<void> copy_future;
             copy_future = boost::compute::copy_async(
-                    this->points_view.begin(),
-                    this->points_view.end(),
+                    this->host_points->begin(),
+                    this->host_points->end(),
                     this->points->begin(),
                     this->q_labeling);
             copy_future.wait();

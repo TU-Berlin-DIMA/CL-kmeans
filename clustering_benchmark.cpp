@@ -18,7 +18,6 @@
 #include <string>
 #include <boost/filesystem/path.hpp>
 #include <boost/compute/container/vector.hpp>
-#include <boost/compute/container/mapped_view.hpp>
 #include <unistd.h>
 
 #include <Version.h>
@@ -184,9 +183,10 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
     bs.set_types<FP, INT>();
 
-    MappedView<PointT> points_view(
-            this->points_.data(),
-            this->points_.size());
+    std::shared_ptr<const std::vector<PointT>> points(
+            &this->points_.get_data(),
+            [](const std::vector<PointT> *){}
+            );
     VectorPtr<MassT> masses = std::make_shared<Vector<MassT>>(
             this->cluster_mass_);
     VectorPtr<LabelT> labels = std::make_shared<Vector<LabelT>>(
@@ -205,7 +205,7 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
         f(
                 max_iterations_,
                 points_.cols(),
-                points_view,
+                points,
                 centroids,
                 masses,
                 labels
@@ -284,9 +284,10 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
             centroids_
             );
 
-    MappedView<PointT> points_view(
-            this->points_.data(),
-            this->points_.size());
+    std::shared_ptr<const std::vector<PointT>> points(
+            &this->points_.get_data(),
+            [](const std::vector<PointT> *){}
+            );
     VectorPtr<PointT> centroids = std::make_shared<Vector<PointT>>(
             this->centroids_.get_data());
     VectorPtr<MassT> masses = std::make_shared<Vector<MassT>>(
@@ -297,7 +298,7 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
     f(
             max_iterations_,
             points_.cols(),
-            points_view,
+            points,
             centroids,
             masses,
             labels

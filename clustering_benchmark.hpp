@@ -21,7 +21,6 @@
 #include <cstdint>
 #include <type_traits>
 #include <boost/compute/container/vector.hpp>
-#include <boost/compute/container/mapped_view.hpp>
 
 namespace cle {
 
@@ -73,8 +72,6 @@ public:
     using Vector = boost::compute::vector<T>;
     template <typename T>
     using VectorPtr = std::shared_ptr<boost::compute::vector<T>>;
-    template <typename T>
-    using MappedView = boost::compute::mapped_view<T>;
 
     using ClusteringFunction = std::function<
         void(
@@ -90,7 +87,7 @@ public:
         void(
                 size_t,
                 size_t,
-                MappedView<PointT>,
+                std::shared_ptr<const std::vector<PointT>>,
                 VectorPtr<PointT>,
                 VectorPtr<MassT>,
                 VectorPtr<LabelT>)
