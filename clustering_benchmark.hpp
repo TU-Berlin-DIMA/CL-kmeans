@@ -20,6 +20,7 @@
 #include <functional>
 #include <cstdint>
 #include <type_traits>
+#include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
 
 namespace cle {
@@ -121,11 +122,11 @@ public:
     int finalize();
 
     ClusteringBenchmarkStats run(ClusteringFunction f);
-    ClusteringBenchmarkStats run(ClClusteringFunction f);
+    ClusteringBenchmarkStats run(ClClusteringFunction f, boost::compute::command_queue q);
     void setVerificationReference(std::vector<INT, AllocINT>&& reference_labels);
     int setVerificationReference(ClusteringFunction reference);
     uint64_t verify(ClusteringFunction f);
-    uint64_t verify(ClClusteringFunction f);
+    uint64_t verify(ClClusteringFunction f, boost::compute::command_queue q);
     void print_labels();
 
 private:

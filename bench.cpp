@@ -350,7 +350,6 @@ public:
                     break;
                 case CmdOptions::Algorithm::ThreeStageKmeans:
                     {
-                        // TODO: setup configurations
                         Clustering::LabelingConfiguration labeling_config
                             = {
                                 {1024, 1, 1},
@@ -378,10 +377,10 @@ public:
                         kmeans.set_centroid_update_queue(queue);
 
                         if (options.verify()) {
-                            verify_res = bm.verify(kmeans);
+                            verify_res = bm.verify(kmeans, queue);
                         }
                         else {
-                            bs = bm.run(kmeans);
+                            bs = bm.run(kmeans, queue);
                         }
                     }
                     break;

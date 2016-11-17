@@ -12,6 +12,7 @@
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
+#include <boost/compute/memory/local_buffer.hpp>
 
 namespace Clustering {
 
@@ -22,6 +23,8 @@ public:
     using Context = boost::compute::context;
     using Kernel = boost::compute::kernel;
     using Program = boost::compute::program;
+    template <typename T>
+    using LocalBuffer = boost::compute::local_buffer<T>;
 
     void prepare(Context context, LabelingConfiguration config) {
         this->config = config;
@@ -63,11 +66,14 @@ public:
             Clustering::MeasurementLogger&,
             boost::compute::wait_list const& events) {
 
+        LocalBuffer<PointT> local_centroids(num_clusters * num_features);
+
         this->kernel.set_args(
                 did_changes,
                 points,
                 centroids,
                 labels,
+                local_centroids,
                 num_features,
                 num_points,
                 num_clusters);

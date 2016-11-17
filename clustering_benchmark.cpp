@@ -176,21 +176,27 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
 cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::run(
-        ClClusteringFunction f) {
+        ClClusteringFunction f,
+        boost::compute::command_queue queue) {
 
     cle::Timer timer;
     ClusteringBenchmarkStats bs(this->num_runs_);
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
     bs.set_types<FP, INT>();
 
+    // Dirty hack to avoid freeing object
+    // when shared_ptr goes out of scope.
+    // Should convert ClusteringBenchmark to use shared_ptr's.
     std::shared_ptr<const std::vector<PointT>> points(
             &this->points_.get_data(),
             [](const std::vector<PointT> *){}
             );
     VectorPtr<MassT> masses = std::make_shared<Vector<MassT>>(
-            this->cluster_mass_);
+            this->cluster_mass_,
+            queue);
     VectorPtr<LabelT> labels = std::make_shared<Vector<LabelT>>(
-            this->labels_);
+            this->labels_,
+            queue);
 
     for (uint32_t r = 0; r < this->num_runs_; ++r) {
         init_centroids_(
@@ -199,7 +205,8 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
                 );
 
         VectorPtr<PointT> centroids = std::make_shared<Vector<PointT>>(
-                this->centroids_.get_data());
+                this->centroids_.get_data(),
+                queue);
 
         timer.start();
         f(
@@ -277,7 +284,9 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
 }
 
 template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(ClClusteringFunction f) {
+uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(
+        ClClusteringFunction f,
+        boost::compute::command_queue queue) {
 
     init_centroids_(
             points_,
@@ -289,11 +298,14 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
             [](const std::vector<PointT> *){}
             );
     VectorPtr<PointT> centroids = std::make_shared<Vector<PointT>>(
-            this->centroids_.get_data());
+            this->centroids_.get_data(),
+            queue);
     VectorPtr<MassT> masses = std::make_shared<Vector<MassT>>(
-            this->cluster_mass_);
+            this->cluster_mass_,
+            queue);
     VectorPtr<LabelT> labels = std::make_shared<Vector<LabelT>>(
-            this->labels_);
+            this->labels_,
+            queue);
 
     f(
             max_iterations_,
@@ -307,7 +319,8 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
     boost::compute::copy(
             labels->begin(),
             labels->end(),
-            this->labels_.begin());
+            this->labels_.begin(),
+            queue);
 
     uint64_t counter = 0;
     for (INT l = 0; l < labels_.size(); ++l) {

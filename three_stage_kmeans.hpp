@@ -96,7 +96,8 @@ public:
             boost::compute::fill(
                     ll_did_changes->begin(),
                     ll_did_changes->end(),
-                    0);
+                    0,
+                    this->q_labeling);
 
             // execute labeling
             sync_centroids_event = buffer_map.sync_centroids(
@@ -225,7 +226,7 @@ private:
             queue[cu] = q_cu;
 
             device_map.resize(3);
-            for (auto v : device_map) {
+            for (auto& v : device_map) {
                 v.resize(3);
             }
 
@@ -272,6 +273,8 @@ private:
                 std::make_shared<Vector<LabelT>>(*labels[ll], queue[cu]);
 
             m_buf->resize(num_clusters);
+            masses.resize(3);
+            masses[ll] = nullptr;
             masses[mu] = m_buf;
             masses[cu] = device_map[cu][mu] ? masses[mu] :
                 std::make_shared<Vector<MassT>>(*masses[mu], queue[cu]);
