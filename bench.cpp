@@ -74,6 +74,7 @@ public:
             ("naive", "Run Naive Lloyd's")
             ("gpu-assisted", "Run GPU assisted Lloyd's")
             ("feature-sum", "Run GPU feature sum Lloyd's")
+            ("three-stage-kmeans", "Run three stage K-means")
             ;
 
         po::options_description hidden("Hidden options");
@@ -156,6 +157,10 @@ public:
 
         if (vm.count("feature-sum")) {
             algorithms_.insert(Algorithm::FeatureSum);
+        }
+
+        if (vm.count("three-stage-kmeans")) {
+            algorithms_.insert(Algorithm::ThreeStageKmeans);
         }
 
         // Ensure we have required options
@@ -359,47 +364,11 @@ public:
                         kmeans.set_mass_update_queue(queue);
                         kmeans.set_centroid_update_queue(queue);
 
-                        kmeans.set_max_iterations(options.max_iterations());
-
-                        std::shared_ptr<boost::compute::vector<const FP>> boost_points = std::make_shared<boost::compute::vector<const FP>>(points.begin(), points.end(), queue);
-                        kmeans.set_points(boost_points, points.rows());
-                        kmeans.set_features(points.cols());
-                        kmeans.set_clusters(options.k());
-
-
-                        auto kmeans_function =
-                            [&](
-                                    uint32_t,
-                                    cle::Matrix<FP, AllocFP, INT, COL_MAJOR> const&,
-                                    cle::Matrix<FP, AllocFP, INT, COL_MAJOR>& centroids,
-                                    std::vector<INT, AllocINT>& masses,
-                                    std::vector<INT, AllocINT>& labels,
-                                    Measurement::Measurement&
-                               ) {
-
-                                auto init_function =
-                                    [&](
-                                            boost::compute::vector<const FP>,
-                                            boost::compute::vector<FP>& c) {
-                                        boost::compute::vector<FP> boost_centroids(centroids.get_data(), queue);
-                                        c = boost_centroids;
-                                    };
-
-                                kmeans.set_initializer(init_function);
-                                kmeans.run();
-
-                                // TODO: convert to std::vector
-                                // centroids = kmeans.get_centroids();
-                                // masses = kmeans.get_cluster_masses();
-                                // labels = kmeans.get_labels();
-
-                            };
-
                         if (options.verify()) {
-                            verify_res = bm.verify(kmeans_function);
+                            // verify_res = bm.verify(kmeans);
                         }
                         else {
-                            bs = bm.run(kmeans_function);
+                            bs = bm.run(kmeans);
                         }
                     }
                     break;
@@ -495,8 +464,6 @@ int main(int argc, char **argv) {
             return ret;
         }
     }
-
-    Clustering::ThreeStageKmeans<float, int, int, true> threestage;
 
 #ifdef CUDA_FOUND
     cudaDeviceReset();

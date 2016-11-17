@@ -20,6 +20,8 @@
 #include <functional>
 #include <cstdint>
 #include <type_traits>
+#include <boost/compute/container/vector.hpp>
+#include <boost/compute/container/mapped_view.hpp>
 
 namespace cle {
 
@@ -63,6 +65,17 @@ template <typename FP, typename INT, typename AllocFP, typename AllocINT,
          bool COL_MAJOR>
 class ClusteringBenchmark {
 public:
+    using PointT = FP;
+    using LabelT = INT;
+    using MassT = INT;
+
+    template <typename T>
+    using Vector = boost::compute::vector<T>;
+    template <typename T>
+    using VectorPtr = std::shared_ptr<boost::compute::vector<T>>;
+    template <typename T>
+    using MappedView = boost::compute::mapped_view<T>;
+
     using ClusteringFunction = std::function<
         void(
             uint32_t,
@@ -72,6 +85,16 @@ public:
             std::vector<INT, AllocINT>&,
             Measurement::Measurement&
             )>;
+
+    using ClClusteringFunction = std::function<
+        void(
+                size_t,
+                size_t,
+                MappedView<PointT>,
+                VectorPtr<PointT>,
+                VectorPtr<MassT>,
+                VectorPtr<LabelT>)
+        >;
 
     using InitCentroidsFunction = std::function<
         void(
@@ -101,9 +124,11 @@ public:
     int finalize();
 
     ClusteringBenchmarkStats run(ClusteringFunction f);
+    ClusteringBenchmarkStats run(ClClusteringFunction f);
     void setVerificationReference(std::vector<INT, AllocINT>&& reference_labels);
     int setVerificationReference(ClusteringFunction reference);
     uint64_t verify(ClusteringFunction f);
+    uint64_t verify(ClClusteringFunction f);
     void print_labels();
 
 private:

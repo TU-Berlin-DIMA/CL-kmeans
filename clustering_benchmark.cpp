@@ -17,6 +17,8 @@
 #include <vector>
 #include <string>
 #include <boost/filesystem/path.hpp>
+#include <boost/compute/container/vector.hpp>
+#include <boost/compute/container/mapped_view.hpp>
 #include <unistd.h>
 
 #include <Version.h>
@@ -174,6 +176,44 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
 }
 
 template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
+cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::run(
+        ClClusteringFunction f) {
+
+    cle::Timer timer;
+    ClusteringBenchmarkStats bs(this->num_runs_);
+    bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
+    bs.set_types<FP, INT>();
+
+    MappedView<PointT> points_view(
+            this->points_.data(),
+            this->points_.size());
+
+    VectorPtr<PointT> centroids = std::make_shared<Vector<PointT>>(this->centroids_.get_data());
+    VectorPtr<MassT> masses = std::make_shared<Vector<MassT>>(this->cluster_mass_);
+    VectorPtr<LabelT> labels = std::make_shared<Vector<LabelT>>(this->labels_);
+
+    for (uint32_t r = 0; r < this->num_runs_; ++r) {
+        init_centroids_(
+                points_,
+                centroids_
+                );
+
+        timer.start();
+        f(
+                max_iterations_,
+                points_.cols(),
+                points_view,
+                centroids,
+                masses,
+                labels
+         );
+        bs.microseconds[r] = timer.stop<std::chrono::microseconds>();
+    }
+
+    return bs;
+}
+
+template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
 void cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerificationReference(std::vector<INT, AllocINT>&& reference_labels) {
 
     reference_labels_ = std::move(reference_labels);
@@ -231,6 +271,12 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
     }
 
     return counter;
+}
+
+template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
+uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(ClClusteringFunction) {
+
+    return 0;
 }
 
 template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>

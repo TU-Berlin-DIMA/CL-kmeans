@@ -44,6 +44,22 @@ public:
         Event ll_event, mu_event, cu_event;
         Event sync_labels_event, sync_centroids_event, sync_masses_event;
 
+        // If don't have points device vector but do have host map,
+        // create device vector and measure copy time
+        if ((not this->points) and (not this->points_view.empty())) {
+            this->points = std::make_shared<Vector<const PointT>>(
+                    this->points_view.size(),
+                    this->context);
+
+            boost::compute::future<void> copy_future;
+            copy_future = boost::compute::copy_async(
+                    this->points_view.begin(),
+                    this->points_view.end(),
+                    this->points->begin(),
+                    this->q_labeling);
+            copy_future.wait();
+        }
+
         std::vector<int> host_did_changes(1);
         VectorPtr<int> ll_did_changes = std::make_shared<Vector<int>>(
                 host_did_changes.size(),

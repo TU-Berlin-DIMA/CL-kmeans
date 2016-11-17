@@ -9,6 +9,7 @@
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
+#include <boost/compute/container/mapped_view.hpp>
 
 namespace Clustering {
 
@@ -19,6 +20,8 @@ public:
     using Vector = boost::compute::vector<T>;
     template <typename T>
     using VectorPtr = std::shared_ptr<Vector<T>>;
+    template <typename T>
+    using MappedView = boost::compute::mapped_view<T>;
 
     using InitCentroidsFunction = std::function<
         void(
@@ -29,10 +32,13 @@ public:
 
     AbstractKmeans(boost::compute::context const& context = boost::compute::system::default_context()) :
         context(context),
+        num_features(0),
+        num_points(0),
+        num_clusters(0),
         points(nullptr),
         centroids(new Vector<PointT>(context)),
-        labels(new Vector<LabelT>(context)),
-        masses(new Vector<MassT>(context))
+        masses(new Vector<MassT>(context)),
+        labels(new Vector<LabelT>(context))
     {}
 
     virtual ~AbstractKmeans() {}
@@ -41,13 +47,31 @@ public:
         this->max_iterations = i;
     }
 
-    virtual void set_points(VectorPtr<const PointT> p, size_t num_points) {
+    virtual void set_points(VectorPtr<const PointT> p) {
         this->points = p;
-        this->num_points = num_points;
+
+        if (this->num_features != 0) {
+            this->num_points = p->size() / this->num_features;
+        }
+    }
+
+    virtual void set_points(MappedView<PointT> v) {
+        this->points_view = v;
+
+        if (this->num_features != 0) {
+            this->num_points = v.size() / this->num_features;
+        }
     }
 
     virtual void set_features(size_t f) {
         this->num_features = f;
+
+        if (this->points) {
+            this->num_points = this->points->size() / f;
+        }
+        else if (not this->points_view.empty()) {
+            this->num_points = this->points_view.size() / f;
+        }
     }
 
     virtual void set_clusters(size_t c) {
@@ -76,6 +100,26 @@ public:
 
     virtual void run() = 0;
 
+    virtual void operator() (
+            size_t max_iterations,
+            size_t num_features,
+            MappedView<PointT> points_view,
+            VectorPtr<PointT> centroids,
+            VectorPtr<MassT> masses,
+            VectorPtr<LabelT> labels) {
+
+        this->max_iterations = max_iterations;
+        this->num_features = num_features;
+        this->num_points = points_view.size() / num_features;
+        this->num_clusters = centroids->size() / num_features;
+        this->points_view = points_view;
+        this->centroids = centroids;
+        this->masses = masses;
+        this->labels = labels;
+
+        this->run();
+    }
+
 protected:
     boost::compute::context context;
     size_t max_iterations;
@@ -83,9 +127,10 @@ protected:
     size_t num_points;
     size_t num_clusters;
     VectorPtr<const PointT> points;
+    MappedView<PointT> points_view;
     VectorPtr<PointT> centroids;
-    VectorPtr<LabelT> labels;
     VectorPtr<MassT> masses;
+    VectorPtr<LabelT> labels;
 
     InitCentroidsFunction centroids_initializer;
     MeasurementLogger logger;
