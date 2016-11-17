@@ -193,9 +193,9 @@ public:
         // copy centroids to host
         sync_centroids_event = buffer_map.sync_centroids(
                 sync_centroids_wait_list);
-        // TODO
-        // boost::compute::wait_for_all(
-        //         sync_centroids_event);
+
+        // Wait for last queue to finish processing
+        this->q_centroid_update.finish();
     }
 
     void set_labeler(std::string flavor, LabelingConfiguration config) {
