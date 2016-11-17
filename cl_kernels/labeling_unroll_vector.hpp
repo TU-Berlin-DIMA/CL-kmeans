@@ -59,8 +59,8 @@ public:
             size_t num_features,
             size_t num_points,
             size_t num_clusters,
-            boost::compute::vector<int>& did_changes,
-            boost::compute::vector<const PointT>& points,
+            boost::compute::vector<char>& did_changes,
+            boost::compute::vector<PointT>& points,
             boost::compute::vector<PointT>& centroids,
             boost::compute::vector<LabelT>& labels,
             Clustering::MeasurementLogger&,
@@ -74,9 +74,9 @@ public:
                 centroids,
                 labels,
                 local_centroids,
-                num_features,
-                num_points,
-                num_clusters);
+                (LabelT) num_features,
+                (LabelT) num_points,
+                (LabelT) num_clusters);
 
         size_t work_offset[3] = {0, 0, 0};
 

@@ -22,7 +22,7 @@ public:
 
     using InitCentroidsFunction = std::function<
         void(
-                Vector<const PointT>& points,
+                Vector<PointT>& points,
                 Vector<PointT> & centroids
                 )
         >;
@@ -45,7 +45,7 @@ public:
         this->max_iterations = i;
     }
 
-    virtual void set_points(VectorPtr<const PointT> p) {
+    virtual void set_points(VectorPtr<PointT> p) {
         this->points = p;
 
         if (this->num_features != 0) {
@@ -124,7 +124,7 @@ protected:
     size_t num_features;
     size_t num_points;
     size_t num_clusters;
-    VectorPtr<const PointT> points;
+    VectorPtr<PointT> points;
     std::shared_ptr<const std::vector<PointT>> host_points;
     VectorPtr<PointT> centroids;
     VectorPtr<MassT> masses;

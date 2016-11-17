@@ -47,7 +47,7 @@ public:
         // If don't have points device vector but do have host map,
         // create device vector and measure copy time
         if ((not this->points) and this->host_points) {
-            this->points = std::make_shared<Vector<const PointT>>(
+            this->points = std::make_shared<Vector<PointT>>(
                     this->host_points->size(),
                     this->context);
 
@@ -60,8 +60,8 @@ public:
             copy_future.wait();
         }
 
-        std::vector<int> host_did_changes(1);
-        VectorPtr<int> ll_did_changes = std::make_shared<Vector<int>>(
+        std::vector<char> host_did_changes(1);
+        VectorPtr<char> ll_did_changes = std::make_shared<Vector<char>>(
                 host_did_changes.size(),
                 this->context);
 
@@ -96,7 +96,7 @@ public:
             boost::compute::fill(
                     ll_did_changes->begin(),
                     ll_did_changes->end(),
-                    0,
+                    false,
                     this->q_labeling);
 
             // execute labeling
@@ -248,13 +248,13 @@ private:
             this->num_clusters = num_clusters;
         }
 
-        void set_buffers(VectorPtr<const PointT> p_buf, VectorPtr<PointT> c_buf, VectorPtr<LabelT> l_buf, VectorPtr<MassT> m_buf) {
+        void set_buffers(VectorPtr<PointT> p_buf, VectorPtr<PointT> c_buf, VectorPtr<LabelT> l_buf, VectorPtr<MassT> m_buf) {
 
             points.resize(3);
             points[ll] = p_buf;
             points[mu] = nullptr;
             points[cu] = device_map[ll][cu] ? points[ll] :
-                std::make_shared<Vector<const PointT>>(*points[ll], queue[cu]);
+                std::make_shared<Vector<PointT>>(*points[ll], queue[cu]);
 
             c_buf->resize(num_clusters * num_features);
             centroids.resize(3);
@@ -331,7 +331,7 @@ private:
             return e;
         }
 
-        Vector<const PointT>& get_points(BufferMap::Phase p) {
+        Vector<PointT>& get_points(BufferMap::Phase p) {
             return *points[p];
         }
 
@@ -352,7 +352,7 @@ private:
         size_t num_clusters;
         std::vector<std::vector<int>> device_map;
         std::vector<boost::compute::command_queue> queue;
-        std::vector<VectorPtr<const PointT>> points;
+        std::vector<VectorPtr<PointT>> points;
         std::vector<VectorPtr<PointT>> centroids;
         std::vector<VectorPtr<LabelT>> labels;
         std::vector<VectorPtr<MassT>> masses;

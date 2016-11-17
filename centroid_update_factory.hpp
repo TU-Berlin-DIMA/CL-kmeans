@@ -28,7 +28,7 @@ public:
                 size_t num_features,
                 size_t num_points,
                 size_t num_clusters,
-                Vector<const PointT>& points,
+                Vector<PointT>& points,
                 Vector<PointT>& centroids,
                 Vector<LabelT>& labels,
                 Vector<MassT>& masses,
