@@ -354,7 +354,7 @@ public:
                             = {
                                 {1024, 1, 1},
                                 {32, 1, 1},
-                                1, 1, 1
+                                2, 2, 2
                             };
                         Clustering::MassUpdateConfiguration mass_update_config
                             = {
