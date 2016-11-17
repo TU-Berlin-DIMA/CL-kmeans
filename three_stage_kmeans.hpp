@@ -102,8 +102,9 @@ public:
             // execute labeling
             sync_centroids_event = buffer_map.sync_centroids(
                     sync_centroids_wait_list);
-            ll_wait_list.insert(
-                    sync_centroids_event);
+            // TODO
+            // ll_wait_list.insert(
+            //         sync_centroids_event);
             ll_event = this->f_labeling(
                     this->q_labeling,
                     this->num_features,
@@ -134,10 +135,11 @@ public:
                 // execute mass update
                 sync_labels_event = buffer_map.sync_labels(
                         sync_labels_wait_list);
-                mu_wait_list.insert(
-                        sync_labels_event);
-                cu_wait_list.insert(
-                        sync_labels_event);
+                // TODO
+                // mu_wait_list.insert(
+                //         sync_labels_event);
+                // cu_wait_list.insert(
+                //         sync_labels_event);
                 mu_event = this->f_mass_update(
                         this->q_mass_update,
                         this->num_points,
@@ -146,14 +148,16 @@ public:
                         buffer_map.get_masses(BufferMap::mu),
                         this->logger,
                         mu_wait_list);
-                sync_masses_wait_list.insert(
-                        mu_event);
+                // TODO
+                // sync_masses_wait_list.insert(
+                //         mu_event);
 
                 // execute centroid update
                 sync_masses_event = buffer_map.sync_masses(
                         sync_masses_wait_list);
-                cu_wait_list.insert(
-                        sync_masses_event);
+                // TODO
+                // cu_wait_list.insert(
+                //         sync_masses_event);
                 cu_event = this->f_centroid_update(
                         this->q_centroid_update,
                         this->num_features,
@@ -165,8 +169,9 @@ public:
                         buffer_map.get_masses(BufferMap::cu),
                         this->logger,
                         cu_wait_list);
-                sync_centroids_wait_list.insert(
-                        cu_event);
+                // TODO
+                // sync_centroids_wait_list.insert(
+                //         cu_event);
             }
 
             ++iterations;
@@ -176,8 +181,9 @@ public:
         // copy centroids to host
         sync_centroids_event = buffer_map.sync_centroids(
                 sync_centroids_wait_list);
-        boost::compute::wait_for_all(
-                sync_centroids_event);
+        // TODO
+        // boost::compute::wait_for_all(
+        //         sync_centroids_event);
     }
 
     void set_labeler(std::string flavor, LabelingConfiguration config) {
