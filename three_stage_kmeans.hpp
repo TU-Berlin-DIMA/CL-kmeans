@@ -65,9 +65,12 @@ public:
                 host_did_changes.size(),
                 this->context);
 
-        this->centroids_initializer(
-                *this->points,
-                *this->centroids);
+        // If centroids initializer function is callable, then call
+        if (this->centroids_initializer) {
+            this->centroids_initializer(
+                    *this->points,
+                    *this->centroids);
+        }
 
         this->buffer_map.set_queues(
                 this->q_labeling,
