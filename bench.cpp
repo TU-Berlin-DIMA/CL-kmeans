@@ -365,7 +365,7 @@ public:
                         kmeans.set_centroid_update_queue(queue);
 
                         if (options.verify()) {
-                            // verify_res = bm.verify(kmeans);
+                            verify_res = bm.verify(kmeans);
                         }
                         else {
                             bs = bm.run(kmeans);
