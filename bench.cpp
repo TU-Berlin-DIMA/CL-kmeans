@@ -16,10 +16,6 @@
 
 #include "SystemConfig.h"
 
-#ifdef ARMADILLO_FOUND
-#include "kmeans_armadillo.hpp"
-#endif
-
 #include <clext.hpp>
 #include <boost/program_options.hpp>
 #include <boost/compute/core.hpp>
@@ -43,7 +39,7 @@ namespace po = boost::program_options;
 
 class CmdOptions {
 public:
-    enum class Algorithm {Armadillo, Naive, GPUAssisted, FeatureSum, ThreeStageKmeans};
+    enum class Algorithm {Naive, GPUAssisted, FeatureSum, ThreeStageKmeans};
 
     int parse(int argc, char **argv) {
         char help_msg[] =
@@ -148,14 +144,6 @@ public:
         if (vm.count("csv")) {
             csv_ = true;
             csv_file_ = vm["csv"].as<std::string>();
-        }
-
-        if (vm.count("armadillo")) {
-#ifdef ARMADILLO_FOUND
-            algorithms_.insert(Algorithm::Armadillo);
-#else
-            std::cout << "Armadillo library not present, ignoring" << std::endl;
-#endif
         }
 
         if (vm.count("naive")) {
@@ -284,15 +272,6 @@ public:
             binformat.read(options.input_file().c_str(), points);
         }
 
-#ifdef ARMADILLO_FOUND
-        cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>
-            kmeans_armadillo;
-        if (options.algorithms().find(CmdOptions::Algorithm::Armadillo)
-                != options.algorithms().end()) {
-                kmeans_armadillo.initialize(points);
-        }
-#endif
-
         cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR> bm(
                 options.runs(), points.rows(), options.max_iterations(),
                 std::move(points));
@@ -317,21 +296,6 @@ public:
             std::string name;
 
             switch (a) {
-                case CmdOptions::Algorithm::Armadillo:
-#ifdef ARMADILLO_FOUND
-                    {
-                        name = kmeans_armadillo.name();
-                        if (options.verify()) {
-                            std::cerr << "Notice: Verify not available"
-                                << " for armadillo"
-                                << std::endl;
-                        }
-                        else {
-                            bs = bm.run(kmeans_armadillo);
-                        }
-                    }
-#endif
-                    break;
                 case CmdOptions::Algorithm::Naive:
                     {
                         name = kmeans_naive.name();
@@ -468,9 +432,6 @@ public:
             }
         }
 
-#ifdef ARMADILLO_FOUND
-        kmeans_armadillo.finalize();
-#endif
         kmeans_naive.finalize();
         bm.finalize();
 
