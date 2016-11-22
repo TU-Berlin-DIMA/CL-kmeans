@@ -64,6 +64,7 @@ SET(BENCH_SOURCES
     bench.cpp
     binary_format.cpp
     clustering_benchmark.cpp
+    configuration_parser.cpp
     kmeans_common.cpp
     kmeans_initializer.cpp
     kmeans_naive.cpp

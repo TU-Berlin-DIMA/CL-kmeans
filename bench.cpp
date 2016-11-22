@@ -9,6 +9,7 @@
 #include "binary_format.hpp"
 
 #include "clustering_benchmark.hpp"
+#include "configuration_parser.hpp"
 #include "kmeans.hpp"
 #include "matrix.hpp"
 
@@ -352,17 +353,23 @@ public:
                     {
                         Clustering::LabelingConfiguration labeling_config
                             = {
+                                0, 0,
+                                "unroll_vector",
                                 {1024, 1, 1},
                                 {32, 1, 1},
                                 2, 2, 2
                             };
                         Clustering::MassUpdateConfiguration mass_update_config
                             = {
+                                0, 0,
+                                "global_atomic",
                                 {1024, 1, 1},
                                 {32, 1, 1}
                             };
                         Clustering::CentroidUpdateConfiguration centroid_update_config
                             = {
+                                0, 0,
+                                "feature_sum",
                                 {1024, 1, 1},
                                 {32, 1, 1}
                             };
