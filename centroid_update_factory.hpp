@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <string>
+#include <stdexcept>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -37,12 +38,17 @@ public:
                 )
         >;
 
-    CentroidUpdateFunction create(std::string flavor, boost::compute::context context, CentroidUpdateConfiguration config) {
+    CentroidUpdateFunction create(
+            boost::compute::context context,
+            CentroidUpdateConfiguration config) {
 
-        if (flavor.compare("feature_sum")) {
-            CentroidUpdateFeatureSum<PointT, LabelT, MassT, ColMajor> flavor;
-            flavor.prepare(context, config);
-            return flavor;
+        if (config.strategy == "feature_sum") {
+            CentroidUpdateFeatureSum<PointT, LabelT, MassT, ColMajor> strategy;
+            strategy.prepare(context, config);
+            return strategy;
+        }
+        else {
+            throw std::invalid_argument(config.strategy);
         }
 
     }

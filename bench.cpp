@@ -17,7 +17,6 @@
 
 #include "SystemConfig.h"
 
-#include <clext.hpp>
 #include <boost/program_options.hpp>
 #include <boost/compute/core.hpp>
 
@@ -26,6 +25,7 @@
 #include <string>
 #include <set>
 #include <memory>
+#include <stdexcept>
 
 #ifdef CUDA_FOUND
 #include <cuda_runtime.h>
@@ -37,11 +37,10 @@
 #endif
 
 namespace po = boost::program_options;
+namespace bc = boost::compute;
 
 class CmdOptions {
 public:
-    enum class Algorithm {Naive, GPUAssisted, FeatureSum, ThreeStageKmeans};
-
     int parse(int argc, char **argv) {
         char help_msg[] =
             "Usage: " BENCH_NAME " [OPTION] [K] [FILE]\n"
@@ -51,36 +50,25 @@ public:
         po::options_description cmdline(help_msg);
         cmdline.add_options()
             ("help", "Produce help message")
-            ("quiet", "Suppress non-critical output")
-            ("runs", po::value<uint32_t>(&runs_)->default_value(1),
+            ("verbose", "Show additional information")
+            ("runs", po::value<uint32_t>(&runs_),
              "Number of runs")
-            ("max-iterations",
-             po::value<uint32_t>(&max_iterations_)->default_value(100),
-             "Maximum number of iterations")
-            ("platform",
-             po::value<uint32_t>(&platform_)->default_value(0),
-             "OpenCL platform number")
-            ("device",
-             po::value<uint32_t>(&device_)->default_value(0),
-             "OpenCL device number")
-            ("64bit", "Run in 64-bit mode (doubles and unsigned long longs)")
+            ("k", po::value<uint32_t>(),
+             "Number of Clusters")
+            ("iterations",
+             po::value<uint32_t>(&iterations_),
+             "Number of iterations")
             ("verify", "Do verification pass")
-            ("verify-file",
-             po::value<std::string>(),
-             "Do verification pass with labels")
             ("csv",
              po::value<std::string>(),
              "Output measurements to CSV file")
-            ("armadillo", "Run Armadillo K-means")
-            ("naive", "Run Naive Lloyd's")
-            ("gpu-assisted", "Run GPU assisted Lloyd's")
-            ("feature-sum", "Run GPU feature sum Lloyd's")
-            ("three-stage-kmeans", "Run three stage K-means")
+            ("config",
+             po::value<std::string>(),
+             "Configuration file")
             ;
 
         po::options_description hidden("Hidden options");
         hidden.add_options()
-            ("k", po::value<uint32_t>(), "Number of clusters")
             ("input-file", po::value<std::string>(), "Input file")
             ;
 
@@ -88,7 +76,6 @@ public:
         visible.add(cmdline).add(hidden);
 
         po::positional_options_description pos;
-        pos.add("k", 1);
         pos.add("input-file", 1);
 
         po::variables_map vm;
@@ -104,16 +91,8 @@ public:
             runs_ = vm["runs"].as<uint32_t>();
         }
 
-        if (vm.count("max-iterations")) {
-            max_iterations_ = vm["max-iterations"].as<uint32_t>();
-        }
-
-        if (vm.count("platform")) {
-            platform_ = vm["platform"].as<uint32_t>();
-        }
-
-        if (vm.count("device")) {
-            device_ = vm["device"].as<uint32_t>();
+        if (vm.count("iterations")) {
+            iterations_ = vm["iterations"].as<uint32_t>();
         }
 
         if (vm.count("input-file")) {
@@ -125,22 +104,12 @@ public:
             return -1;
         }
 
-        if (vm.count("quiet")) {
-            quiet_ = true;
-        }
-
-        if (vm.count("64bit")) {
-            type64_ = true;
+        if (vm.count("verbose")) {
+            verbose_ = true;
         }
 
         if (vm.count("verify")) {
             verify_ = true;
-        }
-
-        if (vm.count("verify-file")) {
-            verify_ = true;
-            verify_labels_ = true;
-            labels_file_ = vm["verify-file"].as<std::string>();
         }
 
         if (vm.count("csv")) {
@@ -148,39 +117,28 @@ public:
             csv_file_ = vm["csv"].as<std::string>();
         }
 
-        if (vm.count("naive")) {
-            algorithms_.insert(Algorithm::Naive);
-        }
-
-        if (vm.count("gpu-assisted")) {
-            algorithms_.insert(Algorithm::GPUAssisted);
-        }
-
-        if (vm.count("feature-sum")) {
-            algorithms_.insert(Algorithm::FeatureSum);
-        }
-
-        if (vm.count("three-stage-kmeans")) {
-            algorithms_.insert(Algorithm::ThreeStageKmeans);
+        if (vm.count("config")) {
+            config_ = true;
+            config_file_ = vm["config"].as<std::string>();
         }
 
         // Ensure we have required options
-        if (k_ == 0 || input_file_.empty()) {
-            std::cout << "Enter k and a file or die" << std::endl;
+        if (input_file_.empty()) {
+            std::cout << "No input file specified." << std::endl;
             return -1;
         }
 
-        // Warning about no algorithm selected
-        if (algorithms_.size() == 0) {
-            std::cout << "You might want to choose an algorithm" << std::endl;
+        // Ensure we have a config file
+        if (config_file_.empty()) {
+            std::cout << "No config file specified." << std::endl;
             return -1;
         }
 
         return 1;
     }
 
-    bool quiet() const {
-        return quiet_;
+    bool verbose() const {
+        return verbose_;
     }
 
     uint32_t k() const {
@@ -191,36 +149,16 @@ public:
         return runs_;
     }
 
-    uint32_t max_iterations() const {
-        return max_iterations_;
-    }
-
-    uint32_t cl_platform() const {
-        return platform_;
-    }
-
-    uint32_t cl_device() const {
-        return device_;
+    uint32_t iterations() const {
+        return iterations_;
     }
 
     std::string input_file() const {
         return input_file_;
     }
 
-    bool type64() const {
-        return type64_;
-    }
-
     bool verify() const {
         return verify_;
-    }
-
-    bool verify_labels() const {
-        return verify_labels_;
-    }
-
-    std::string labels_file() const {
-        return labels_file_;
     }
 
     bool csv() const {
@@ -231,193 +169,160 @@ public:
         return csv_file_;
     }
 
-    std::set<Algorithm> algorithms() const {
-        return algorithms_;
+    bool config() const {
+        return config_;
+    }
+
+    std::string config_file() const {
+        return config_file_;
     }
 
 private:
-    bool quiet_ = false;
+    bool verbose_ = false;
     uint32_t k_ = 0;
     uint32_t runs_ = 0;
-    uint32_t max_iterations_ = 0;
-    uint32_t platform_ = 0;
-    uint32_t device_ = 0;
+    uint32_t iterations_ = 0;
     std::string input_file_;
-    bool type64_ = false;
     bool verify_ = false;
-    bool verify_labels_ = false;
-    std::string labels_file_;
     bool csv_ = false;
     std::string csv_file_;
-    std::set<Algorithm> algorithms_;
+    bool config_ = false;
+    std::string config_file_;
 };
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT,
-         bool COL_MAJOR>
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor = true>
 class Bench {
+    using FP = PointT;
+    using INT = MassT;
+    using AllocFP = std::allocator<FP>;
+    using AllocINT = std::allocator<INT>;
 public:
-    int run(CmdOptions options) {
-        int ret = 1;
-
+    int run(CmdOptions options, Clustering::ConfigurationParser config) {
+        auto bm_config = config.get_benchmark_configuration();
+        auto km_config = config.get_kmeans_configuration();
 
         cle::Matrix<FP, AllocFP, INT, true> points;
 
-        cle::CLInitializer clinit;
-        if ((ret = clinit.init(options.cl_platform(), options.cl_device()))
-                < 0) {
-            return ret;
-        }
+        cle::BinaryFormat binformat;
+        binformat.read(options.input_file().c_str(), points);
 
-        if (not options.quiet()) {
-            cle_sanitize_done_return(
-                    clinit.print_device_info());
-        }
-
-        {
-            cle::BinaryFormat binformat;
-            binformat.read(options.input_file().c_str(), points);
-        }
-
-        cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR> bm(
-                options.runs(), points.rows(), options.max_iterations(),
+        cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, ColMajor> bm(
+                bm_config.runs,
+                points.rows(),
+                km_config.iterations,
                 std::move(points));
-        bm.initialize(options.k(), points.cols(),
-            cle::KmeansInitializer<FP, AllocFP, INT>::first_x);
+
+        bm.initialize(
+                options.k(),
+                points.cols(),
+                cle::KmeansInitializer<FP, AllocFP, INT>::first_x);
 
         cle::KmeansNaive<FP, INT, AllocFP, AllocINT> kmeans_naive;
         kmeans_naive.initialize();
 
-        if (options.verify_labels()) {
-            std::cout << "Not implemented" << std::endl;
-            std::vector<std::vector<INT, AllocINT>> reference_labels;
-            bm.setVerificationReference(std::move(reference_labels[0]));
-        }
-        else if (options.verify()) {
+        if (options.verify() || bm_config.verify) {
             bm.setVerificationReference(kmeans_naive);
         }
 
-        for (CmdOptions::Algorithm a : options.algorithms()) {
-            cle::ClusteringBenchmarkStats bs(options.runs());
-            uint64_t verify_res = 0;
-            std::string name;
+        cle::ClusteringBenchmarkStats bs(bm_config.runs);
+        uint64_t verify_res = 0;
 
-            switch (a) {
-                case CmdOptions::Algorithm::Naive:
-                    {
-                        name = kmeans_naive.name();
-                        if (options.verify()) {
-                            verify_res = bm.verify(kmeans_naive);
-                        }
-                        else {
-                            bs = bm.run(kmeans_naive);
-                        }
-                    }
-                    break;
-                case CmdOptions::Algorithm::GPUAssisted:
-                    {
-                        cle::KmeansGPUAssisted<FP, INT, AllocFP, AllocINT>
-                            kmeans_gpu_assisted(
-                                clinit.get_context(),
-                                clinit.get_commandqueue()
-                                    );
-                        kmeans_gpu_assisted.initialize();
-                        name = kmeans_gpu_assisted.name();
-                        if (options.verify()) {
-                            verify_res = bm.verify(kmeans_gpu_assisted);
-                        }
-                        else {
-                            bs = bm.run(kmeans_gpu_assisted);
-                        }
-                        kmeans_gpu_assisted.finalize();
-                    }
-                    break;
-                case CmdOptions::Algorithm::FeatureSum:
-                    {
-                        cle::LloydGPUFeatureSum<FP, INT, AllocFP, AllocINT>
-                            lloyd_gpu_feature_sum(
-                                    clinit.get_context(),
-                                    clinit.get_commandqueue()
-                                    );
-                        lloyd_gpu_feature_sum.initialize();
-                        name = lloyd_gpu_feature_sum.name();
-                        if (options.verify()) {
-                            verify_res = bm.verify(lloyd_gpu_feature_sum);
-                        }
-                        else {
-                            bs = bm.run(lloyd_gpu_feature_sum);
-                        }
-                        lloyd_gpu_feature_sum.finalize();
-                    }
-                    break;
-                case CmdOptions::Algorithm::ThreeStageKmeans:
-                    {
-                        Clustering::LabelingConfiguration labeling_config
-                            = {
-                                0, 0,
-                                "unroll_vector",
-                                {1024, 1, 1},
-                                {32, 1, 1},
-                                2, 2, 2
-                            };
-                        Clustering::MassUpdateConfiguration mass_update_config
-                            = {
-                                0, 0,
-                                "global_atomic",
-                                {1024, 1, 1},
-                                {32, 1, 1}
-                            };
-                        Clustering::CentroidUpdateConfiguration centroid_update_config
-                            = {
-                                0, 0,
-                                "feature_sum",
-                                {1024, 1, 1},
-                                {32, 1, 1}
-                            };
-                        boost::compute::context context(clinit.get_context()());
-                        boost::compute::command_queue queue(clinit.get_commandqueue()());
-                        Clustering::ThreeStageKmeans<FP, INT, INT, true> kmeans(context);
-                        kmeans.set_labeler("unroll_vector", labeling_config);
-                        kmeans.set_mass_updater("global_atomic", mass_update_config);
-                        kmeans.set_centroid_updater("feature_sum", centroid_update_config);
-                        kmeans.set_labeling_queue(queue);
-                        kmeans.set_mass_update_queue(queue);
-                        kmeans.set_centroid_update_queue(queue);
+        if (km_config.pipeline == "three_stage") {
+            auto ll_config =
+                config.get_labeling_configuration();
+            auto mu_config =
+                config.get_mass_update_configuration();
+            auto cu_config =
+                config.get_centroid_update_configuration();
 
-                        if (options.verify()) {
-                            verify_res = bm.verify(kmeans, queue);
-                        }
-                        else {
-                            bs = bm.run(kmeans, queue);
-                        }
-                    }
-                    break;
+            bc::device ll_dev =
+                bc::system::platforms()[ll_config.platform]
+                .devices()[ll_config.device];
+            bc::device mu_dev =
+                bc::system::platforms()[mu_config.platform]
+                .devices()[mu_config.device];
+            bc::device cu_dev =
+                bc::system::platforms()[cu_config.platform]
+                .devices()[cu_config.device];
+
+            std::vector<bc::device> devices;
+            devices.push_back(ll_dev);
+            if (mu_dev != ll_dev) {
+                devices.push_back(mu_dev);
+            }
+            if (cu_dev != ll_dev && cu_dev != mu_dev) {
+                devices.push_back(cu_dev);
             }
 
-            if (not options.quiet()) {
-                std::cout << name << " ";
-                std::cout << (options.type64() ? "64-bit" : "32-bit");
-                std::cout << " ";
-                if (options.verify()) {
-                    if (verify_res == 0) {
-                        std::cout << "correct";
-                    }
-                    else {
-                        std::cout << verify_res << " incorrect labels";
-                    }
+            bc::context context(devices);
+
+            bc::command_queue ll_queue(context, ll_dev);
+            bc::command_queue mu_queue(context, mu_dev);
+            bc::command_queue cu_queue(context, cu_dev);
+
+            if (options.verbose()) {
+                std::cout
+                    << "Labeling device: "
+                    << ll_dev.name()
+                    << std::endl
+                    << "Mass update device: "
+                    << mu_dev.name()
+                    << std::endl
+                    << "Centroid update device: "
+                    << cu_dev.name()
+                    << std::endl;
+            }
+
+            Clustering::ThreeStageKmeans
+                <
+                PointT,
+                LabelT,
+                MassT,
+                ColMajor
+                    >
+                    kmeans(context);
+
+            kmeans.set_labeler(ll_config);
+            kmeans.set_mass_updater(mu_config);
+            kmeans.set_centroid_updater(cu_config);
+            kmeans.set_labeling_queue(ll_queue);
+            kmeans.set_mass_update_queue(mu_queue);
+            kmeans.set_centroid_update_queue(cu_queue);
+
+            if (options.verify() || bm_config.verify) {
+                verify_res = bm.verify(kmeans, ll_queue);
+            }
+            else {
+                bs = bm.run(kmeans, ll_queue);
+            }
+        }
+
+        if (options.verbose()) {
+            std::cout << "Pipeline: " << km_config.pipeline << " ";
+            std::cout << "Types: "
+                << km_config.point_type << " "
+                << km_config.label_type << " "
+                << km_config.mass_type << std::endl;
+            if (options.verify() || bm_config.verify) {
+                if (verify_res == 0) {
+                    std::cout << "Correct";
                 }
                 else {
-                    bs.print_times();
-
+                    std::cout << verify_res << " incorrect labels";
                 }
-                std::cout << std::endl;
             }
+            else {
+                bs.print_times();
 
-            if (options.csv() && not options.verify()) {
-                bs.to_csv(
-                        options.csv_file().c_str(),
-                        options.input_file().c_str()
-                        );
             }
+            std::cout << std::endl;
+        }
+
+        if (options.csv() && not (options.verify() || bm_config.verify)) {
+            bs.to_csv(
+                    options.csv_file().c_str(),
+                    options.input_file().c_str()
+                    );
         }
 
         kmeans_naive.finalize();
@@ -433,35 +338,48 @@ int main(int argc, char **argv) {
     CmdOptions options;
 
     ret = options.parse(argc, argv);
-        if (ret < 0) {
+    if (ret < 0) {
         return -1;
     }
 
-    if (options.type64()) {
+    Clustering::ConfigurationParser config;
+    config.parse_file(options.config_file());
+    auto km_config = config.get_kmeans_configuration();
+
+    if (
+            km_config.point_type == "double" &&
+            km_config.label_type == "uint64" &&
+            km_config.mass_type == "uint64"
+            ) {
         Bench<
             double,
             uint64_t,
-            std::allocator<double>,
-            std::allocator<uint64_t>,
+            uint64_t,
             true
                 > bench;
-        ret = bench.run(options);
+        ret = bench.run(options, config);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    else if (
+            km_config.point_type == "float" &&
+            km_config.label_type == "uint32" &&
+            km_config.mass_type == "uint32"
+            ) {
+        Bench<
+            float,
+            uint32_t,
+            uint32_t,
+            true
+                > bench;
+        ret = bench.run(options, config);
         if (ret < 0) {
             return ret;
         }
     }
     else {
-        Bench<
-            float,
-            uint32_t,
-            std::allocator<float>,
-            std::allocator<uint32_t>,
-            true
-                > bench;
-        ret = bench.run(options);
-        if (ret < 0) {
-            return ret;
-        }
+        throw std::invalid_argument("Invalid type");
     }
 
 #ifdef CUDA_FOUND

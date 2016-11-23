@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <string>
+#include <stdexcept>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -32,12 +33,17 @@ public:
                 )
         >;
 
-    MassUpdateFunction create(std::string flavor, boost::compute::context context, MassUpdateConfiguration config) {
+    MassUpdateFunction create(
+            boost::compute::context context,
+            MassUpdateConfiguration config) {
 
-        if (flavor.compare("global_atomic")) {
-            MassUpdateGlobalAtomic<LabelT, MassT> flavor;
-            flavor.prepare(context, config);
-            return flavor;
+        if (config.strategy == "global_atomic") {
+            MassUpdateGlobalAtomic<LabelT, MassT> strategy;
+            strategy.prepare(context, config);
+            return strategy;
+        }
+        else {
+            throw std::invalid_argument(config.strategy);
         }
     }
 

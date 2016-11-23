@@ -198,19 +198,19 @@ public:
         this->q_centroid_update.finish();
     }
 
-    void set_labeler(std::string flavor, LabelingConfiguration config) {
+    void set_labeler(LabelingConfiguration config) {
         LabelingFactory<PointT, LabelT, ColMajor> factory;
-        f_labeling = factory.create(flavor, this->context, config);
+        f_labeling = factory.create(this->context, config);
     }
 
-    void set_mass_updater(std::string flavor, MassUpdateConfiguration config) {
+    void set_mass_updater(MassUpdateConfiguration config) {
         MassUpdateFactory<LabelT, MassT> factory;
-        f_mass_update = factory.create(flavor, this->context, config);
+        f_mass_update = factory.create(this->context, config);
     }
 
-    void set_centroid_updater(std::string flavor, CentroidUpdateConfiguration config) {
+    void set_centroid_updater(CentroidUpdateConfiguration config) {
         CentroidUpdateFactory<PointT, LabelT, MassT, ColMajor> factory;
-        f_centroid_update = factory.create(flavor, this->context, config);
+        f_centroid_update = factory.create(this->context, config);
     }
 
     void set_labeling_queue(boost::compute::command_queue q) {

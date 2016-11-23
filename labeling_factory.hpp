@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <string>
+#include <stdexcept>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -36,12 +37,17 @@ public:
             )
         >;
 
-    LabelingFunction create(std::string flavor, boost::compute::context context, LabelingConfiguration config) {
+    LabelingFunction create(
+            boost::compute::context context,
+            LabelingConfiguration config) {
 
-        if (flavor.compare("unroll_vector")) {
-            LabelingUnrollVector<PointT, LabelT, ColMajor> flavor;
-            flavor.prepare(context, config);
-            return flavor;
+        if (config.strategy == "unroll_vector") {
+            LabelingUnrollVector<PointT, LabelT, ColMajor> strategy;
+            strategy.prepare(context, config);
+            return strategy;
+        }
+        else {
+            throw std::invalid_argument(config.strategy);
         }
     }
 };
