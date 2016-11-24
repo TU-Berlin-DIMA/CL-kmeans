@@ -46,7 +46,8 @@ int cle::BinaryFormat::read(char const* file_name, cle::Matrix<FP, AllocFP, INT>
 }
 
 template int cle::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, uint32_t>&);
-template int cle::BinaryFormat::read(char const*, cle::Matrix<double, std::allocator<double>, uint64_t>&);
+template int cle::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, size_t>&);
+template int cle::BinaryFormat::read(char const*, cle::Matrix<double, std::allocator<double>, size_t>&);
 
 #ifdef USE_ALIGNED_ALLOCATOR
 template int cle::BinaryFormat::read(char const*, cle::Matrix<float, boost::alignment::aligned_allocator<float, 32>, uint32_t>&);

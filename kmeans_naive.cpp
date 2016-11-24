@@ -14,26 +14,26 @@
 #include <limits>
 #include <string>
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT>
-char const* cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::name() const {
+template <typename PointT, typename LabelT, typename MassT>
+char const* cle::KmeansNaive<PointT, LabelT, MassT>::name() const {
 
     return "Lloyd_Naive";
 }
 
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT>
-int cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::initialize() { return 1; }
+template <typename PointT, typename LabelT, typename MassT>
+int cle::KmeansNaive<PointT, LabelT, MassT>::initialize() { return 1; }
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT>
-int cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::finalize() { return 1; }
+template <typename PointT, typename LabelT, typename MassT>
+int cle::KmeansNaive<PointT, LabelT, MassT>::finalize() { return 1; }
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT>
-void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
+template <typename PointT, typename LabelT, typename MassT>
+void cle::KmeansNaive<PointT, LabelT, MassT>::operator() (
         uint32_t const max_iterations,
-        cle::Matrix<FP, AllocFP, INT, true> const& points,
-        cle::Matrix<FP, AllocFP, INT, true>& centroids,
-        std::vector<INT, AllocINT>& cluster_mass,
-        std::vector<INT, AllocINT>& labels,
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids,
+        std::vector<MassT>& cluster_mass,
+        std::vector<LabelT>& labels,
         Measurement::Measurement& stats) {
 
     assert(labels.size() == points.rows());
@@ -47,14 +47,14 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
         did_changes = false;
 
         // Phase 1: assign points to clusters
-        for (INT p = 0; p != points.rows(); ++p) {
-            FP min_distance = std::numeric_limits<FP>::max();
-            INT min_centroid = 0;
+        for (size_t p = 0; p != points.rows(); ++p) {
+            PointT min_distance = std::numeric_limits<PointT>::max();
+            LabelT min_centroid = 0;
 
-            for (INT c = 0; c != centroids.rows(); ++c) {
-                FP distance = 0;
-                for (INT d = 0; d < points.cols(); ++d) {
-                    FP t = points(p, d) - centroids(c, d);
+            for (size_t c = 0; c != centroids.rows(); ++c) {
+                PointT distance = 0;
+                for (size_t d = 0; d < points.cols(); ++d) {
+                    PointT t = points(p, d) - centroids(c, d);
                     distance += t * t;
                 }
 
@@ -75,17 +75,17 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
         std::fill(cluster_mass.begin(), cluster_mass.end(), 0);
         std::fill(centroids.begin(), centroids.end(), 0);
 
-        for (INT p = 0; p < points.rows(); ++p) {
-            INT c = labels[p];
+        for (size_t p = 0; p < points.rows(); ++p) {
+            LabelT c = labels[p];
 
             cluster_mass[c] += 1;
-            for (INT d = 0; d < points.cols(); ++d) {
+            for (size_t d = 0; d < points.cols(); ++d) {
                 centroids(c, d) += points(p, d);
             }
         }
 
-        for (INT f = 0; f < centroids.cols(); ++f) {
-            for (INT c = 0; c < centroids.rows(); ++c) {
+        for (size_t f = 0; f < centroids.cols(); ++f) {
+            for (size_t c = 0; c < centroids.rows(); ++c) {
                 centroids(c, f) = centroids(c, f) / cluster_mass[c];
             }
         }
@@ -100,9 +100,5 @@ void cle::KmeansNaive<FP, INT, AllocFP, AllocINT>::operator() (
             );
 }
 
-template class cle::KmeansNaive<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
-template class cle::KmeansNaive<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
-#ifdef USE_ALIGNED_ALLOCATOR
-template class cle::KmeansNaive<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
-template class cle::KmeansNaive<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;
-#endif
+template class cle::KmeansNaive<float, uint32_t, uint32_t>;
+template class cle::KmeansNaive<double, uint64_t, uint64_t>;

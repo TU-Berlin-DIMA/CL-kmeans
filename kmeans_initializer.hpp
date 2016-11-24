@@ -15,38 +15,28 @@
 
 namespace cle {
 
-template <typename FP, typename Alloc, typename INT>
+template <typename PointT>
 class KmeansInitializer {
 public:
     static void forgy(
-            cle::Matrix<FP, Alloc, INT, true> const& points,
-            cle::Matrix<FP, Alloc, INT, true>& centroids
+            cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
+            cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids
             );
 
     static void first_x(
-            cle::Matrix<FP, Alloc, INT, true> const& points,
-            cle::Matrix<FP, Alloc, INT, true>& centroids
+            cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
+            cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids
             );
 };
 
 using KmeansInitializer32 =
-    KmeansInitializer<float, std::allocator<float>, uint32_t>;
+    KmeansInitializer<float>;
 using KmeansInitializer64 =
-    KmeansInitializer<double, std::allocator<double>, uint64_t>;
-#ifdef USE_ALIGNED_ALLOCATOR
-using KmeansInitializer32Aligned =
-    KmeansInitializer<float, AlignedAllocatorFP32, uint32_t>;
-using KmeansInitializer64Aligned =
-    KmeansInitializer<double, AlignedAllocatorFP64, uint64_t>;
-#endif
+    KmeansInitializer<double>;
 
 }
 
-extern template class cle::KmeansInitializer<float, std::allocator<float>, uint32_t>;
-extern template class cle::KmeansInitializer<double, std::allocator<double>, uint64_t>;
-#ifdef USE_ALIGNED_ALLOCATOR
-extern template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32, uint32_t>;
-extern template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64, uint64_t>;
-#endif
+extern template class cle::KmeansInitializer<float>;
+extern template class cle::KmeansInitializer<double>;
 
 #endif /* KMEANS_INITIALIZER_HPP */

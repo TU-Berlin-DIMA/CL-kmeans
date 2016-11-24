@@ -108,12 +108,12 @@ void cle::ClusteringBenchmarkStats::to_csv(
 
 }
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::ClusteringBenchmark(
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::ClusteringBenchmark(
         const uint32_t num_runs,
-        const INT num_points,
-        const uint32_t max_iterations,
-        cle::Matrix<FP, AllocFP, INT, COL_MAJOR>&& points
+        const size_t num_points,
+        const size_t max_iterations,
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, ColMajor>&& points
         )
     :
         num_runs_(num_runs),
@@ -124,9 +124,9 @@ cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::ClusteringBench
         labels_(num_points)
 {}
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::initialize(
-        const INT num_clusters, const INT num_features,
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+int cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::initialize(
+        const size_t num_clusters, const size_t num_features,
         InitCentroidsFunction init_centroids
         ) {
 
@@ -139,19 +139,19 @@ int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::initialize(
     return 1;
 }
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::finalize() {
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+int cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::finalize() {
     return 1;
 }
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::run(
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(
         ClusteringFunction f) {
 
     cle::Timer timer;
     ClusteringBenchmarkStats bs(this->num_runs_);
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
-    bs.set_types<FP, INT>();
+    bs.set_types<PointT, MassT>();
 
     for (uint32_t r = 0; r < this->num_runs_; ++r) {
         init_centroids_(
@@ -174,15 +174,15 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
     return bs;
 }
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::run(
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(
         ClClusteringFunction f,
         boost::compute::command_queue queue) {
 
     cle::Timer timer;
     ClusteringBenchmarkStats bs(this->num_runs_);
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
-    bs.set_types<FP, INT>();
+    bs.set_types<PointT, MassT>();
 
     // Dirty hack to avoid freeing object
     // when shared_ptr goes out of scope.
@@ -223,14 +223,14 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<FP, INT, AllocFP, AllocIN
     return bs;
 }
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-void cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerificationReference(std::vector<INT, AllocINT>&& reference_labels) {
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+void cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerificationReference(std::vector<LabelT>&& reference_labels) {
 
     reference_labels_ = std::move(reference_labels);
 }
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerificationReference(
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+int cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerificationReference(
         ClusteringFunction ref) {
 
     Measurement::Measurement stats;
@@ -254,8 +254,8 @@ int cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::setVerifica
     return 1;
 }
 
-template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(ClusteringFunction f) {
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+uint64_t cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(ClusteringFunction f) {
 
     Measurement::Measurement stats;
 
@@ -274,7 +274,7 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
        );
 
     uint64_t counter = 0;
-    for (INT l = 0; l < labels_.size(); ++l) {
+    for (size_t l = 0; l < labels_.size(); ++l) {
         if (reference_labels_[l] != labels_[l]) {
             ++counter;
         }
@@ -283,8 +283,8 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
     return counter;
 }
 
-template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify(
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+uint64_t cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(
         ClClusteringFunction f,
         boost::compute::command_queue queue) {
 
@@ -323,7 +323,7 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
             queue);
 
     uint64_t counter = 0;
-    for (INT l = 0; l < labels_.size(); ++l) {
+    for (size_t l = 0; l < labels_.size(); ++l) {
         if (reference_labels_[l] != labels_[l]) {
             ++counter;
         }
@@ -332,14 +332,14 @@ uint64_t cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::verify
     return counter;
 }
 
-template<typename FP, typename INT, typename AllocFP, typename AllocINT, bool COL_MAJOR>
-void cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, COL_MAJOR>::print_labels() {
+template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
+void cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::print_labels() {
 
     std::cout << "Point Label" << std::endl;
-    for (INT i = 0; i < labels_.size(); ++i) {
+    for (size_t i = 0; i < labels_.size(); ++i) {
         std::cout << i << " " << labels_[i] << std::endl;
     }
 }
 
-template class cle::ClusteringBenchmark<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>, true>;
-template class cle::ClusteringBenchmark<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>, true>;
+template class cle::ClusteringBenchmark<float, uint32_t, uint32_t, true>;
+template class cle::ClusteringBenchmark<double, uint64_t, uint64_t, true>;

@@ -11,36 +11,32 @@
 
 #include <random>
 
-template <typename FP, typename Alloc, typename INT>
-void cle::KmeansInitializer<FP, Alloc, INT>::forgy(
-        cle::Matrix<FP, Alloc, INT, true> const& points,
-        cle::Matrix<FP, Alloc, INT, true>& centroids) {
+template <typename PointT>
+void cle::KmeansInitializer<PointT>::forgy(
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids) {
 
     std::random_device rand;
 
-    for (INT c = 0; c != centroids.rows(); ++c) {
-        INT random_point = rand() % points.rows();
-        for (INT d = 0; d < centroids.cols(); ++d) {
+    for (size_t c = 0; c != centroids.rows(); ++c) {
+        size_t random_point = rand() % points.rows();
+        for (size_t d = 0; d < centroids.cols(); ++d) {
             centroids(c, d) = points(random_point, d);
         }
     }
 }
 
-template <typename FP, typename Alloc, typename INT>
-void cle::KmeansInitializer<FP, Alloc, INT>::first_x(
-        cle::Matrix<FP, Alloc, INT, true> const& points,
-        cle::Matrix<FP, Alloc, INT, true>& centroids) {
+template <typename PointT>
+void cle::KmeansInitializer<PointT>::first_x(
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids) {
 
-    for (INT d = 0; d < centroids.cols(); ++d) {
-        for (INT c = 0; c != centroids.rows(); ++c) {
+    for (size_t d = 0; d < centroids.cols(); ++d) {
+        for (size_t c = 0; c != centroids.rows(); ++c) {
             centroids(c, d) = points(c % points.rows(), d);
         }
     }
 }
 
-template class cle::KmeansInitializer<float, std::allocator<float>, uint32_t>;
-template class cle::KmeansInitializer<double, std::allocator<double>, uint64_t>;
-#ifdef USE_ALIGNED_ALLOCATOR
-template class cle::KmeansInitializer<float, cle::AlignedAllocatorFP32, uint32_t>;
-template class cle::KmeansInitializer<double, cle::AlignedAllocatorFP64, uint64_t>;
-#endif
+template class cle::KmeansInitializer<float>;
+template class cle::KmeansInitializer<double>;

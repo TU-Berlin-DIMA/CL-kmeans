@@ -201,23 +201,23 @@ public:
         auto bm_config = config.get_benchmark_configuration();
         auto km_config = config.get_kmeans_configuration();
 
-        cle::Matrix<FP, AllocFP, INT, true> points;
+        cle::Matrix<PointT, AllocFP, size_t, true> points;
 
         cle::BinaryFormat binformat;
         binformat.read(options.input_file().c_str(), points);
 
-        cle::ClusteringBenchmark<FP, INT, AllocFP, AllocINT, ColMajor> bm(
+        cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor> bm(
                 bm_config.runs,
                 points.rows(),
                 km_config.iterations,
                 std::move(points));
 
         bm.initialize(
-                options.k(),
+                km_config.clusters,
                 points.cols(),
-                cle::KmeansInitializer<FP, AllocFP, INT>::first_x);
+                cle::KmeansInitializer<PointT>::first_x);
 
-        cle::KmeansNaive<FP, INT, AllocFP, AllocINT> kmeans_naive;
+        cle::KmeansNaive<PointT, LabelT, MassT> kmeans_naive;
         kmeans_naive.initialize();
 
         if (options.verify() || bm_config.verify) {

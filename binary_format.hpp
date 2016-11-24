@@ -29,7 +29,8 @@ public:
 }
 
 extern template int cle::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, uint32_t>&);
-extern template int cle::BinaryFormat::read(char const*, cle::Matrix<double, std::allocator<double>, uint64_t>&);
+extern template int cle::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, size_t>&);
+extern template int cle::BinaryFormat::read(char const*, cle::Matrix<double, std::allocator<double>, size_t>&);
 
 #ifdef USE_ALIGNED_ALLOCATOR
 extern template int cle::BinaryFormat::read(char const*, cle::Matrix<float, boost::alignment::aligned_allocator<float, 32>, uint32_t>&);

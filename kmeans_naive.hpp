@@ -19,7 +19,7 @@
 
 namespace cle {
 
-template <typename FP, typename INT, typename AllocFP, typename AllocINT>
+template <typename PointT, typename LabelT, typename MassT>
 class KmeansNaive {
 public:
     char const* name() const;
@@ -29,32 +29,22 @@ public:
 
     void operator() (
             uint32_t const max_iterations,
-            cle::Matrix<FP, AllocFP, INT, true> const& points,
-            cle::Matrix<FP, AllocFP, INT, true>& centroids,
-            std::vector<INT, AllocINT>& cluster_mass,
-            std::vector<INT, AllocINT>& labels,
+            cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
+            cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids,
+            std::vector<MassT>& cluster_mass,
+            std::vector<LabelT>& labels,
             Measurement::Measurement& stats
             );
 };
 
 using KmeansNaive32 =
-    KmeansNaive<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
+    KmeansNaive<float, uint32_t, uint32_t>;
 using KmeansNaive64 =
-    KmeansNaive<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
-#ifdef USE_ALIGNED_ALLOCATOR
-using KmeansNaive32Aligned =
-    KmeansNaive<float, uint32_t, AlignedAllocatorFP32, AlignedAllocatorINT32>;
-using KmeansNaive64Aligned =
-    KmeansNaive<double, uint64_t, AlignedAllocatorFP64, AlignedAllocatorINT64>;
-#endif
+    KmeansNaive<double, uint64_t, uint64_t>;
 
 }
 
-extern template class cle::KmeansNaive<float, uint32_t, std::allocator<float>, std::allocator<uint32_t>>;
-extern template class cle::KmeansNaive<double, uint64_t, std::allocator<double>, std::allocator<uint64_t>>;
-#ifdef USE_ALIGNED_ALLOCATOR
-extern template class cle::KmeansNaive<float, uint32_t, cle::AlignedAllocatorFP32, cle::AlignedAllocatorINT32>;
-extern template class cle::KmeansNaive<double, uint64_t, cle::AlignedAllocatorFP64, cle::AlignedAllocatorINT64>;
-#endif
+extern template class cle::KmeansNaive<float, uint32_t, uint32_t>;
+extern template class cle::KmeansNaive<double, uint64_t, uint64_t>;
 
 #endif /* KMEANS_NAIVE_HPP */
