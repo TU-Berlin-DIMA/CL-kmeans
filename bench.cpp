@@ -192,16 +192,12 @@ private:
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor = true>
 class Bench {
-    using FP = PointT;
-    using INT = MassT;
-    using AllocFP = std::allocator<FP>;
-    using AllocINT = std::allocator<INT>;
 public:
     int run(CmdOptions options, Clustering::ConfigurationParser config) {
         auto bm_config = config.get_benchmark_configuration();
         auto km_config = config.get_kmeans_configuration();
 
-        cle::Matrix<PointT, AllocFP, size_t, true> points;
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, true> points;
 
         cle::BinaryFormat binformat;
         binformat.read(options.input_file().c_str(), points);
