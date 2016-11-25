@@ -13,7 +13,6 @@
 #include "type_definition.hpp"
 
 #include <boost/filesystem/path.hpp>
-#include <cassert>
 #include <chrono>
 #include <fstream>
 #include <unistd.h>
@@ -26,72 +25,47 @@ char const *const timestamp_format = "%F-%H-%M-%S";
 char const *const experiment_file_suffix = "_expm";
 char const *const measurements_file_suffix = "_mnts";
 
+std::string Measurement::DataPoint::get_name() { return name_; }
+
+Measurement::Unit::u Measurement::DataPoint::get_unit() { return unit_; }
+
 bool Measurement::DataPoint::is_iterative() { return iterative_; }
 
 int Measurement::DataPoint::get_iteration() { return iteration_; }
 
 uint64_t Measurement::DataPoint::get_value() {
-  uint64_t value;
+  uint64_t value = 0;
 
-  if (has_event_) {
-    cl_ulong start, end;
+  if (has_event_ && not events_.empty()) {
+      for (Event const& e : events_) {
+          e.wait();
+          value += e.duration<std::chrono::nanoseconds>().count();
+      }
 
-    event_.wait();
-    event_.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
-    event_.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
-    value = end - start;
-  } else {
-    value = value_;
+  }
+  else if (has_event_ && not cl_events_.empty()) {
+      cl_ulong start, end;
+      for (cl::Event const& e: cl_events_) {
+          e.wait();
+          e.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
+          e.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
+          value += end - start;
+      }
+  }
+  else {
+      for (uint64_t const& v : values_) {
+          value += v;
+      }
   }
 
-  uint64_t converted;
-  Mapping::Unit::u unit = Mapping::type_unit[type_];
-  switch (unit) {
-      case Mapping::Unit::Second:
-          converted = value / (1000 * 1000 * 1000);
-          break;
-      case Mapping::Unit::Millisecond:
-          converted = value / (1000 * 1000);
-          break;
-      case Mapping::Unit::Microsecond:
-          converted = value / 1000;
-          break;
-      case Mapping::Unit::Nanosecond:
-          converted = value;
-          break;
-      case Mapping::Unit::Byte:
-          converted = value;
-          break;
-      case Mapping::Unit::Kilobyte:
-          converted = value / 1024;
-          break;
-      case Mapping::Unit::Megabyte:
-          converted = value / (1024 * 1024);
-          break;
-      case Mapping::Unit::Gigabyte:
-          converted = value / (1024 * 1024 * 1024);
-          break;
-      default:
-          converted = value;
-  }
-
-  return converted;
+  return value;
 }
 
-Measurement::DataPointType::t Measurement::DataPoint::get_type() {  return type_;
+Measurement::Measurement::Measurement() {
+    run_date_ = std::chrono::system_clock::now();
+    set_parameter(ParameterType::TimeStamp, get_datetime());
 }
-
-Measurement::Measurement::Measurement() : is_started_(false) {}
 Measurement::Measurement::~Measurement() {}
-
-void Measurement::Measurement::start() {
-  assert(is_started_ == false);
-
-  is_started_ = true;
-  run_date_ = std::chrono::system_clock::now();
-}
-
-void Measurement::Measurement::end() { assert(is_started_ == true); }
 
 void Measurement::Measurement::set_parameter(
         ParameterType::t type,
@@ -101,8 +75,6 @@ void Measurement::Measurement::set_parameter(
 }
 
 void Measurement::Measurement::write_csv(std::string filename) {
-  assert(is_started_ == true);
-
   std::string experiment_id = get_unique_id();
 
   {
@@ -111,39 +83,22 @@ void Measurement::Measurement::write_csv(std::string filename) {
 
     std::ofstream pf(experiment_file, std::ios_base::out | std::ios::trunc);
 
-    pf << "ID";
+    pf << "ExperimentID";
     pf << ',';
-    pf << "Timestamp";
-
-    for (ParameterType::t type = (ParameterType::t)0;
-            type < get_num_parameter_types();
-            type = ParameterType::t(type+1)
-        ) {
-        std::string name = get_parameter_type_name(type);
-
-        pf << ',';
-        pf << name;
-    }
-
-    pf << '\n';
-
-    pf << experiment_id;
+    pf << "ParameterName";
     pf << ',';
-    pf << get_datetime();
+    pf << "Value";
 
-    for (ParameterType::t type = (ParameterType::t)0;
-            type < get_num_parameter_types();
-            type = ParameterType::t(type+1)
-        ) {
+    pf << "\n";
 
+    for (auto const& p : parameters_) {
+        pf << experiment_id;
         pf << ',';
-        if (exists_parameter(type)) {
-          std::string value = get_parameter_value(type);
-          pf << value;
-        }
+        pf << get_parameter_type_name(p.first);
+        pf << ',';
+        pf << p.second;
+        pf << '\n';
     }
-
-    pf << '\n';
 
     pf.close();
     pf.clear();
@@ -156,8 +111,6 @@ void Measurement::Measurement::write_csv(std::string filename) {
     std::ofstream mf(measurements_file, std::ios_base::out | std::ios::trunc);
 
     mf << "ExperimentID";
-    mf << ',';
-    mf << "TypeID";
     mf << ',';
     mf << "TypeName";
     mf << ',';
@@ -172,9 +125,7 @@ void Measurement::Measurement::write_csv(std::string filename) {
     for (DataPoint dp : data_points_) {
         mf << experiment_id;
         mf << ',';
-        mf << get_datapoint_type_id(dp.get_type());
-        mf << ',';
-        mf << get_datapoint_type_name(dp.get_type());
+        mf << dp.get_name();
         mf << ',';
         if (dp.is_iterative() == true) {
             mf << dp.get_iteration();
@@ -182,7 +133,7 @@ void Measurement::Measurement::write_csv(std::string filename) {
         mf << ',';
         mf << dp.get_value();
         mf << ',';
-        mf << get_datapoint_type_unit(dp.get_type());
+        mf << get_unit_name(dp.get_unit());
         mf << '\n';
     }
 
@@ -191,37 +142,22 @@ void Measurement::Measurement::write_csv(std::string filename) {
   }
 }
 
-int Measurement::Measurement::get_num_datapoint_types() {
-  assert(Mapping::type_name.size() == Mapping::type_unit.size());
-  return Mapping::type_name.size();
-}
-
 int Measurement::Measurement::get_num_parameter_types() {
   return Mapping::parameter_name.size();
-}
-
-int Measurement::Measurement::get_datapoint_type_id(DataPointType::t type) {
-  return type;
 }
 
 int Measurement::Measurement::get_parameter_type_id(ParameterType::t type) {
   return type;
 }
 
-std::string Measurement::Measurement::get_datapoint_type_name(DataPointType::t type) {
-  std::string type_name = Mapping::type_name[type];
-  return type_name;
+std::string Measurement::Measurement::get_unit_name(Unit::u unit) {
+    std::string unit_name = Mapping::unit_name[unit];
+    return unit_name;
 }
 
 std::string Measurement::Measurement::get_parameter_type_name(ParameterType::t type) {
   std::string type_name = Mapping::parameter_name[type];
   return type_name;
-}
-
-std::string Measurement::Measurement::get_datapoint_type_unit(DataPointType::t type) {
-  Mapping::Unit::u unit = Mapping::type_unit[type];
-  std::string unit_name = Mapping::unit_name[unit];
-  return unit_name;
 }
 
 bool Measurement::Measurement::exists_parameter(ParameterType::t type) {

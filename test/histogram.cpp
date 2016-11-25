@@ -152,7 +152,6 @@ public:
                 NULL,
                 NULL);
 
-        measurement.start();
         for (int r = 0; r < num_runs; ++r) {
 
             kernel(
@@ -164,11 +163,10 @@ public:
                     num_bins_,
                     d_data,
                     d_histogram,
-                    measurement.add_datapoint(point_type, r).add_opencl_event()
+                    measurement.add_datapoint(r).add_opencl_event()
                   );
 
         }
-        measurement.end();
     }
 };
 

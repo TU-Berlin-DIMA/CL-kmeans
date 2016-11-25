@@ -3,8 +3,8 @@
 
 #include "kernel_path.hpp"
 
-#include "../temp.hpp"
 #include "../centroid_update_configuration.hpp"
+#include "../measurement/measurement.hpp"
 
 #include <cassert>
 #include <string>
@@ -62,7 +62,7 @@ public:
             Vector<PointT>& centroids,
             Vector<LabelT>& labels,
             Vector<MassT>& masses,
-            MeasurementLogger&,
+            Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events
             ) {
 
@@ -70,6 +70,8 @@ public:
         assert(labels.size() == num_points);
         assert(centroids.size() == num_clusters * num_features);
         assert(masses.size() >= num_clusters);
+
+        datapoint.set_name("CentroidUpdateFeatureSum");
 
         LocalBuffer<PointT> local_centroids(
                 num_clusters * this->config.local_size[0]);
@@ -89,13 +91,16 @@ public:
 
         size_t work_offset[3] = {0, 0, 0};
 
-        return queue.enqueue_nd_range_kernel(
+        Event event;
+        event = queue.enqueue_nd_range_kernel(
                 this->kernel,
                 1,
                 work_offset,
                 this->config.global_size,
                 this->config.local_size,
                 events);
+        datapoint.add_event() = event;
+        return event;
     }
 
 

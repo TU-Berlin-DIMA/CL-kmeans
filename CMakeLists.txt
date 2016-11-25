@@ -68,8 +68,6 @@ SET(BENCH_SOURCES
     kmeans_common.cpp
     kmeans_initializer.cpp
     kmeans_naive.cpp
-    kmeans_gpu_assisted.cpp
-    lloyd_gpu_feature_sum.cpp
     measurement/measurement.cpp
     )
 IF(ARMADILLO_FOUND)

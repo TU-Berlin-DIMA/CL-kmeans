@@ -1,9 +1,9 @@
 #ifndef CENTROID_UPDATE_FACTORY_HPP
 #define CENTROID_UPDATE_FACTORY_HPP
 
-#include "temp.hpp"
-
 #include "centroid_update_configuration.hpp"
+
+#include "measurement/measurement.hpp"
 
 #include "cl_kernels/centroid_update_feature_sum.hpp"
 
@@ -33,14 +33,12 @@ public:
                 Vector<PointT>& centroids,
                 Vector<LabelT>& labels,
                 Vector<MassT>& masses,
-                MeasurementLogger& logger,
+                Measurement::DataPoint& datapoint,
                 boost::compute::wait_list const& events
                 )
         >;
 
-    CentroidUpdateFunction create(
-            boost::compute::context context,
-            CentroidUpdateConfiguration config) {
+    CentroidUpdateFunction create(boost::compute::context context, CentroidUpdateConfiguration config) {
 
         if (config.strategy == "feature_sum") {
             CentroidUpdateFeatureSum<PointT, LabelT, MassT, ColMajor> strategy;

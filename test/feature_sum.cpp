@@ -264,7 +264,6 @@ public:
                 labels.data()
                 );
 
-        measurement.start();
         for (uint32_t r = 0; r < num_runs; ++r) {
             fsum_kernel(
                     cl::EnqueueArgs(
@@ -278,10 +277,9 @@ public:
                     d_centroids,
                     d_mass,
                     d_labels,
-                    measurement.add_datapoint(point_type, r).add_opencl_event()
+                    measurement.add_datapoint(r).add_opencl_event()
                     );
         }
-        measurement.end();
     }
 };
 

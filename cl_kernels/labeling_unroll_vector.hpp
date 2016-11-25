@@ -3,8 +3,8 @@
 
 #include "kernel_path.hpp"
 
-#include "../temp.hpp"
 #include "../labeling_configuration.hpp"
+#include "../measurement/measurement.hpp"
 
 #include <cassert>
 #include <string>
@@ -63,8 +63,10 @@ public:
             boost::compute::vector<PointT>& points,
             boost::compute::vector<PointT>& centroids,
             boost::compute::vector<LabelT>& labels,
-            Clustering::MeasurementLogger&,
+            Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events) {
+
+        datapoint.set_name("LabelingUnrollVector");
 
         LocalBuffer<PointT> local_centroids(num_clusters * num_features);
 
@@ -80,13 +82,17 @@ public:
 
         size_t work_offset[3] = {0, 0, 0};
 
-        return queue.enqueue_nd_range_kernel(
+        Event event;
+        event = queue.enqueue_nd_range_kernel(
                 this->kernel,
                 1,
                 work_offset,
                 this->config.global_size,
                 this->config.local_size,
                 events);
+
+        datapoint.add_event() = event;
+        return event;
     }
 
 private:

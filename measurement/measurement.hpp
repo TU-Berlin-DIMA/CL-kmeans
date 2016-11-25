@@ -11,13 +11,14 @@
 #define MEASUREMENT_HPP
 
 #include "type_definition.hpp"
+#include "units.hpp"
 
-#include <cassert>
-#include <chrono>
 #include <cstdint>
 #include <deque>
 #include <map>
 #include <string>
+
+#include <boost/compute/event.hpp>
 
 #ifdef MAC
 #include <OpenCL/cl.hpp>
@@ -32,43 +33,62 @@ class Measurement;
 class DataPoint {
 friend class Measurement;
 
-public:
-  inline cl::Event &add_opencl_event() {
-    has_event_ = true;
-    return event_;
-  }
+using Event = boost::compute::event;
 
-  inline uint64_t &add_value() {
-      return value_;
-  }
+public:
+    void set_name(std::string name) {
+        name_ = name;
+    }
+
+    void set_unit(Unit::u unit) {
+        unit_ = unit;
+    }
+
+    inline Event &add_event() {
+        has_event_ = true;
+        events_.push_back(Event());
+        return events_.back();
+    }
+
+    inline cl::Event &add_opencl_event() {
+        has_event_ = true;
+        cl_events_.push_back(cl::Event());
+        return cl_events_.back();
+    }
+
+    inline uint64_t &add_value() {
+        values_.push_back(0);
+        return values_.back();
+    }
 
 private:
-  inline DataPoint(DataPointType::t type)
-      :
-          type_(type),
-          iterative_(false),
-          has_event_(false)
+    inline DataPoint()
+        :
+            iterative_(false),
+            has_event_(false)
     {}
 
-  inline DataPoint(DataPointType::t type, int iteration)
-      :
-          type_(type),
-          iterative_(true),
-          iteration_(iteration),
-          has_event_(false)
+    inline DataPoint(int iteration)
+        :
+            iterative_(true),
+            iteration_(iteration),
+            has_event_(false)
     {}
 
-  bool is_iterative();
-  int get_iteration();
-  uint64_t get_value();
-  DataPointType::t get_type();
+    std::string get_name();
+    Unit::u get_unit();
+    bool is_iterative();
+    int get_iteration();
+    uint64_t get_value();
 
-  DataPointType::t type_;
-  bool iterative_;
-  int iteration_;
-  bool has_event_;
-  cl::Event event_;
-  uint64_t value_;
+    std::string name_;
+    Unit::u unit_;
+    bool iterative_;
+    int iteration_;
+    bool has_event_;
+    std::deque<Event> events_;
+    std::deque<cl::Event> cl_events_;
+    std::deque<uint64_t> values_;
 };
 
 class Measurement {
@@ -76,32 +96,26 @@ public:
   Measurement();
   ~Measurement();
 
-  void start();
-  void end();
-
   void set_parameter(ParameterType::t, std::string value);
 
-  inline DataPoint &add_datapoint(DataPointType::t type) {
-    data_points_.push_back(DataPoint(type));
+  inline DataPoint &add_datapoint() {
+    data_points_.push_back(DataPoint());
     return data_points_.back();
   }
 
-  inline DataPoint &add_datapoint(DataPointType::t type, int iteration) {
-    data_points_.push_back(DataPoint(type, iteration));
+  inline DataPoint &add_datapoint(int iteration) {
+    data_points_.push_back(DataPoint(iteration));
     return data_points_.back();
   }
 
   void write_csv(std::string filename);
 
 private:
-  int get_num_datapoint_types();
   int get_num_parameter_types();
-  int get_datapoint_type_id(DataPointType::t type);
   int get_parameter_type_id(ParameterType::t type);
 
-  std::string get_datapoint_type_name(DataPointType::t type);
+  std::string get_unit_name(Unit::u unit);
   std::string get_parameter_type_name(ParameterType::t type);
-  std::string get_datapoint_type_unit(DataPointType::t type);
   bool exists_parameter(ParameterType::t type);
   std::string get_parameter_value(ParameterType::t type);
 
@@ -110,7 +124,6 @@ private:
 
   std::string format_filename(std::string basefile, std::string experiment_id, std::string suffix);
 
-  bool is_started_;
   std::deque<DataPoint> data_points_;
   std::map<ParameterType::t, std::string> parameters_;
   std::chrono::system_clock::time_point run_date_;

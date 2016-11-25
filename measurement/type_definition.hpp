@@ -46,7 +46,8 @@ enum t {
 
 struct ParameterType {
 enum t {
-    Version = 0,
+    TimeStamp,
+    Version,
     Filename,
     Hostname,
     Device,

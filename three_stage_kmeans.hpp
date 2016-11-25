@@ -6,6 +6,8 @@
 #include "mass_update_factory.hpp"
 #include "centroid_update_factory.hpp"
 
+#include "measurement/measurement.hpp"
+
 #include <functional>
 #include <algorithm>
 #include <vector>
@@ -126,7 +128,7 @@ public:
                     buffer_map.get_points(BufferMap::ll),
                     buffer_map.get_centroids(BufferMap::ll),
                     buffer_map.get_labels(BufferMap::ll),
-                    this->logger,
+                    this->measurement.add_datapoint(iterations),
                     ll_wait_list);
 
             // copy did_changes from device to host
@@ -158,7 +160,7 @@ public:
                         this->num_clusters,
                         buffer_map.get_labels(BufferMap::mu),
                         buffer_map.get_masses(BufferMap::mu),
-                        this->logger,
+                        this->measurement.add_datapoint(iterations),
                         mu_wait_list);
                 // TODO
                 // sync_masses_wait_list.insert(
@@ -179,7 +181,7 @@ public:
                         buffer_map.get_centroids(BufferMap::cu),
                         buffer_map.get_labels(BufferMap::cu),
                         buffer_map.get_masses(BufferMap::cu),
-                        this->logger,
+                        this->measurement.add_datapoint(iterations),
                         cu_wait_list);
                 // TODO
                 // sync_centroids_wait_list.insert(

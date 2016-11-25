@@ -1,9 +1,8 @@
 #ifndef LABELING_FACTORY_HPP
 #define LABELING_FACTORY_HPP
 
-#include "temp.hpp"
-
 #include "labeling_configuration.hpp"
+#include "measurement/measurement.hpp"
 
 #include "cl_kernels/labeling_unroll_vector.hpp"
 
@@ -32,7 +31,7 @@ public:
                 Vector<PointT>& points,
                 Vector<PointT>& centroids,
                 Vector<LabelT>& labels,
-                MeasurementLogger& logger,
+                Measurement::DataPoint& datapoint,
                 boost::compute::wait_list const& events
             )
         >;

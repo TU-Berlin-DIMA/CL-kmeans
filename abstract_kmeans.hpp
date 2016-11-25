@@ -1,7 +1,7 @@
 #ifndef ABSTRACT_KMEANS_HPP
 #define ABSTRACT_KMEANS_HPP
 
-#include "temp.hpp"
+#include "measurement/measurement.hpp"
 
 #include <functional>
 #include <cstdint>
@@ -92,8 +92,8 @@ public:
         return *this->masses;
     }
 
-    virtual MeasurementLogger const& get_measurement_logger() const {
-        return this->logger;
+    virtual Measurement::Measurement const& get_measurement() const {
+        return this->measurement;
     }
 
     virtual void run() = 0;
@@ -131,7 +131,7 @@ protected:
     VectorPtr<LabelT> labels;
 
     InitCentroidsFunction centroids_initializer;
-    MeasurementLogger logger;
+    Measurement::Measurement measurement;
 };
 
 } // Clustering

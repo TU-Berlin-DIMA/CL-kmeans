@@ -69,7 +69,6 @@ void cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::operator() (
 
     arma::inplace_trans(arma_centroids);
 
-    stats.start();
     cle::Timer cpu_timer;
     cpu_timer.start();
 
@@ -83,7 +82,6 @@ void cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::operator() (
 
     uint64_t total_time =
         cpu_timer.stop<std::chrono::nanoseconds>();
-    stats.end();
 
     stats
         .add_datapoint(Measurement::DataPointType::TotalTime)

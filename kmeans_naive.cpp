@@ -39,8 +39,6 @@ void cle::KmeansNaive<PointT, LabelT, MassT>::operator() (
     assert(labels.size() == points.rows());
     assert(cluster_mass.size() == centroids.rows());
 
-    stats.start();
-
     uint32_t iterations = 0;
     bool did_changes = true;
     while (did_changes == true && iterations < max_iterations) {
@@ -93,7 +91,6 @@ void cle::KmeansNaive<PointT, LabelT, MassT>::operator() (
         ++iterations;
     }
 
-    stats.end();
     stats.set_parameter(
             Measurement::ParameterType::NumIterations,
             std::to_string(iterations)

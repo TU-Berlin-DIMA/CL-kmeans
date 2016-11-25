@@ -11,25 +11,13 @@
 #define MAPPING_DEFINITION_HPP
 
 #include "type_definition.hpp"
+#include "units.hpp"
 
 #include <map>
 #include <string>
 
 namespace Measurement {
 namespace Mapping {
-
-struct Unit {
-enum u {
-    Second,
-    Millisecond,
-    Microsecond,
-    Nanosecond,
-    Byte,
-    Kilobyte,
-    Megabyte,
-    Gigabyte
-};
-};
 
 std::map<DataPointType::t, std::string> type_name = {
     {DataPointType::ChangesBuffer, "ChangesBuffer"},
@@ -103,6 +91,7 @@ std::map<Unit::u, std::string> unit_name = {
 };
 
 std::map<ParameterType::t, std::string> parameter_name = {
+    {ParameterType::TimeStamp, "TimeStamp"},
     {ParameterType::Version, "Version"},
     {ParameterType::Filename, "Filename"},
     {ParameterType::Hostname, "Hostname"},

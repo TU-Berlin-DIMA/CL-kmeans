@@ -1,9 +1,9 @@
 #ifndef MASS_UPDATE_FACTORY_HPP
 #define MASS_UPDATE_FACTORY_HPP
 
-#include "temp.hpp"
-
 #include "mass_update_configuration.hpp"
+
+#include "measurement/measurement.hpp"
 
 #include "cl_kernels/mass_update_global_atomic.hpp"
 
@@ -28,7 +28,7 @@ public:
                 size_t num_clusters,
                 Vector<LabelT>& labels,
                 Vector<MassT>& masses,
-                MeasurementLogger& logger,
+                Measurement::DataPoint& datapoint,
                 boost::compute::wait_list const& events
                 )
         >;

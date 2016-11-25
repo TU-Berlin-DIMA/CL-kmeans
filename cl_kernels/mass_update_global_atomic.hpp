@@ -3,8 +3,8 @@
 
 #include "kernel_path.hpp"
 
-#include "../temp.hpp"
 #include "../mass_update_configuration.hpp"
+#include "../measurement/measurement.hpp"
 
 #include <cassert>
 #include <string>
@@ -56,9 +56,11 @@ public:
             size_t num_clusters,
             Vector<LabelT>& labels,
             Vector<MassT>& masses,
-            MeasurementLogger&,
+            Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events
             ) {
+
+        datapoint.set_name("MassUpdateGlobalAtomic");
 
         this->kernel.set_args(
                 labels,
@@ -68,13 +70,16 @@ public:
 
         size_t work_offset[3] = {0, 0, 0};
 
-        return queue.enqueue_nd_range_kernel(
+        Event event;
+        event = queue.enqueue_nd_range_kernel(
                 this->kernel,
                 1,
                 work_offset,
                 this->config.global_size,
                 this->config.local_size,
                 events);
+        datapoint.add_event() = event;
+        return event;
     }
 
 private:
