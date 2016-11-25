@@ -104,7 +104,7 @@ public:
 
         uint32_t iterations = 0;
         bool did_changes = true;
-        while (did_changes == true && iterations < this->max_iterations) {
+        while (/*did_changes == true &&*/ iterations < this->max_iterations) {
 
             // set did_changes to false on device
             boost::compute::fill(
@@ -128,7 +128,7 @@ public:
                     buffer_map.get_points(BufferMap::ll),
                     buffer_map.get_centroids(BufferMap::ll),
                     buffer_map.get_labels(BufferMap::ll),
-                    this->measurement.add_datapoint(iterations),
+                    this->measurement->add_datapoint(iterations),
                     ll_wait_list);
 
             // copy did_changes from device to host
@@ -145,7 +145,7 @@ public:
                     [](int i){ return i == 1; }
                     );
 
-            if (did_changes == true) {
+            if (/*did_changes == true && */ true) {
                 // execute mass update
                 sync_labels_event = buffer_map.sync_labels(
                         sync_labels_wait_list);
@@ -160,7 +160,7 @@ public:
                         this->num_clusters,
                         buffer_map.get_labels(BufferMap::mu),
                         buffer_map.get_masses(BufferMap::mu),
-                        this->measurement.add_datapoint(iterations),
+                        this->measurement->add_datapoint(iterations),
                         mu_wait_list);
                 // TODO
                 // sync_masses_wait_list.insert(
@@ -181,7 +181,7 @@ public:
                         buffer_map.get_centroids(BufferMap::cu),
                         buffer_map.get_labels(BufferMap::cu),
                         buffer_map.get_masses(BufferMap::cu),
-                        this->measurement.add_datapoint(iterations),
+                        this->measurement->add_datapoint(iterations),
                         cu_wait_list);
                 // TODO
                 // sync_centroids_wait_list.insert(

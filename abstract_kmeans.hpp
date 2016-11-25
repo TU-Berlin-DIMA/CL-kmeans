@@ -36,7 +36,8 @@ public:
         host_points(nullptr),
         centroids(new Vector<PointT>(context)),
         masses(new Vector<MassT>(context)),
-        labels(new Vector<LabelT>(context))
+        labels(new Vector<LabelT>(context)),
+        measurement(new Measurement::Measurement)
     {}
 
     virtual ~AbstractKmeans() {}
@@ -80,6 +81,12 @@ public:
         this->centroids_initializer = f;
     }
 
+    virtual void set_measurement(
+            std::shared_ptr<Measurement::Measurement> measurement
+            ) {
+        this->measurement = measurement;
+    }
+
     virtual Vector<PointT> const& get_centroids() const {
         return *this->centroids;
     }
@@ -93,7 +100,7 @@ public:
     }
 
     virtual Measurement::Measurement const& get_measurement() const {
-        return this->measurement;
+        return *this->measurement;
     }
 
     virtual void run() = 0;
@@ -104,7 +111,9 @@ public:
             std::shared_ptr<const std::vector<PointT>> points,
             VectorPtr<PointT> centroids,
             VectorPtr<MassT> masses,
-            VectorPtr<LabelT> labels) {
+            VectorPtr<LabelT> labels,
+            std::shared_ptr<Measurement::Measurement> measurement
+            ) {
 
         this->max_iterations = max_iterations;
         this->num_features = num_features;
@@ -114,6 +123,9 @@ public:
         this->centroids = centroids;
         this->masses = masses;
         this->labels = labels;
+        if (measurement) {
+            this->measurement = measurement;
+        }
 
         this->run();
     }
@@ -131,7 +143,7 @@ protected:
     VectorPtr<LabelT> labels;
 
     InitCentroidsFunction centroids_initializer;
-    Measurement::Measurement measurement;
+    std::shared_ptr<Measurement::Measurement> measurement;
 };
 
 } // Clustering

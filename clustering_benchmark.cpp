@@ -204,6 +204,11 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<PointT, LabelT, MassT, Co
                 centroids_
                 );
 
+        std::shared_ptr<Measurement::Measurement> measurement(
+                &bs.measurements[r],
+                [](const Measurement::Measurement *){}
+                );
+
         VectorPtr<PointT> centroids = std::make_shared<Vector<PointT>>(
                 this->centroids_.get_data(),
                 queue);
@@ -215,7 +220,8 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<PointT, LabelT, MassT, Co
                 points,
                 centroids,
                 masses,
-                labels
+                labels,
+                measurement
          );
         bs.microseconds[r] = timer.stop<std::chrono::microseconds>();
     }
@@ -313,7 +319,8 @@ uint64_t cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(
             points,
             centroids,
             masses,
-            labels
+            labels,
+            nullptr
      );
 
     boost::compute::copy(

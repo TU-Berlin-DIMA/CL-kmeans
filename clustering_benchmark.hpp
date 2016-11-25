@@ -87,7 +87,8 @@ public:
                 std::shared_ptr<const std::vector<PointT>>,
                 VectorPtr<PointT>,
                 VectorPtr<MassT>,
-                VectorPtr<LabelT>)
+                VectorPtr<LabelT>,
+                std::shared_ptr<Measurement::Measurement>)
         >;
 
     using InitCentroidsFunction = std::function<
