@@ -73,12 +73,23 @@ void cle::KmeansNaive<PointT, LabelT, MassT>::operator() (
         std::fill(cluster_mass.begin(), cluster_mass.end(), 0);
         std::fill(centroids.begin(), centroids.end(), 0);
 
+        Matrix<PointT, std::allocator<PointT>, size_t, true> compensation;
+        compensation.resize(centroids.rows(), centroids.cols());
+        std::fill(compensation.begin(), compensation.end(), 0);
+
         for (size_t p = 0; p < points.rows(); ++p) {
             LabelT c = labels[p];
 
             cluster_mass[c] += 1;
             for (size_t d = 0; d < points.cols(); ++d) {
-                centroids(c, d) += points(p, d);
+                // Kahan sum of centroids(c, d) += points(p, d);
+                PointT const& point = points(p, d);
+                PointT& comp = compensation(c, d);
+                PointT& sum = centroids(c, d);
+                PointT y = point - comp;
+                PointT t = sum + y;
+                comp = (t - sum) - y;
+                sum = t;
             }
         }
 
