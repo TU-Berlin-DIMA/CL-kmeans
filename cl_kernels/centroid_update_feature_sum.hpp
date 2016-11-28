@@ -85,9 +85,9 @@ public:
                 labels,
                 local_centroids,
                 local_points,
-                num_features,
-                num_points,
-                num_clusters);
+                (LabelT)num_features,
+                (LabelT)num_points,
+                (LabelT)num_clusters);
 
         size_t work_offset[3] = {0, 0, 0};
 

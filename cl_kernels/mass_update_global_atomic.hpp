@@ -31,10 +31,10 @@ public:
         this->config = config;
 
         std::string defines;
-        if (std::is_same<cl_uint, LabelT>::value) {
+        if (std::is_same<uint32_t, LabelT>::value) {
             defines = "-DTYPE32";
         }
-        else if (std::is_same<cl_ulong, LabelT>::value) {
+        else if (std::is_same<uint64_t, LabelT>::value) {
             defines = "-DTYPE64";
         }
         else {
@@ -65,8 +65,8 @@ public:
         this->kernel.set_args(
                 labels,
                 masses,
-                num_points,
-                num_clusters);
+                (LabelT) num_points,
+                (LabelT) num_clusters);
 
         size_t work_offset[3] = {0, 0, 0};
 
