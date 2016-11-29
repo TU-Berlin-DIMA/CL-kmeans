@@ -252,18 +252,28 @@ public:
 
             bc::context context(devices);
 
-            bc::command_queue ll_queue(
+            bc::command_queue ll_queue, mu_queue, cu_queue;
+            ll_queue = bc::command_queue(
                     context,
                     ll_dev,
-                    bc::command_queue::enable_profiling);
-            bc::command_queue mu_queue(
-                    context,
-                    mu_dev,
-                    bc::command_queue::enable_profiling);
-            bc::command_queue cu_queue(
-                    context,
-                    cu_dev,
-                    bc::command_queue::enable_profiling);
+                    bc::command_queue::enable_profiling
+                    );
+            mu_queue = (ll_dev == mu_dev) ?
+                ll_queue :
+                bc::command_queue(
+                        context,
+                        mu_dev,
+                        bc::command_queue::enable_profiling
+                        );
+            cu_queue = (ll_dev == cu_dev) ?
+                ll_queue :
+                (mu_dev == cu_dev) ?
+                mu_queue :
+                bc::command_queue(
+                        context,
+                        cu_dev,
+                        bc::command_queue::enable_profiling
+                        );
 
             if (options.verbose()) {
                 std::cout
