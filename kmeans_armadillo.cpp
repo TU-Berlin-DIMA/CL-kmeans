@@ -69,7 +69,7 @@ void cle::KmeansArmadillo<FP, INT, AllocFP, AllocINT>::operator() (
 
     arma::inplace_trans(arma_centroids);
 
-    cle::Timer cpu_timer;
+    Timer::Timer cpu_timer;
     cpu_timer.start();
 
     arma::kmeans(

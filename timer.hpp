@@ -40,7 +40,7 @@
 #warning steady_clock using time_point(system_clock::now().time_since_epoch());
 #endif
 
-namespace cle {
+namespace Timer {
 
 // Timer for benchmarking
 // Header-only implementation for compiler inlining

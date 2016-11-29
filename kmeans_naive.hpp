@@ -17,7 +17,7 @@
 #include <vector>
 #include <memory>
 
-namespace cle {
+namespace Clustering {
 
 template <typename PointT, typename LabelT, typename MassT>
 class KmeansNaive {
@@ -44,7 +44,7 @@ using KmeansNaive64 =
 
 }
 
-extern template class cle::KmeansNaive<float, uint32_t, uint32_t>;
-extern template class cle::KmeansNaive<double, uint64_t, uint64_t>;
+extern template class Clustering::KmeansNaive<float, uint32_t, uint32_t>;
+extern template class Clustering::KmeansNaive<double, uint64_t, uint64_t>;
 
 #endif /* KMEANS_NAIVE_HPP */

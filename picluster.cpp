@@ -136,8 +136,8 @@ int picture_cluster(
     std::vector<uint64_t> cluster_mass(num_clusters);
     std::vector<uint64_t> labels(length);
 
-    cle::KmeansNaive64 kmeans;
-    cle::KmeansInitializer64 kmeans_init;
+    Clustering::KmeansNaive64 kmeans;
+    Clustering::KmeansInitializer64 kmeans_init;
     Measurement::Measurement stats;
 
     kmeans_init.forgy(img_matrix, centroids);

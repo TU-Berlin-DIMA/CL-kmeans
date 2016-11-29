@@ -23,7 +23,7 @@
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
 
-namespace cle {
+namespace Clustering {
 
 class ClusteringBenchmarkStats {
 public:
@@ -145,7 +145,7 @@ private:
 
 }
 
-extern template class cle::ClusteringBenchmark<float, uint32_t, uint32_t, true>;
-extern template class cle::ClusteringBenchmark<double, uint64_t, uint64_t, true>;
+extern template class Clustering::ClusteringBenchmark<float, uint32_t, uint32_t, true>;
+extern template class Clustering::ClusteringBenchmark<double, uint64_t, uint64_t, true>;
 
 #endif /* CLUSTERING_BENCHMARK_HPP */

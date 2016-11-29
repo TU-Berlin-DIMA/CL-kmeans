@@ -26,14 +26,14 @@
 
 uint32_t const max_hostname_length = 30;
 
-cle::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
+Clustering::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
     :
         microseconds(num_runs),
         measurements(num_runs),
         num_runs_(num_runs)
 {}
 
-void cle::ClusteringBenchmarkStats::set_dimensions(
+void Clustering::ClusteringBenchmarkStats::set_dimensions(
         uint64_t num_features,
         uint64_t num_points,
         uint64_t num_clusters
@@ -44,7 +44,7 @@ void cle::ClusteringBenchmarkStats::set_dimensions(
     num_clusters_ = num_clusters;
 }
 
-void cle::ClusteringBenchmarkStats::print_times() {
+void Clustering::ClusteringBenchmarkStats::print_times() {
     std::cout << num_runs_ << " runs, in µs: [";
     for (uint32_t r = 0; r < microseconds.size(); ++r) {
         std::cout << microseconds[r];
@@ -55,7 +55,7 @@ void cle::ClusteringBenchmarkStats::print_times() {
     std::cout << "]" << std::endl;
 }
 
-void cle::ClusteringBenchmarkStats::to_csv(
+void Clustering::ClusteringBenchmarkStats::to_csv(
         char const* csv_file,
         char const* input_file
         ) {
@@ -111,7 +111,7 @@ void cle::ClusteringBenchmarkStats::to_csv(
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::ClusteringBenchmark(
+Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::ClusteringBenchmark(
         const uint32_t num_runs,
         const size_t num_points,
         const size_t max_iterations,
@@ -127,7 +127,7 @@ cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::ClusteringBenchmark(
 {}
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-int cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::initialize(
+int Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::initialize(
         const size_t num_clusters, const size_t num_features,
         InitCentroidsFunction init_centroids
         ) {
@@ -142,15 +142,15 @@ int cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::initialize(
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-int cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::finalize() {
+int Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::finalize() {
     return 1;
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(
+Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(
         ClusteringFunction f) {
 
-    cle::Timer timer;
+    Timer::Timer timer;
     ClusteringBenchmarkStats bs(this->num_runs_);
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
     bs.set_types<PointT, MassT>();
@@ -177,11 +177,11 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<PointT, LabelT, MassT, Co
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(
+Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(
         ClClusteringFunction f,
         boost::compute::command_queue queue) {
 
-    cle::Timer timer;
+    Timer::Timer timer;
     ClusteringBenchmarkStats bs(this->num_runs_);
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
     bs.set_types<PointT, MassT>();
@@ -232,13 +232,13 @@ cle::ClusteringBenchmarkStats cle::ClusteringBenchmark<PointT, LabelT, MassT, Co
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-void cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerificationReference(std::vector<LabelT>&& reference_labels) {
+void Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerificationReference(std::vector<LabelT>&& reference_labels) {
 
     reference_labels_ = std::move(reference_labels);
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-int cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerificationReference(
+int Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerificationReference(
         ClusteringFunction ref) {
 
     Measurement::Measurement stats;
@@ -265,7 +265,7 @@ int cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerificationRe
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-uint64_t cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(ClusteringFunction f) {
+uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(ClusteringFunction f) {
 
     Measurement::Measurement stats;
 
@@ -294,7 +294,7 @@ uint64_t cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(Clust
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-uint64_t cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(
+uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(
         ClClusteringFunction f,
         boost::compute::command_queue queue) {
 
@@ -356,7 +356,7 @@ uint64_t cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-double cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::mse() {
+double Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::mse() {
     return Clustering::Utility::mse(
             centroids_.begin(),
             centroids_.end(),
@@ -367,7 +367,7 @@ double cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::mse() {
 
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-void cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::print_labels() {
+void Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::print_labels() {
 
     std::cout << "Point Label" << std::endl;
     for (size_t i = 0; i < labels_.size(); ++i) {
@@ -376,7 +376,7 @@ void cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::print_labels() {
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-void cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::print_result() {
+void Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::print_result() {
 
     std::cout << "Centroids" << std::endl;
     for (size_t x = 0; x < centroids_.rows(); ++x) {
@@ -409,5 +409,5 @@ void cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::print_result() {
     std::cout << std::endl;
 }
 
-template class cle::ClusteringBenchmark<float, uint32_t, uint32_t, true>;
-template class cle::ClusteringBenchmark<double, uint64_t, uint64_t, true>;
+template class Clustering::ClusteringBenchmark<float, uint32_t, uint32_t, true>;
+template class Clustering::ClusteringBenchmark<double, uint64_t, uint64_t, true>;

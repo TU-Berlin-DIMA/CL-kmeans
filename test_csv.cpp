@@ -21,7 +21,7 @@
 int main(int argc, char **argv) {
     char *file_name = argv[1];
     cle::CSV csv;
-    cle::Timer timer;
+    Timer::Timer timer;
     uint64_t duration = 0;
 
     std::vector<double> a;

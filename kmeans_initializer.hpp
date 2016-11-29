@@ -13,7 +13,7 @@
 #include "kmeans_common.hpp"
 #include "matrix.hpp"
 
-namespace cle {
+namespace Clustering {
 
 template <typename PointT>
 class KmeansInitializer {
@@ -36,7 +36,7 @@ using KmeansInitializer64 =
 
 }
 
-extern template class cle::KmeansInitializer<float>;
-extern template class cle::KmeansInitializer<double>;
+extern template class Clustering::KmeansInitializer<float>;
+extern template class Clustering::KmeansInitializer<double>;
 
 #endif /* KMEANS_INITIALIZER_HPP */

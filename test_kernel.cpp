@@ -207,7 +207,7 @@ public:
             return false;
         }
 
-        cle::Timer timer;
+        Timer::Timer timer;
 
         for (int run = 0; run < 10 + 2; ++run) {
             cl::Event event;

@@ -199,10 +199,10 @@ public:
 
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true> points;
 
-        cle::BinaryFormat binformat;
+        Clustering::BinaryFormat binformat;
         binformat.read(options.input_file().c_str(), points);
 
-        cle::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor> bm(
+        Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor> bm(
                 bm_config.runs,
                 points.rows(),
                 km_config.iterations,
@@ -211,16 +211,16 @@ public:
         bm.initialize(
                 km_config.clusters,
                 points.cols(),
-                cle::KmeansInitializer<PointT>::first_x);
+                Clustering::KmeansInitializer<PointT>::first_x);
 
-        cle::KmeansNaive<PointT, LabelT, MassT> kmeans_naive;
+        Clustering::KmeansNaive<PointT, LabelT, MassT> kmeans_naive;
         kmeans_naive.initialize();
 
         if (options.verify() || bm_config.verify) {
             bm.setVerificationReference(kmeans_naive);
         }
 
-        cle::ClusteringBenchmarkStats bs(bm_config.runs);
+        Clustering::ClusteringBenchmarkStats bs(bm_config.runs);
         uint64_t verify_res = 0;
 
         if (km_config.pipeline == "three_stage") {

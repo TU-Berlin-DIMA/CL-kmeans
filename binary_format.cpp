@@ -17,7 +17,7 @@
 #include <cassert>
 
 template <typename FP, typename AllocFP, typename INT>
-int cle::BinaryFormat::read(char const* file_name, cle::Matrix<FP, AllocFP, INT>& matrix) {
+int Clustering::BinaryFormat::read(char const* file_name, cle::Matrix<FP, AllocFP, INT>& matrix) {
 
     std::ifstream fh(file_name, std::fstream::binary);
 
@@ -45,11 +45,11 @@ int cle::BinaryFormat::read(char const* file_name, cle::Matrix<FP, AllocFP, INT>
     return 1;
 }
 
-template int cle::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, uint32_t>&);
-template int cle::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, size_t>&);
-template int cle::BinaryFormat::read(char const*, cle::Matrix<double, std::allocator<double>, size_t>&);
+template int Clustering::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, uint32_t>&);
+template int Clustering::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, size_t>&);
+template int Clustering::BinaryFormat::read(char const*, cle::Matrix<double, std::allocator<double>, size_t>&);
 
 #ifdef USE_ALIGNED_ALLOCATOR
-template int cle::BinaryFormat::read(char const*, cle::Matrix<float, boost::alignment::aligned_allocator<float, 32>, uint32_t>&);
-template int cle::BinaryFormat::read(char const*, cle::Matrix<double, boost::alignment::aligned_allocator<double, 32>, uint64_t>&);
+template int Clustering::BinaryFormat::read(char const*, cle::Matrix<float, boost::alignment::aligned_allocator<float, 32>, uint32_t>&);
+template int Clustering::BinaryFormat::read(char const*, cle::Matrix<double, boost::alignment::aligned_allocator<double, 32>, uint64_t>&);
 #endif

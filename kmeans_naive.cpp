@@ -15,20 +15,20 @@
 #include <string>
 
 template <typename PointT, typename LabelT, typename MassT>
-char const* cle::KmeansNaive<PointT, LabelT, MassT>::name() const {
+char const* Clustering::KmeansNaive<PointT, LabelT, MassT>::name() const {
 
     return "Lloyd_Naive";
 }
 
 
 template <typename PointT, typename LabelT, typename MassT>
-int cle::KmeansNaive<PointT, LabelT, MassT>::initialize() { return 1; }
+int Clustering::KmeansNaive<PointT, LabelT, MassT>::initialize() { return 1; }
 
 template <typename PointT, typename LabelT, typename MassT>
-int cle::KmeansNaive<PointT, LabelT, MassT>::finalize() { return 1; }
+int Clustering::KmeansNaive<PointT, LabelT, MassT>::finalize() { return 1; }
 
 template <typename PointT, typename LabelT, typename MassT>
-void cle::KmeansNaive<PointT, LabelT, MassT>::operator() (
+void Clustering::KmeansNaive<PointT, LabelT, MassT>::operator() (
         uint32_t const max_iterations,
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids,
@@ -73,7 +73,7 @@ void cle::KmeansNaive<PointT, LabelT, MassT>::operator() (
         std::fill(cluster_mass.begin(), cluster_mass.end(), 0);
         std::fill(centroids.begin(), centroids.end(), 0);
 
-        Matrix<PointT, std::allocator<PointT>, size_t, true> compensation;
+        cle::Matrix<PointT, std::allocator<PointT>, size_t, true> compensation;
         compensation.resize(centroids.rows(), centroids.cols());
         std::fill(compensation.begin(), compensation.end(), 0);
 
@@ -108,5 +108,5 @@ void cle::KmeansNaive<PointT, LabelT, MassT>::operator() (
             );
 }
 
-template class cle::KmeansNaive<float, uint32_t, uint32_t>;
-template class cle::KmeansNaive<double, uint64_t, uint64_t>;
+template class Clustering::KmeansNaive<float, uint32_t, uint32_t>;
+template class Clustering::KmeansNaive<double, uint64_t, uint64_t>;

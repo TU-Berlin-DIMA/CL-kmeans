@@ -12,7 +12,7 @@
 #include <random>
 
 template <typename PointT>
-void cle::KmeansInitializer<PointT>::forgy(
+void Clustering::KmeansInitializer<PointT>::forgy(
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids) {
 
@@ -27,7 +27,7 @@ void cle::KmeansInitializer<PointT>::forgy(
 }
 
 template <typename PointT>
-void cle::KmeansInitializer<PointT>::first_x(
+void Clustering::KmeansInitializer<PointT>::first_x(
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids) {
 
@@ -38,5 +38,5 @@ void cle::KmeansInitializer<PointT>::first_x(
     }
 }
 
-template class cle::KmeansInitializer<float>;
-template class cle::KmeansInitializer<double>;
+template class Clustering::KmeansInitializer<float>;
+template class Clustering::KmeansInitializer<double>;
