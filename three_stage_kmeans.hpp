@@ -192,9 +192,11 @@ public:
         }
 
 
-        // copy centroids to host
+        // copy centroids and labels to host
         sync_centroids_event = buffer_map.sync_centroids(
                 sync_centroids_wait_list);
+        sync_labels_event = buffer_map.sync_labels(
+                sync_labels_wait_list);
 
         // Wait for last queue to finish processing
         this->q_centroid_update.finish();

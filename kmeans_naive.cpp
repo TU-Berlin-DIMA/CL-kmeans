@@ -41,7 +41,7 @@ void cle::KmeansNaive<PointT, LabelT, MassT>::operator() (
 
     uint32_t iterations = 0;
     bool did_changes = true;
-    while (did_changes == true && iterations < max_iterations) {
+    while (/*did_changes == true && */ iterations < max_iterations) {
         did_changes = false;
 
         // Phase 1: assign points to clusters
