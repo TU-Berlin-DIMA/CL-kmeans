@@ -124,7 +124,9 @@ public:
     int setVerificationReference(ClusteringFunction reference);
     uint64_t verify(ClusteringFunction f);
     uint64_t verify(ClClusteringFunction f, boost::compute::command_queue q);
+    double mse();
     void print_labels();
+    void print_result();
 
 private:
     const uint32_t num_runs_;
@@ -133,7 +135,9 @@ private:
     const uint32_t max_iterations_;
     cle::Matrix<PointT, std::allocator<PointT>, size_t, ColMajor> const points_;
     cle::Matrix<PointT, std::allocator<PointT>, size_t, ColMajor> centroids_;
+    cle::Matrix<PointT, std::allocator<PointT>, size_t, ColMajor> reference_centroids_;
     std::vector<MassT> cluster_mass_;
+    std::vector<MassT> reference_cluster_mass_;
     std::vector<LabelT> labels_;
     std::vector<LabelT> reference_labels_;
     InitCentroidsFunction init_centroids_;

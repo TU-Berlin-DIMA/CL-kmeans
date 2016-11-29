@@ -309,18 +309,23 @@ public:
                 << km_config.label_type << " "
                 << km_config.mass_type << std::endl;
             if (options.verify() || bm_config.verify) {
+                std::cout << "Centroid MSE: ";
+                std::cout << bm.mse();
+                std::cout << std::endl;
                 if (verify_res == 0) {
-                    std::cout << "Correct";
+                    std::cout << "Correct labels";
+                    std::cout << std::endl;
                 }
                 else {
                     std::cout << verify_res << " incorrect labels";
+                    std::cout << std::endl;
+                    bm.print_result();
                 }
             }
             else {
                 bs.print_times();
 
             }
-            std::cout << std::endl;
         }
 
         if (options.csv() && not (options.verify() || bm_config.verify)) {
