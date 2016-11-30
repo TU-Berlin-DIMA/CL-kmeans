@@ -80,7 +80,6 @@ public:
              / this->config.local_size[0]);
 
         assert(labels.size() == num_points);
-        // assert(masses.size() >= buffer_size);
 
         datapoint.set_name("MassUpdatePartGlobal");
 
@@ -117,7 +116,7 @@ public:
                 num_work_groups,
                 num_clusters,
                 masses,
-                datapoint,
+                datapoint.create_child(),
                 wait_list);
 
         return event;

@@ -58,6 +58,12 @@ uint64_t Measurement::DataPoint::get_value() {
       }
   }
 
+  if (not children_.empty()) {
+      for (auto& child : children_) {
+          value += child.get_value();
+      }
+  }
+
   return value;
 }
 

@@ -61,6 +61,11 @@ public:
         return values_.back();
     }
 
+    DataPoint& create_child() {
+        children_.push_back(DataPoint());
+        return children_.back();
+    }
+
 private:
     inline DataPoint()
         :
@@ -89,6 +94,7 @@ private:
     std::deque<Event> events_;
     std::deque<cl::Event> cl_events_;
     std::deque<uint64_t> values_;
+    std::deque<DataPoint> children_;
 };
 
 class Measurement {
