@@ -42,16 +42,9 @@ public:
 
         // TODO: Use boost::compute::type_name<T>()
         std::string defines;
-        if (std::is_same<uint32_t, T>::value) {
-            defines = "-DTYPE32";
-        }
-        else if (std::is_same<uint64_t, T>::value) {
-            defines = "-DTYPE64";
-        }
-        else {
-            assert(false);
-        }
-        defines += " -DCL_TYPE=uint";
+        defines += " -DCL_TYPE=";
+        defines += boost::compute::type_name<T>();
+        defines += " -DCL_INT=uint";
         defines += " -DMAX_WORKGROUP_SIZE=";
         defines += std::to_string(MAX_WORKGROUP_SIZE);
 
@@ -128,8 +121,8 @@ public:
             event = queue.enqueue_1d_range_kernel(
                     this->kernel_inner,
                     work_offset,
-                    MAX_WORKGROUP_SIZE,
-                    MAX_WORKGROUP_SIZE,
+                    (cl_int) MAX_WORKGROUP_SIZE,
+                    (cl_int) MAX_WORKGROUP_SIZE,
                     wait_list);
         }
 
