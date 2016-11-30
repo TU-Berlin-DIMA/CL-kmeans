@@ -15,6 +15,7 @@
 #include "measurement/measurement.hpp"
 
 #include "cl_kernels/mass_update_global_atomic.hpp"
+#include "cl_kernels/mass_update_part_global.hpp"
 
 #include <functional>
 #include <string>
@@ -48,6 +49,11 @@ public:
 
         if (config.strategy == "global_atomic") {
             MassUpdateGlobalAtomic<LabelT, MassT> strategy;
+            strategy.prepare(context, config);
+            return strategy;
+        }
+        else if (config.strategy == "part_global") {
+            MassUpdatePartGlobal<LabelT, MassT> strategy;
             strategy.prepare(context, config);
             return strategy;
         }

@@ -207,6 +207,9 @@ public:
         sync_labels_event = buffer_map.sync_labels(
                 sync_labels_wait_list);
 
+        buffer_map.shrink_centroids();
+        buffer_map.shrink_masses();
+
         // Wait for last queue to finish processing
         this->q_centroid_update.finish();
     }
@@ -360,6 +363,22 @@ private:
 
             Event e;
             return e;
+        }
+
+        void shrink_centroids() {
+            for (auto& buf : centroids) {
+                if (buf) {
+                    buf->resize(num_clusters * num_features);
+                }
+            }
+        }
+
+        void shrink_masses() {
+            for (auto& buf : masses) {
+                if (buf) {
+                    buf->resize(num_clusters);
+                }
+            }
         }
 
         Vector<PointT>& get_points(BufferMap::Phase p) {
