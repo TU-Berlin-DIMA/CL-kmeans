@@ -16,6 +16,7 @@
 
 #include "cl_kernels/centroid_update_feature_sum.hpp"
 #include "cl_kernels/centroid_update_feature_sum_pardim.hpp"
+#include "cl_kernels/centroid_update_cluster_merge.hpp"
 
 #include <functional>
 #include <string>
@@ -62,6 +63,16 @@ public:
         }
         else if (config.strategy == "feature_sum_pardim") {
             CentroidUpdateFeatureSumPardim<
+                PointT,
+                LabelT,
+                MassT,
+                ColMajor>
+                    strategy;
+            strategy.prepare(context, config);
+            return strategy;
+        }
+        else if (config.strategy == "cluster_merge") {
+            CentroidUpdateClusterMerge<
                 PointT,
                 LabelT,
                 MassT,
