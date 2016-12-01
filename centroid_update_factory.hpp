@@ -15,6 +15,7 @@
 #include "measurement/measurement.hpp"
 
 #include "cl_kernels/centroid_update_feature_sum.hpp"
+#include "cl_kernels/centroid_update_feature_sum_pardim.hpp"
 
 #include <functional>
 #include <string>
@@ -50,7 +51,22 @@ public:
     CentroidUpdateFunction create(boost::compute::context context, CentroidUpdateConfiguration config) {
 
         if (config.strategy == "feature_sum") {
-            CentroidUpdateFeatureSum<PointT, LabelT, MassT, ColMajor> strategy;
+            CentroidUpdateFeatureSum<
+                PointT,
+                LabelT,
+                MassT,
+                ColMajor>
+                    strategy;
+            strategy.prepare(context, config);
+            return strategy;
+        }
+        else if (config.strategy == "feature_sum_pardim") {
+            CentroidUpdateFeatureSumPardim<
+                PointT,
+                LabelT,
+                MassT,
+                ColMajor>
+                    strategy;
             strategy.prepare(context, config);
             return strategy;
         }

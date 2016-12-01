@@ -84,6 +84,8 @@ po::options_description ConfigurationParser::kmeans_options() {
         ("kmeans.centroid_update.strategy", po::value<std::string>())
         ("kmeans.centroid_update.global_size", po::value<std::vector<size_t>>())
         ("kmeans.centroid_update.local_size", po::value<std::vector<size_t>>())
+        ("kmeans.centroid_update.local_features", po::value<size_t>())
+        ("kmeans.centroid_update.thread_features", po::value<size_t>())
 
         ;
 
@@ -250,6 +252,12 @@ CentroidUpdateConfiguration ConfigurationParser::get_centroid_update_configurati
             conf.local_size[0] = v[0];
             conf.local_size[1] = v.size() > 1 ? v[1] : 1;
             conf.local_size[2] = v.size() == 3 ? v[2] : 1;
+        }
+        else if (option.first == "kmeans.centroid_update.local_features") {
+            conf.local_features = option.second.as<size_t>();
+        }
+        else if (option.first == "kmeans.centroid_update.thread_features") {
+            conf.thread_features = option.second.as<size_t>();
         }
     }
 

@@ -49,6 +49,18 @@ public:
 
         return sum_squares / counter;
     }
+
+    /*
+     * Is a power of two
+     *
+     * Input: Positive integer
+     *
+     */
+    template <typename T>
+    static bool is_power_of_two(T v) {
+        // http://www.graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
+        return v && !(v & (v - 1));
+    }
 };
 }
 
