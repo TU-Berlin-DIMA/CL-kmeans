@@ -38,14 +38,16 @@ public:
     using Vector = boost::compute::vector<T>;
     template <typename T>
     using VectorPtr = std::shared_ptr<Vector<T>>;
+    template <typename T>
+    using HostVectorPtr = std::shared_ptr<std::vector<T>>;
     using Event = boost::compute::event;
 
     using LabelingFunction = typename LabelingFactory<PointT, LabelT, ColMajor>::LabelingFunction;
     using MassUpdateFunction = typename MassUpdateFactory<LabelT, MassT>::MassUpdateFunction;
     using CentroidUpdateFunction = typename CentroidUpdateFactory<PointT, LabelT, MassT, ColMajor>::CentroidUpdateFunction;
 
-    ThreeStageKmeans(boost::compute::context const& context = boost::compute::system::default_context()) :
-        AbstractKmeans<PointT, LabelT, MassT, ColMajor>(context)
+    ThreeStageKmeans() :
+        AbstractKmeans<PointT, LabelT, MassT, ColMajor>()
     {}
 
     void run() {
@@ -55,61 +57,38 @@ public:
         Event ll_event, mu_event, cu_event;
         Event sync_labels_event, sync_centroids_event, sync_masses_event;
 
-        // If don't have points device vector but do have host map,
-        // create device vector and measure copy time
-        if ((not this->points) and this->host_points) {
-            this->points = std::make_shared<Vector<PointT>>(
-                    this->host_points->size(),
-                    this->context);
-
-            boost::compute::future<void> copy_future;
-            copy_future = boost::compute::copy_async(
-                    this->host_points->begin(),
-                    this->host_points->end(),
-                    this->points->begin(),
-                    this->q_labeling);
-            copy_future.wait();
-        }
-
         std::vector<char> host_did_changes(1);
         VectorPtr<char> ll_did_changes = std::make_shared<Vector<char>>(
                 host_did_changes.size(),
-                this->context);
+                this->context_labeling);
 
-        boost::compute::fill(
-                this->labels->begin(),
-                this->labels->end(),
-                0,
-                this->q_labeling);
-
-        boost::compute::fill(
-                this->masses->begin(),
-                this->masses->end(),
-                0,
-                this->q_mass_update);
+        buffer_map.set_queues(
+                this->q_labeling,
+                this->q_mass_update,
+                this->q_centroid_update);
+        buffer_map.set_contexts(
+                this->context_labeling,
+                this->context_mass_update,
+                this->context_centroid_update
+                );
+        buffer_map.set_parameters(
+                this->num_features,
+                this->num_points,
+                this->num_clusters);
+        buffer_map.set_points_buffer(
+                this->host_points,
+                this->measurement->add_datapoint());
+        buffer_map.set_centroids_buffer(
+                this->host_centroids);
+        buffer_map.set_labels_buffer();
+        buffer_map.set_masses_buffer();
 
         // If centroids initializer function is callable, then call
         if (this->centroids_initializer) {
             this->centroids_initializer(
-                    *this->points,
-                    *this->centroids);
+                    buffer_map.get_points(BufferMap::ll),
+                    buffer_map.get_centroids(BufferMap::ll));
         }
-
-        this->buffer_map.set_queues(
-                this->q_labeling,
-                this->q_mass_update,
-                this->q_centroid_update);
-
-        this->buffer_map.set_parameters(
-                this->num_features,
-                this->num_points,
-                this->num_clusters);
-
-        this->buffer_map.set_buffers(
-                this->points,
-                this->centroids,
-                this->labels,
-                this->masses);
 
         uint32_t iterations = 0;
         bool did_changes = true;
@@ -200,33 +179,47 @@ public:
             ++iterations;
         }
 
-
-        // copy centroids and labels to host
-        sync_centroids_event = buffer_map.sync_centroids(
-                sync_centroids_wait_list);
-        sync_labels_event = buffer_map.sync_labels(
-                sync_labels_wait_list);
-
-        buffer_map.shrink_centroids();
-        buffer_map.shrink_masses();
-
         // Wait for last queue to finish processing
         this->q_centroid_update.finish();
+
+        // copy centroids and labels to host
+        buffer_map.get_centroids(this->host_centroids);
+        buffer_map.get_labels(
+                this->host_labels,
+                this->measurement->add_datapoint());
     }
 
     void set_labeler(LabelingConfiguration config) {
         LabelingFactory<PointT, LabelT, ColMajor> factory;
-        f_labeling = factory.create(this->context, config);
+        f_labeling = factory.create(
+                this->context_labeling,
+                config);
     }
 
     void set_mass_updater(MassUpdateConfiguration config) {
         MassUpdateFactory<LabelT, MassT> factory;
-        f_mass_update = factory.create(this->context, config);
+        f_mass_update = factory.create(
+                this->context_mass_update,
+                config);
     }
 
     void set_centroid_updater(CentroidUpdateConfiguration config) {
         CentroidUpdateFactory<PointT, LabelT, MassT, ColMajor> factory;
-        f_centroid_update = factory.create(this->context, config);
+        f_centroid_update = factory.create(
+                this->context_centroid_update,
+                config);
+    }
+
+    void set_labeling_context(boost::compute::context c) {
+        context_labeling = c;
+    }
+
+    void set_mass_update_context(boost::compute::context c) {
+        context_mass_update = c;
+    }
+
+    void set_centroid_update_context(boost::compute::context c) {
+        context_centroid_update = c;
     }
 
     void set_labeling_queue(boost::compute::command_queue q) {
@@ -245,6 +238,10 @@ private:
     LabelingFunction f_labeling;
     MassUpdateFunction f_mass_update;
     CentroidUpdateFunction f_centroid_update;
+
+    boost::compute::context context_labeling;
+    boost::compute::context context_mass_update;
+    boost::compute::context context_centroid_update;
 
     boost::compute::command_queue q_labeling;
     boost::compute::command_queue q_mass_update;
@@ -275,6 +272,17 @@ private:
             device_map[cu][cu] = true;
         }
 
+        void set_contexts(
+                boost::compute::context c_ll,
+                boost::compute::context c_mu,
+                boost::compute::context c_cu)
+        {
+            context.resize(3);
+            context[ll] = c_ll;
+            context[mu] = c_mu;
+            context[cu] = c_cu;
+        }
+
         void set_parameters(size_t num_features, size_t num_points, size_t num_clusters) {
 
             this->num_features = num_features;
@@ -282,36 +290,125 @@ private:
             this->num_clusters = num_clusters;
         }
 
-        void set_buffers(VectorPtr<PointT> p_buf, VectorPtr<PointT> c_buf, VectorPtr<LabelT> l_buf, VectorPtr<MassT> m_buf) {
+        void set_points_buffer(
+                std::shared_ptr<const std::vector<PointT>> buf,
+                Measurement::DataPoint& dp
+                )
+        {
+            dp.set_name("PointsH2D");
+
+            VectorPtr<PointT> dev_buf =
+                std::make_shared<Vector<PointT>>(
+                        buf->size(),
+                        context[ll]);
 
             points.resize(3);
-            points[ll] = p_buf;
+            points[ll] = dev_buf;
             points[mu] = nullptr;
             points[cu] = device_map[ll][cu] ? points[ll] :
-                std::make_shared<Vector<PointT>>(*points[ll], queue[cu]);
+                std::make_shared<Vector<PointT>>(
+                        buf->size(),
+                        context[cu]);
 
-            c_buf->resize(num_clusters * num_features);
+            boost::compute::future<void> ll_future =
+                boost::compute::copy_async(
+                        buf->begin(),
+                        buf->end(),
+                        points[ll]->begin(),
+                        queue[ll]);
+
+            if (not device_map[ll][cu]) {
+                boost::compute::future<void> cu_future =
+                    boost::compute::copy_async(
+                            buf->begin(),
+                            buf->end(),
+                            points[cu]->begin(),
+                            queue[cu]);
+
+                dp.add_event() = cu_future.get_event();
+                cu_future.wait();
+            }
+
+            dp.add_event() = ll_future.get_event();
+            ll_future.wait();
+        }
+
+        void set_centroids_buffer(HostVectorPtr<PointT> buf)
+        {
+            VectorPtr<PointT> dev_buf =
+                std::make_shared<Vector<PointT>>(
+                        *buf,
+                        queue[ll]);
+
             centroids.resize(3);
-            centroids[ll] = c_buf;
+            centroids[ll] = dev_buf;
             centroids[mu] = nullptr;
             centroids[cu] = device_map[cu][ll] ? centroids[ll] :
-                std::make_shared<Vector<PointT>>(*centroids[ll], queue[cu]);
+                std::make_shared<Vector<PointT>>(
+                        *centroids[ll],
+                        queue[cu]);
+        }
 
-            l_buf->resize(num_points);
+        void set_labels_buffer()
+        {
             labels.resize(3);
-            labels[ll] = l_buf;
+            labels[ll] = std::make_shared<Vector<LabelT>>(
+                    num_points,
+                    0,
+                    queue[ll]);
             labels[mu] = device_map[mu][ll] ? labels[ll] :
-                std::make_shared<Vector<LabelT>>(*labels[ll], queue[mu]);
+                std::make_shared<Vector<LabelT>>(
+                        num_points,
+                        0,
+                        queue[mu]);
             labels[cu] = device_map[cu][ll] ? labels[ll] :
                 device_map[cu][mu] ? labels[mu] :
-                std::make_shared<Vector<LabelT>>(*labels[ll], queue[cu]);
+                std::make_shared<Vector<LabelT>>(
+                        num_points,
+                        0,
+                        queue[cu]);
+        }
 
-            m_buf->resize(num_clusters);
+        void set_masses_buffer()
+        {
             masses.resize(3);
             masses[ll] = nullptr;
-            masses[mu] = m_buf;
+            masses[mu] = std::make_shared<Vector<MassT>>(
+                    num_clusters,
+                    0,
+                    queue[mu]);
             masses[cu] = device_map[cu][mu] ? masses[mu] :
-                std::make_shared<Vector<MassT>>(*masses[mu], queue[cu]);
+                std::make_shared<Vector<MassT>>(
+                        num_clusters,
+                        0,
+                        queue[cu]);
+        }
+
+        void get_centroids(HostVectorPtr<PointT> buf)
+        {
+            boost::compute::copy(
+                    centroids[cu]->begin(),
+                    centroids[cu]->begin() + buf->size(),
+                    buf->begin(),
+                    queue[cu]);
+        }
+
+        void get_labels(
+                HostVectorPtr<LabelT> buf,
+                Measurement::DataPoint& dp
+                )
+        {
+            dp.set_name("LabelsD2H");
+
+            boost::compute::future<void> future =
+                boost::compute::copy_async(
+                        labels[ll]->begin(),
+                        labels[ll]->begin() + buf->size(),
+                        buf->begin(),
+                        queue[ll]);
+
+            dp.add_event() = future.get_event();
+            future.wait();
         }
 
         Event sync_centroids(boost::compute::wait_list const& wait_list) {
@@ -402,6 +499,7 @@ private:
         size_t num_clusters;
         std::vector<std::vector<int>> device_map;
         std::vector<boost::compute::command_queue> queue;
+        std::vector<boost::compute::context> context;
         std::vector<VectorPtr<PointT>> points;
         std::vector<VectorPtr<PointT>> centroids;
         std::vector<VectorPtr<LabelT>> labels;

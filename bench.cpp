@@ -231,84 +231,104 @@ public:
             auto cu_config =
                 config.get_centroid_update_configuration();
 
-            bc::device ll_dev =
-                bc::system::platforms()[ll_config.platform]
-                .devices()[ll_config.device];
-            bc::device mu_dev =
-                bc::system::platforms()[mu_config.platform]
-                .devices()[mu_config.device];
-            bc::device cu_dev =
-                bc::system::platforms()[cu_config.platform]
-                .devices()[cu_config.device];
-
-            std::vector<bc::device> devices;
-            devices.push_back(ll_dev);
-            if (mu_dev != ll_dev) {
-                devices.push_back(mu_dev);
-            }
-            if (cu_dev != ll_dev && cu_dev != mu_dev) {
-                devices.push_back(cu_dev);
-            }
-
-            bc::context context(devices);
-
             bc::command_queue ll_queue, mu_queue, cu_queue;
-            ll_queue = bc::command_queue(
-                    context,
-                    ll_dev,
-                    bc::command_queue::enable_profiling
-                    );
-            mu_queue = (ll_dev == mu_dev) ?
-                ll_queue :
-                bc::command_queue(
-                        context,
+            bc::context ll_context, mu_context, cu_context;
+
+            {
+                bc::device ll_dev =
+                    bc::system::platforms()[ll_config.platform]
+                    .devices()[ll_config.device];
+                ll_context = bc::context(ll_dev);
+
+                ll_queue = bc::command_queue(
+                        ll_context,
+                        ll_dev,
+                        bc::command_queue::enable_profiling
+                        );
+            }
+
+            if (
+                    mu_config.platform == ll_config.platform
+                    && mu_config.device == ll_config.device
+                    ) {
+                mu_queue = ll_queue;
+                mu_context = ll_context;
+            }
+            else {
+                bc::device mu_dev =
+                    bc::system::platforms()[mu_config.platform]
+                    .devices()[mu_config.device];
+                mu_context = bc::context(mu_dev);
+
+                mu_queue = bc::command_queue(
+                        mu_context,
                         mu_dev,
                         bc::command_queue::enable_profiling
                         );
-            cu_queue = (ll_dev == cu_dev) ?
-                ll_queue :
-                (mu_dev == cu_dev) ?
-                mu_queue :
-                bc::command_queue(
-                        context,
+            }
+
+            if (
+                    cu_config.platform == ll_config.platform
+                    && cu_config.device == ll_config.device
+                    ) {
+                cu_queue = ll_queue;
+                cu_context = ll_context;
+            }
+            else if (
+                    cu_config.platform == mu_config.platform
+                    && cu_config.device == mu_config.device
+                    ) {
+                cu_queue = mu_queue;
+                cu_context = mu_context;
+            }
+            else {
+                bc::device cu_dev =
+                    bc::system::platforms()[cu_config.platform]
+                    .devices()[cu_config.device];
+                cu_context = bc::context(cu_dev);
+
+                cu_queue = bc::command_queue(
+                        cu_context,
                         cu_dev,
                         bc::command_queue::enable_profiling
                         );
+            }
 
             if (options.verbose()) {
                 std::cout
                     << "Labeling device: "
-                    << ll_dev.name()
+                    << ll_queue.get_device().name()
                     << std::endl
                     << "Mass update device: "
-                    << mu_dev.name()
+                    << mu_queue.get_device().name()
                     << std::endl
                     << "Centroid update device: "
-                    << cu_dev.name()
+                    << cu_queue.get_device().name()
                     << std::endl;
             }
 
-            Clustering::ThreeStageKmeans
-                <
+            Clustering::ThreeStageKmeans<
                 PointT,
                 LabelT,
                 MassT,
                 ColMajor
-                    >
-                    kmeans(context);
+                    > kmeans;
 
-            kmeans.set_labeler(ll_config);
-            kmeans.set_mass_updater(mu_config);
-            kmeans.set_centroid_updater(cu_config);
             kmeans.set_labeling_queue(ll_queue);
             kmeans.set_mass_update_queue(mu_queue);
             kmeans.set_centroid_update_queue(cu_queue);
+            kmeans.set_labeling_context(ll_context);
+            kmeans.set_mass_update_context(mu_context);
+            kmeans.set_centroid_update_context(cu_context);
+            kmeans.set_labeler(ll_config);
+            kmeans.set_mass_updater(mu_config);
+            kmeans.set_centroid_updater(cu_config);
 
             if (options.verify() || bm_config.verify) {
-                verify_res = bm.verify(kmeans, ll_queue);
+                verify_res = bm.verify(kmeans);
             }
             else {
-                bs = bm.run(kmeans, ll_queue);
+                bs = bm.run(kmeans);
             }
         }
 

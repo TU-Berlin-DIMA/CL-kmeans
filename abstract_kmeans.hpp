@@ -28,6 +28,10 @@ public:
     using Vector = boost::compute::vector<T>;
     template <typename T>
     using VectorPtr = std::shared_ptr<Vector<T>>;
+    template <typename T>
+    using HostVector = std::vector<T>;
+    template <typename T>
+    using HostVectorPtr = std::shared_ptr<std::vector<T>>;
 
     using InitCentroidsFunction = std::function<
         void(
@@ -36,16 +40,14 @@ public:
                 )
         >;
 
-    AbstractKmeans(boost::compute::context const& context = boost::compute::system::default_context()) :
-        context(context),
+    AbstractKmeans() :
         num_features(0),
         num_points(0),
         num_clusters(0),
-        points(nullptr),
         host_points(nullptr),
-        centroids(new Vector<PointT>(context)),
-        masses(new Vector<MassT>(context)),
-        labels(new Vector<LabelT>(context)),
+        host_centroids(nullptr),
+        host_masses(nullptr),
+        host_labels(nullptr),
         measurement(new Measurement::Measurement)
     {}
 
@@ -53,14 +55,6 @@ public:
 
     virtual void set_max_iterations(size_t i) {
         this->max_iterations = i;
-    }
-
-    virtual void set_points(VectorPtr<PointT> p) {
-        this->points = p;
-
-        if (this->num_features != 0) {
-            this->num_points = p->size() / this->num_features;
-        }
     }
 
     virtual void set_points(std::shared_ptr<const std::vector<PointT>> p) {
@@ -73,13 +67,7 @@ public:
 
     virtual void set_features(size_t f) {
         this->num_features = f;
-
-        if (this->points) {
-            this->num_points = this->points->size() / f;
-        }
-        else if (this->host_points) {
-            this->num_points = this->host_points->size() / f;
-        }
+        this->num_points = this->host_points->size() / f;
     }
 
     virtual void set_clusters(size_t c) {
@@ -96,16 +84,16 @@ public:
         this->measurement = measurement;
     }
 
-    virtual Vector<PointT> const& get_centroids() const {
-        return *this->centroids;
+    virtual HostVector<PointT> const& get_centroids() const {
+        return *this->host_centroids;
     }
 
-    virtual Vector<LabelT> const& get_labels() const {
-        return *this->labels;
+    virtual HostVector<LabelT> const& get_labels() const {
+        return *this->host_labels;
     }
 
-    virtual Vector<MassT> const& get_cluster_masses() const {
-        return *this->masses;
+    virtual HostVector<MassT> const& get_cluster_masses() const {
+        return *this->host_masses;
     }
 
     virtual Measurement::Measurement const& get_measurement() const {
@@ -118,9 +106,9 @@ public:
             size_t max_iterations,
             size_t num_features,
             std::shared_ptr<const std::vector<PointT>> points,
-            VectorPtr<PointT> centroids,
-            VectorPtr<MassT> masses,
-            VectorPtr<LabelT> labels,
+            HostVectorPtr<PointT> centroids,
+            HostVectorPtr<MassT> masses,
+            HostVectorPtr<LabelT> labels,
             std::shared_ptr<Measurement::Measurement> measurement
             ) {
 
@@ -129,9 +117,9 @@ public:
         this->num_points = points->size() / num_features;
         this->num_clusters = centroids->size() / num_features;
         this->host_points = points;
-        this->centroids = centroids;
-        this->masses = masses;
-        this->labels = labels;
+        this->host_centroids = centroids;
+        this->host_masses = masses;
+        this->host_labels = labels;
         if (measurement) {
             this->measurement = measurement;
         }
@@ -140,16 +128,14 @@ public:
     }
 
 protected:
-    boost::compute::context context;
     size_t max_iterations;
     size_t num_features;
     size_t num_points;
     size_t num_clusters;
-    VectorPtr<PointT> points;
     std::shared_ptr<const std::vector<PointT>> host_points;
-    VectorPtr<PointT> centroids;
-    VectorPtr<MassT> masses;
-    VectorPtr<LabelT> labels;
+    HostVectorPtr<PointT> host_centroids;
+    HostVectorPtr<MassT> host_masses;
+    HostVectorPtr<LabelT> host_labels;
 
     InitCentroidsFunction centroids_initializer;
     std::shared_ptr<Measurement::Measurement> measurement;

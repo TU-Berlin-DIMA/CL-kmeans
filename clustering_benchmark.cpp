@@ -19,7 +19,6 @@
 #include <vector>
 #include <string>
 #include <boost/filesystem/path.hpp>
-#include <boost/compute/container/vector.hpp>
 #include <unistd.h>
 
 #include <Version.h>
@@ -177,9 +176,7 @@ Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, Lab
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(
-        ClClusteringFunction f,
-        boost::compute::command_queue queue) {
+Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(ClClusteringFunction f) {
 
     Timer::Timer timer;
     ClusteringBenchmarkStats bs(this->num_runs_);
@@ -193,12 +190,18 @@ Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, Lab
             &this->points_.get_data(),
             [](const std::vector<PointT> *){}
             );
-    VectorPtr<MassT> masses = std::make_shared<Vector<MassT>>(
-            this->cluster_mass_,
-            queue);
-    VectorPtr<LabelT> labels = std::make_shared<Vector<LabelT>>(
-            this->labels_,
-            queue);
+    std::shared_ptr<std::vector<PointT>> centroids(
+            &this->centroids_.get_data(),
+            [](std::vector<PointT> *){}
+            );
+    std::shared_ptr<std::vector<MassT>> masses(
+            &this->cluster_mass_,
+            [](std::vector<MassT> *){}
+            );
+    std::shared_ptr<std::vector<LabelT>> labels(
+            &this->labels_,
+            [](std::vector<MassT> *){}
+            );
 
     for (uint32_t r = 0; r < this->num_runs_; ++r) {
         init_centroids_(
@@ -210,10 +213,6 @@ Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, Lab
                 &bs.measurements[r],
                 [](const Measurement::Measurement *){}
                 );
-
-        VectorPtr<PointT> centroids = std::make_shared<Vector<PointT>>(
-                this->centroids_.get_data(),
-                queue);
 
         timer.start();
         f(
@@ -294,9 +293,7 @@ uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verif
 }
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(
-        ClClusteringFunction f,
-        boost::compute::command_queue queue) {
+uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(ClClusteringFunction f) {
 
     init_centroids_(
             points_,
@@ -307,15 +304,18 @@ uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verif
             &this->points_.get_data(),
             [](const std::vector<PointT> *){}
             );
-    VectorPtr<PointT> centroids = std::make_shared<Vector<PointT>>(
-            this->centroids_.get_data(),
-            queue);
-    VectorPtr<MassT> masses = std::make_shared<Vector<MassT>>(
-            this->cluster_mass_,
-            queue);
-    VectorPtr<LabelT> labels = std::make_shared<Vector<LabelT>>(
-            this->labels_,
-            queue);
+    std::shared_ptr<std::vector<PointT>> centroids(
+            &this->centroids_.get_data(),
+            [](std::vector<PointT> *){}
+            );
+    std::shared_ptr<std::vector<MassT>> masses(
+            &this->cluster_mass_,
+            [](std::vector<MassT> *){}
+            );
+    std::shared_ptr<std::vector<LabelT>> labels(
+            &this->labels_,
+            [](std::vector<MassT> *){}
+            );
 
     f(
             max_iterations_,
@@ -326,24 +326,6 @@ uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verif
             labels,
             nullptr
      );
-
-    boost::compute::copy(
-            labels->begin(),
-            labels->end(),
-            this->labels_.begin(),
-            queue);
-
-    boost::compute::copy(
-            centroids->begin(),
-            centroids->end(),
-            this->centroids_.begin(),
-            queue);
-
-    boost::compute::copy(
-            masses->begin(),
-            masses->end(),
-            this->cluster_mass_.begin(),
-            queue);
 
     uint64_t counter = 0;
     for (size_t l = 0; l < labels_.size(); ++l) {

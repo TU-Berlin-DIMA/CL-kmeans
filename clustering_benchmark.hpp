@@ -20,8 +20,6 @@
 #include <functional>
 #include <cstdint>
 #include <type_traits>
-#include <boost/compute/core.hpp>
-#include <boost/compute/container/vector.hpp>
 
 namespace Clustering {
 
@@ -65,11 +63,6 @@ template <typename PointT, typename LabelT, typename MassT,
          bool ColMajor>
 class ClusteringBenchmark {
 public:
-    template <typename T>
-    using Vector = boost::compute::vector<T>;
-    template <typename T>
-    using VectorPtr = std::shared_ptr<boost::compute::vector<T>>;
-
     using ClusteringFunction = std::function<
         void(
             uint32_t,
@@ -85,9 +78,9 @@ public:
                 size_t,
                 size_t,
                 std::shared_ptr<const std::vector<PointT>>,
-                VectorPtr<PointT>,
-                VectorPtr<MassT>,
-                VectorPtr<LabelT>,
+                std::shared_ptr<std::vector<PointT>>,
+                std::shared_ptr<std::vector<MassT>>,
+                std::shared_ptr<std::vector<LabelT>>,
                 std::shared_ptr<Measurement::Measurement>)
         >;
 
@@ -119,11 +112,11 @@ public:
     int finalize();
 
     ClusteringBenchmarkStats run(ClusteringFunction f);
-    ClusteringBenchmarkStats run(ClClusteringFunction f, boost::compute::command_queue q);
+    ClusteringBenchmarkStats run(ClClusteringFunction f);
     void setVerificationReference(std::vector<LabelT>&& reference_labels);
     int setVerificationReference(ClusteringFunction reference);
     uint64_t verify(ClusteringFunction f);
-    uint64_t verify(ClClusteringFunction f, boost::compute::command_queue q);
+    uint64_t verify(ClClusteringFunction f);
     double mse();
     void print_labels();
     void print_result();
