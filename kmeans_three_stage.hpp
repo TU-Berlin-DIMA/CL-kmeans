@@ -7,8 +7,8 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifndef THREE_STAGE_KMEANS_HPP
-#define THREE_STAGE_KMEANS_HPP
+#ifndef KMEANS_THREE_STAGE_HPP
+#define KMEANS_THREE_STAGE_HPP
 
 #include "abstract_kmeans.hpp"
 #include "labeling_factory.hpp"
@@ -30,7 +30,7 @@
 namespace Clustering {
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor = true>
-class ThreeStageKmeans :
+class KmeansThreeStage :
     public AbstractKmeans<PointT, LabelT, MassT, ColMajor>
 {
 public:
@@ -46,7 +46,7 @@ public:
     using MassUpdateFunction = typename MassUpdateFactory<LabelT, MassT>::MassUpdateFunction;
     using CentroidUpdateFunction = typename CentroidUpdateFactory<PointT, LabelT, MassT, ColMajor>::CentroidUpdateFunction;
 
-    ThreeStageKmeans() :
+    KmeansThreeStage() :
         AbstractKmeans<PointT, LabelT, MassT, ColMajor>()
     {}
 
@@ -509,4 +509,4 @@ private:
 
 }
 
-#endif /* THREE_STAGE_KMEANS_HPP */
+#endif /* KMEANS_THREE_STAGE_HPP */
