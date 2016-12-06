@@ -13,7 +13,7 @@
 #include "kmeans.hpp"
 #include "matrix.hpp"
 
-#include "three_stage_kmeans.hpp"
+#include "kmeans_three_stage.hpp"
 
 #include "SystemConfig.h"
 
@@ -307,7 +307,7 @@ public:
                     << std::endl;
             }
 
-            Clustering::ThreeStageKmeans<
+            Clustering::KmeansThreeStage<
                 PointT,
                 LabelT,
                 MassT,
