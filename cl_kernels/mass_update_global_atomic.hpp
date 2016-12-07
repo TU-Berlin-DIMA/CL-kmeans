@@ -21,6 +21,7 @@
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
+#include <boost/compute/algorithm/fill.hpp>
 
 namespace Clustering {
 
@@ -28,6 +29,7 @@ template <typename LabelT, typename MassT>
 class MassUpdateGlobalAtomic {
 public:
     using Event = boost::compute::event;
+    using Future = boost::compute::future<void>;
     using Context = boost::compute::context;
     using Kernel = boost::compute::kernel;
     using Program = boost::compute::program;
@@ -70,6 +72,14 @@ public:
             ) {
 
         datapoint.set_name("MassUpdateGlobalAtomic");
+
+        Future future = boost::compute::fill_async(
+                masses.begin(),
+                masses.end(),
+                0,
+                queue
+                );
+        datapoint.add_event() = future.get_event();
 
         this->kernel.set_args(
                 labels,

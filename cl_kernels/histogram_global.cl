@@ -26,14 +26,6 @@ void histogram_global(
             const CL_INT NUM_BINS
        ) {
 
-    for (CL_INT r = 0; r < NUM_BINS; r += get_global_size(0)) {
-        CL_INT c = r + get_global_id(0);
-
-        if (c < NUM_BINS) {
-            g_out[c] = 0;
-        }
-    }
-
     for (CL_INT r = 0; r < NUM_ITEMS; r += get_global_size(0)) {
         // Current point ID
         CL_INT p = r + get_global_id(0);
