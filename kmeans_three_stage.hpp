@@ -187,6 +187,7 @@ public:
         buffer_map.get_labels(
                 this->host_labels,
                 this->measurement->add_datapoint());
+        buffer_map.get_masses(this->host_masses);
     }
 
     void set_labeler(LabelingConfiguration config) {
@@ -386,9 +387,12 @@ private:
 
         void get_centroids(HostVectorPtr<PointT> buf)
         {
+            assert(buf->size() >= num_clusters * num_features);
+
             boost::compute::copy(
                     centroids[cu]->begin(),
-                    centroids[cu]->begin() + buf->size(),
+                    centroids[cu]->begin()
+                    + num_clusters * num_features,
                     buf->begin(),
                     queue[cu]);
         }
@@ -398,17 +402,29 @@ private:
                 Measurement::DataPoint& dp
                 )
         {
+            assert(buf->size() >= num_points);
+
             dp.set_name("LabelsD2H");
 
             boost::compute::future<void> future =
                 boost::compute::copy_async(
                         labels[ll]->begin(),
-                        labels[ll]->begin() + buf->size(),
+                        labels[ll]->begin() + num_points,
                         buf->begin(),
                         queue[ll]);
 
             dp.add_event() = future.get_event();
             future.wait();
+        }
+
+        void get_masses(HostVectorPtr<MassT> buf) {
+            assert(buf->size() >= num_clusters);
+
+            boost::compute::copy(
+                    masses[mu]->begin(),
+                    masses[mu]->begin() + num_clusters,
+                    buf->begin(),
+                    queue[mu]);
         }
 
         Event sync_centroids(boost::compute::wait_list const& wait_list) {
