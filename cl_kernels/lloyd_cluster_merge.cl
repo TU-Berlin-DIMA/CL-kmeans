@@ -56,6 +56,8 @@ void lloyd_cluster_merge(
         }
     }
 
+    barrier(CLK_LOCAL_MEM_FENCE);
+
     for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
         for (CL_INT r = get_global_id(0); r < NUM_POINTS; r += get_global_size(0)) {
             CL_LABEL label = g_labels[r];
@@ -66,6 +68,8 @@ void lloyd_cluster_merge(
             ] += point;
         }
     }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
