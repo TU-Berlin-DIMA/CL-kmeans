@@ -41,6 +41,7 @@ public:
     template <typename T>
     using HostVectorPtr = std::shared_ptr<std::vector<T>>;
     using Event = boost::compute::event;
+    using Future = boost::compute::future<void>;
 
     using LabelingFunction = typename LabelingFactory<PointT, LabelT, ColMajor>::LabelingFunction;
     using MassUpdateFunction = typename MassUpdateFactory<LabelT, MassT>::MassUpdateFunction;
@@ -103,6 +104,7 @@ public:
 
             // execute labeling
             sync_centroids_event = buffer_map.sync_centroids(
+                    this->measurement->add_datapoint(iterations),
                     sync_centroids_wait_list);
             // TODO
             // ll_wait_list.insert(
@@ -136,6 +138,7 @@ public:
             if (/*did_changes == true && */ true) {
                 // execute mass update
                 sync_labels_event = buffer_map.sync_labels(
+                        this->measurement->add_datapoint(iterations),
                         sync_labels_wait_list);
                 // TODO
                 // mu_wait_list.insert(
@@ -346,7 +349,7 @@ private:
             centroids[mu] = nullptr;
             centroids[cu] = device_map[cu][ll] ? centroids[ll] :
                 std::make_shared<Vector<PointT>>(
-                        *centroids[ll],
+                        *buf,
                         queue[cu]);
         }
 
@@ -427,37 +430,142 @@ private:
                     queue[mu]);
         }
 
-        Event sync_centroids(boost::compute::wait_list const& wait_list) {
-            // TODO: defensive copy; lengths may not be the same
+        Event sync_centroids(
+                Measurement::DataPoint& datapoint,
+                boost::compute::wait_list const& wait_list
+                )
+        {
+            using Device = boost::compute::device;
+
+            datapoint.set_name("SyncCentroids");
+
             if (not device_map[cu][ll]) {
-                boost::compute::copy(
-                        centroids[cu]->begin(),
-                        centroids[cu]->end(),
-                        centroids[ll]->begin(),
-                        queue[ll]);
+                size_t num_elements = num_clusters * num_features;
+                Future copy_future;
+                if (queue[cu].get_device().type() == Device::cpu) {
+                    auto& buf = centroids[cu]->get_buffer();
+
+                    PointT *buf_ptr = (PointT*) queue[cu]
+                        .enqueue_map_buffer(
+                                buf,
+                                CL_MAP_READ | CL_MAP_WRITE,
+                                0,
+                                num_elements * sizeof(PointT));
+
+                    copy_future = boost::compute::copy_async(
+                            buf_ptr,
+                            buf_ptr + num_elements,
+                            centroids[ll]->begin(),
+                            queue[ll]);
+
+                    copy_future.wait();
+
+                    queue[cu].enqueue_unmap_buffer(
+                            buf,
+                            buf_ptr);
+                }
+                else {
+                    copy_future = boost::compute::copy_async(
+                            centroids[cu]->begin(),
+                            centroids[cu]->begin() + num_elements,
+                            centroids[ll]->begin(),
+                            queue[ll]);
+
+                    copy_future.wait();
+                }
+
+                datapoint.add_event() = copy_future.get_event();
             }
 
             Event e;
             return e;
         }
 
-        Event sync_labels(boost::compute::wait_list const& wait_list) {
-            // TODO: defensive copy; lengths may not be the same
+        Event sync_labels(
+                Measurement::DataPoint& datapoint,
+                boost::compute::wait_list const& wait_list
+                )
+        {
+            using Device = boost::compute::device;
+
+            datapoint.set_name("SyncLabels");
+
             if (not device_map[ll][mu]) {
-                boost::compute::copy(
-                        labels[ll]->begin(),
-                        labels[ll]->end(),
-                        labels[mu]->begin(),
-                        queue[mu]);
+                Future copy_future;
+                auto dev_type = queue[mu].get_device().type();
+
+                if (dev_type == Device::cpu) {
+                    auto& buf = labels[mu]->get_buffer();
+
+                    LabelT *buf_ptr = (LabelT*) queue[mu]
+                        .enqueue_map_buffer(
+                                buf,
+                                CL_MAP_READ | CL_MAP_WRITE,
+                                0,
+                                buf.size());
+
+                    copy_future = boost::compute::copy_async(
+                            labels[ll]->begin(),
+                            labels[ll]->end(),
+                            buf_ptr,
+                            queue[ll]);
+
+                    copy_future.wait();
+
+                    queue[mu].enqueue_unmap_buffer(
+                            buf,
+                            buf_ptr);
+                }
+                else {
+                    copy_future = boost::compute::copy_async(
+                            labels[ll]->begin(),
+                            labels[ll]->end(),
+                            labels[mu]->begin(),
+                            queue[mu]);
+
+                    copy_future.wait();
+                }
+
+                datapoint.add_event() = copy_future.get_event();
             }
 
-            // TODO: defensive copy; lengths may not be the same
-            if (not device_map[ll][cu]) {
-                boost::compute::copy(
-                        labels[ll]->begin(),
-                        labels[ll]->end(),
-                        labels[cu]->begin(),
-                        queue[cu]);
+            if (not device_map[ll][cu] && not device_map[mu][cu]) {
+                Future copy_future;
+                auto dev_type = queue[cu].get_device().type();
+
+                if (dev_type == Device::cpu) {
+                    auto& buf = labels[cu]->get_buffer();
+
+                    LabelT *buf_ptr = (LabelT*) queue[cu]
+                        .enqueue_map_buffer(
+                                buf,
+                                CL_MAP_READ | CL_MAP_WRITE,
+                                0,
+                                buf.size());
+
+                    copy_future = boost::compute::copy_async(
+                            labels[ll]->begin(),
+                            labels[ll]->end(),
+                            buf_ptr,
+                            queue[ll]);
+
+                    copy_future.wait();
+
+                    queue[cu].enqueue_unmap_buffer(
+                            buf,
+                            buf_ptr);
+                }
+                else {
+                    boost::compute::copy(
+                            labels[ll]->begin(),
+                            labels[ll]->end(),
+                            labels[cu]->begin(),
+                            queue[cu]);
+
+                    copy_future.wait();
+                }
+
+                datapoint.add_event() = copy_future.get_event();
             }
 
             Event e;
