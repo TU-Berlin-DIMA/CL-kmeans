@@ -14,6 +14,7 @@
 #include "matrix.hpp"
 
 #include "kmeans_three_stage.hpp"
+#include "kmeans_single_stage.hpp"
 
 #include "SystemConfig.h"
 
@@ -222,6 +223,7 @@ public:
 
         Clustering::ClusteringBenchmarkStats bs(bm_config.runs);
         uint64_t verify_res = 0;
+        typename decltype(bm)::ClClusteringFunction kmeans;
 
         if (km_config.pipeline == "three_stage") {
             auto ll_config =
@@ -311,25 +313,60 @@ public:
                 PointT,
                 LabelT,
                 MassT,
-                ColMajor
-                    > kmeans;
+                ColMajor> threestage;
 
-            kmeans.set_labeling_queue(ll_queue);
-            kmeans.set_mass_update_queue(mu_queue);
-            kmeans.set_centroid_update_queue(cu_queue);
-            kmeans.set_labeling_context(ll_context);
-            kmeans.set_mass_update_context(mu_context);
-            kmeans.set_centroid_update_context(cu_context);
-            kmeans.set_labeler(ll_config);
-            kmeans.set_mass_updater(mu_config);
-            kmeans.set_centroid_updater(cu_config);
+            threestage.set_labeling_queue(ll_queue);
+            threestage.set_mass_update_queue(mu_queue);
+            threestage.set_centroid_update_queue(cu_queue);
+            threestage.set_labeling_context(ll_context);
+            threestage.set_mass_update_context(mu_context);
+            threestage.set_centroid_update_context(cu_context);
+            threestage.set_labeler(ll_config);
+            threestage.set_mass_updater(mu_config);
+            threestage.set_centroid_updater(cu_config);
+            kmeans = threestage;
+        }
+        else if (km_config.pipeline == "single_stage") {
+            auto ll_config =
+                config.get_labeling_configuration();
+            auto fu_config =
+                config.get_fused_configuration();
 
-            if (options.verify() || bm_config.verify) {
-                verify_res = bm.verify(kmeans);
+            bc::device device =
+                bc::system::platforms()[fu_config.platform]
+                .devices()[fu_config.device];
+            bc::context context = bc::context(device);
+
+            bc::command_queue queue(
+                    context,
+                    device,
+                    bc::command_queue::enable_profiling);
+
+            if (options.verbose()) {
+                std::cout
+                    << "Fused device: "
+                    << queue.get_device().name()
+                    << std::endl;
             }
-            else {
-                bs = bm.run(kmeans);
-            }
+
+            Clustering::KmeansSingleStage<
+                PointT,
+                LabelT,
+                MassT,
+                ColMajor> singlestage;
+
+            singlestage.set_queue(queue);
+            singlestage.set_context(context);
+            singlestage.set_fused(fu_config);
+            singlestage.set_labeler(ll_config);
+            kmeans = singlestage;
+        }
+
+        if (options.verify() || bm_config.verify) {
+            verify_res = bm.verify(kmeans);
+        }
+        else {
+            bs = bm.run(kmeans);
         }
 
         if (options.verbose()) {

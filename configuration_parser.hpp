@@ -15,6 +15,7 @@
 #include "labeling_configuration.hpp"
 #include "mass_update_configuration.hpp"
 #include "centroid_update_configuration.hpp"
+#include "fused_configuration.hpp"
 
 #include <cstddef>
 #include <string>
@@ -32,6 +33,7 @@ public:
     LabelingConfiguration get_labeling_configuration();
     MassUpdateConfiguration get_mass_update_configuration();
     CentroidUpdateConfiguration get_centroid_update_configuration();
+    FusedConfiguration get_fused_configuration();
 
 private:
     boost::program_options::options_description benchmark_options();

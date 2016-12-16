@@ -87,6 +87,13 @@ po::options_description ConfigurationParser::kmeans_options() {
         ("kmeans.centroid_update.local_features", po::value<size_t>())
         ("kmeans.centroid_update.thread_features", po::value<size_t>())
 
+        // Fused specific
+        ("kmeans.fused.platform", po::value<size_t>())
+        ("kmeans.fused.device", po::value<size_t>())
+        ("kmeans.fused.strategy", po::value<std::string>())
+        ("kmeans.fused.global_size", po::value<std::vector<size_t>>())
+        ("kmeans.fused.local_size", po::value<std::vector<size_t>>())
+
         ;
 
     return desc;
@@ -258,6 +265,42 @@ CentroidUpdateConfiguration ConfigurationParser::get_centroid_update_configurati
         }
         else if (option.first == "kmeans.centroid_update.thread_features") {
             conf.thread_features = option.second.as<size_t>();
+        }
+    }
+
+    return conf;
+}
+
+FusedConfiguration ConfigurationParser::get_fused_configuration() {
+    FusedConfiguration conf;
+
+    for (auto const& option : vm) {
+        if (option.first == "kmeans.fused.platform") {
+            conf.platform = option.second.as<size_t>();
+        }
+        else if (option.first == "kmeans.fused.device") {
+            conf.device = option.second.as<size_t>();
+        }
+        else if (option.first == "kmeans.fused.strategy") {
+            conf.strategy = option.second.as<std::string>();
+        }
+        else if (option.first == "kmeans.fused.global_size") {
+            auto v = option.second.as<std::vector<size_t>>();
+            if (v.size() > 3) {
+                // throw
+            }
+            conf.global_size[0] = v[0];
+            conf.global_size[1] = v.size() > 1 ? v[1] : 1;
+            conf.global_size[2] = v.size() == 3 ? v[2] : 1;
+        }
+        else if (option.first == "kmeans.fused.local_size") {
+            auto v = option.second.as<std::vector<size_t>>();
+            if (v.size() > 3) {
+                // throw
+            }
+            conf.local_size[0] = v[0];
+            conf.local_size[1] = v.size() > 1 ? v[1] : 1;
+            conf.local_size[2] = v.size() == 3 ? v[2] : 1;
         }
     }
 
