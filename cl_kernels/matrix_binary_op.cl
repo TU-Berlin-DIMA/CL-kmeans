@@ -29,7 +29,7 @@ void matrix_row_vector(
         )
 {
     CL_INT m_ind = ccoord2ind(
-            NUM_COLS,
+            NUM_ROWS,
             get_global_id(0),
             get_global_id(1));
 
