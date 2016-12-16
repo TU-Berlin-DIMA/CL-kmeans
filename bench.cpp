@@ -327,8 +327,6 @@ public:
             kmeans = threestage;
         }
         else if (km_config.pipeline == "single_stage") {
-            auto ll_config =
-                config.get_labeling_configuration();
             auto fu_config =
                 config.get_fused_configuration();
 
@@ -358,7 +356,6 @@ public:
             singlestage.set_queue(queue);
             singlestage.set_context(context);
             singlestage.set_fused(fu_config);
-            singlestage.set_labeler(ll_config);
             kmeans = singlestage;
         }
 

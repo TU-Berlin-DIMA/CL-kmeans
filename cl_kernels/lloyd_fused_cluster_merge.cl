@@ -33,7 +33,7 @@ void lloyd_fused_cluster_merge(
         __global CL_POINT const *const restrict g_points,
         __global CL_POINT *const restrict g_centroids,
         __global CL_MASS *const restrict g_masses,
-        __global CL_LABEL const *const restrict g_labels,
+        __global CL_LABEL *const restrict g_labels,
         __local CL_POINT *const restrict l_points,
         __local CL_POINT *const restrict l_old_centroids,
         __local CL_POINT *const restrict l_new_centroids,
@@ -133,6 +133,9 @@ void lloyd_fused_cluster_merge(
             min_dist = is_dist_smaller ? dist : min_dist;
             label = is_dist_smaller ? c : label;
         }
+
+        // Write back label
+        g_labels[p] = label;
 
         // Masses update phase
         l_masses[l_masses_offset + label] += 1;

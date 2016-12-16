@@ -11,7 +11,6 @@
 #define KMEANS_SINGLE_STAGE_HPP
 
 #include "abstract_kmeans.hpp"
-#include "labeling_factory.hpp"
 #include "fused_factory.hpp"
 
 #include "measurement/measurement.hpp"
@@ -43,7 +42,6 @@ public:
     using Future = boost::compute::future<void>;
     using WaitList = boost::compute::wait_list;
 
-    using LabelingFunction = typename LabelingFactory<PointT, LabelT, ColMajor>::LabelingFunction;
     using FusedFunction = typename FusedFactory<PointT, LabelT, MassT, ColMajor>::FusedFunction;
 
     KmeansSingleStage() :
@@ -52,8 +50,8 @@ public:
 
     void run() {
 
-        Event fu_event, ll_event;
-        WaitList fu_wait_list, ll_wait_list;
+        Event fu_event;
+        WaitList fu_wait_list;
 
         buffer_manager.set_queue(this->queue);
         buffer_manager.set_context(this->context);
@@ -95,31 +93,11 @@ public:
                     this->measurement->add_datapoint(iteration),
                     fu_wait_list);
 
-            // fu_wait_list.insert(fu_event);
+            fu_wait_list.insert(fu_event);
         }
-        // ll_wait_list.insert(fu_event);
 
-        // To be removed
-        Vector<char> ll_did_changes(
-                1,
-                this->context);
-
-        // write out labels with labeling function
-        ll_event = this->f_labeling(
-                this->queue,
-                this->num_features,
-                this->num_points,
-                this->num_clusters,
-                ll_did_changes,
-                buffer_manager.get_points(),
-                buffer_manager.get_centroids(),
-                buffer_manager.get_labels(),
-                this->measurement->add_datapoint(),
-                ll_wait_list);
-
-        // Wait for labeling to finish
-        // ll_event.wait();
-        this->queue.finish();
+        // Wait for all to finish
+        fu_wait_list.wait();
 
         // Copy centroids and labels to host
         buffer_manager.get_centroids(
@@ -131,13 +109,6 @@ public:
         buffer_manager.get_masses(
                 this->host_masses,
                 this->measurement->add_datapoint());
-    }
-
-    void set_labeler(LabelingConfiguration config) {
-        LabelingFactory<PointT, LabelT, ColMajor> factory;
-        f_labeling = factory.create(
-                this->context,
-                config);
     }
 
     void set_fused(FusedConfiguration config) {
@@ -156,7 +127,6 @@ public:
     }
 
 private:
-    LabelingFunction f_labeling;
     FusedFunction f_fused;
 
     boost::compute::context context;
