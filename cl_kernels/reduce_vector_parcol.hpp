@@ -124,6 +124,7 @@ public:
                     (cl_int) MAX_WORKGROUP_SIZE,
                     (cl_int) MAX_WORKGROUP_SIZE,
                     wait_list);
+            datapoint.add_event() = event;
         }
 
         return event;
