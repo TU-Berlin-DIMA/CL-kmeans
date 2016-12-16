@@ -131,7 +131,7 @@ public:
     }
 
 private:
-    static constexpr size_t MAX_WORKGROUP_SIZE = 64;
+    static constexpr size_t MAX_WORKGROUP_SIZE = 512;
 
     static constexpr const char *PROGRAM_FILE =
         CL_KERNEL_FILE_PATH("reduce_vector_parcol.cl");
