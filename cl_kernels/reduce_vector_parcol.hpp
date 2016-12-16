@@ -38,9 +38,10 @@ public:
 
     void prepare(Context context)
     {
-        assert(boost::compute::is_fundamental<T>::value == true);
+        static_assert(
+                boost::compute::is_fundamental<T>::value == true,
+                "T must be boost compute fundamental type");
 
-        // TODO: Use boost::compute::type_name<T>()
         std::string defines;
         defines += " -DCL_TYPE=";
         defines += boost::compute::type_name<T>();
