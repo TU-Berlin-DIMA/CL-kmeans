@@ -7,8 +7,8 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifndef FUSED_CLUSTER_MERGE_HPP
-#define FUSED_CLUSTER_MERGE_HPP
+#ifndef FUSED_FEATURE_SUM_HPP
+#define FUSED_FEATURE_SUM_HPP
 
 #include "kernel_path.hpp"
 
@@ -29,7 +29,7 @@
 namespace Clustering {
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
-class FusedClusterMerge {
+class FusedFeatureSum {
 public:
     using Event = boost::compute::event;
     using Context = boost::compute::context;
@@ -71,6 +71,7 @@ public:
         defines += boost::compute::type_name<LabelT>();
         defines += " -DCL_MASS=";
         defines += boost::compute::type_name<MassT>();
+        defines += " -DNUM_THREAD_FEATURES=1";
 
         Program program = Program::create_with_source_file(
                 PROGRAM_FILE,
@@ -106,7 +107,8 @@ public:
         size_t min_centroids_size =
             this->config.global_size[0]
             * num_clusters
-            * num_features;
+            // * config.num_thread_features
+            ;
         if (centroids.size() < min_centroids_size) {
             centroids.resize(min_centroids_size);
         }
@@ -127,11 +129,14 @@ public:
                 );
         LocalBuffer<PointT> local_new_centroids(
                 this->config.local_size[0]
+                // * config.num_thread_features,
                 * num_clusters
-                * num_features
                 );
         LocalBuffer<MassT> local_masses(
                 this->config.local_size[0] * num_clusters
+                );
+        LocalBuffer<LabelT> local_labels(
+                this->config.local_size[0]
                 );
 
         this->kernel.set_args(
@@ -143,6 +148,7 @@ public:
                 local_old_centroids,
                 local_new_centroids,
                 local_masses,
+                local_labels,
                 (cl_uint)num_features,
                 (cl_uint)num_points,
                 (cl_uint)num_clusters);
@@ -163,9 +169,15 @@ public:
         boost::compute::wait_list wait_list;
         wait_list.insert(event);
 
+        size_t num_tiles =
+            this->config.global_size[0]
+             / num_features
+            // * config.num_thread_features
+            ;
+
         event = reduce_centroids(
                 queue,
-                this->config.global_size[0],
+                num_tiles,
                 num_clusters * num_features,
                 centroids,
                 datapoint.create_child(),
@@ -200,8 +212,8 @@ public:
 
 
 private:
-    static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_fused_cluster_merge.cl");
-    static constexpr const char* KERNEL_NAME = "lloyd_fused_cluster_merge";
+    static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_fused_feature_sum.cl");
+    static constexpr const char* KERNEL_NAME = "lloyd_fused_feature_sum";
 
     Kernel kernel;
     FusedConfiguration config;
@@ -213,4 +225,4 @@ private:
 }
 
 
-#endif /* FUSED_CLUSTER_MERGE_HPP */
+#endif /* FUSED_FEATURE_SUM_HPP */

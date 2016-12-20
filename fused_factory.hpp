@@ -13,6 +13,7 @@
 #include "fused_configuration.hpp"
 
 #include "cl_kernels/fused_cluster_merge.hpp"
+#include "cl_kernels/fused_feature_sum.hpp"
 
 #include <functional>
 #include <string>
@@ -51,6 +52,11 @@ public:
     {
         if (config.strategy == "cluster_merge") {
             FusedClusterMerge<PointT, LabelT, MassT, ColMajor> strategy;
+            strategy.prepare(context, config);
+            return strategy;
+        }
+        else if (config.strategy == "feature_sum") {
+            FusedFeatureSum<PointT, LabelT, MassT, ColMajor> strategy;
             strategy.prepare(context, config);
             return strategy;
         }
