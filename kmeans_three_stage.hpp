@@ -80,7 +80,8 @@ public:
                 this->host_points,
                 this->measurement->add_datapoint());
         buffer_map.set_centroids_buffer(
-                this->host_centroids);
+                this->host_centroids,
+                this->measurement->add_datapoint());
         buffer_map.set_labels_buffer();
         buffer_map.set_masses_buffer();
 
@@ -186,11 +187,15 @@ public:
         this->q_centroid_update.finish();
 
         // copy centroids and labels to host
-        buffer_map.get_centroids(this->host_centroids);
+        buffer_map.get_centroids(
+                this->host_centroids,
+                this->measurement->add_datapoint());
         buffer_map.get_labels(
                 this->host_labels,
                 this->measurement->add_datapoint());
-        buffer_map.get_masses(this->host_masses);
+        buffer_map.get_masses(
+                this->host_masses,
+                this->measurement->add_datapoint());
     }
 
     void set_labeler(LabelingConfiguration config) {
@@ -314,7 +319,7 @@ private:
                         buf->size(),
                         context[cu]);
 
-            boost::compute::future<void> ll_future =
+            Future ll_future =
                 boost::compute::copy_async(
                         buf->begin(),
                         buf->end(),
@@ -322,7 +327,7 @@ private:
                         queue[ll]);
 
             if (not device_map[ll][cu]) {
-                boost::compute::future<void> cu_future =
+                Future cu_future =
                     boost::compute::copy_async(
                             buf->begin(),
                             buf->end(),
@@ -337,20 +342,45 @@ private:
             ll_future.wait();
         }
 
-        void set_centroids_buffer(HostVectorPtr<PointT> buf)
+        void set_centroids_buffer(
+                HostVectorPtr<PointT> buf,
+                Measurement::DataPoint& dp
+                )
         {
+            dp.set_name("CentroidsH2D");
+
             VectorPtr<PointT> dev_buf =
                 std::make_shared<Vector<PointT>>(
-                        *buf,
-                        queue[ll]);
+                        buf->size(),
+                        context[ll]);
 
             centroids.resize(3);
             centroids[ll] = dev_buf;
             centroids[mu] = nullptr;
             centroids[cu] = device_map[cu][ll] ? centroids[ll] :
                 std::make_shared<Vector<PointT>>(
-                        *buf,
+                        buf->size(),
+                        context[cu]);
+
+            Future ll_future = boost::compute::copy_async(
+                    buf->begin(),
+                    buf->end(),
+                    centroids[ll]->begin(),
+                    queue[ll]);
+
+            if (not device_map[ll][cu]) {
+                Future cu_future = boost::compute::copy_async(
+                        buf->begin(),
+                        buf->end(),
+                        centroids[cu]->begin(),
                         queue[cu]);
+
+                dp.add_event() = cu_future.get_event();
+                cu_future.wait();
+            }
+
+            dp.add_event() = ll_future.get_event();
+            ll_future.wait();
         }
 
         void set_labels_buffer()
@@ -388,16 +418,24 @@ private:
                         queue[cu]);
         }
 
-        void get_centroids(HostVectorPtr<PointT> buf)
+        void get_centroids(
+                HostVectorPtr<PointT> buf,
+                Measurement::DataPoint& dp
+                )
         {
             assert(buf->size() >= num_clusters * num_features);
 
-            boost::compute::copy(
+            dp.set_name("CentroidsD2H");
+
+            Future future = boost::compute::copy_async(
                     centroids[cu]->begin(),
                     centroids[cu]->begin()
                     + num_clusters * num_features,
                     buf->begin(),
                     queue[cu]);
+
+            dp.add_event() = future.get_event();
+            future.wait();
         }
 
         void get_labels(
@@ -409,8 +447,7 @@ private:
 
             dp.set_name("LabelsD2H");
 
-            boost::compute::future<void> future =
-                boost::compute::copy_async(
+            Future future = boost::compute::copy_async(
                         labels[ll]->begin(),
                         labels[ll]->begin() + num_points,
                         buf->begin(),
@@ -420,19 +457,28 @@ private:
             future.wait();
         }
 
-        void get_masses(HostVectorPtr<MassT> buf) {
+        void get_masses(
+                HostVectorPtr<MassT> buf,
+                Measurement::DataPoint& dp
+                )
+        {
             assert(buf->size() >= num_clusters);
 
-            boost::compute::copy(
+            dp.set_name("MassesD2H");
+
+            Future future = boost::compute::copy_async(
                     masses[mu]->begin(),
                     masses[mu]->begin() + num_clusters,
                     buf->begin(),
                     queue[mu]);
+
+            dp.add_event() = future.get_event();
+            future.wait();
         }
 
         Event sync_centroids(
                 Measurement::DataPoint& datapoint,
-                boost::compute::wait_list const& wait_list
+                boost::compute::wait_list const& /* wait_list */
                 )
         {
             using Device = boost::compute::device;
@@ -483,7 +529,7 @@ private:
 
         Event sync_labels(
                 Measurement::DataPoint& datapoint,
-                boost::compute::wait_list const& wait_list
+                boost::compute::wait_list const& /* wait_list */
                 )
         {
             using Device = boost::compute::device;
@@ -572,12 +618,12 @@ private:
             return e;
         }
 
-        Event sync_masses(boost::compute::wait_list const& wait_list) {
-            // TODO: defensive copy; lengths may not be the same
+        Event sync_masses(boost::compute::wait_list const& /* wait_list */)
+        {
             if (not device_map[mu][cu]) {
                 boost::compute::copy(
                         masses[mu]->begin(),
-                        masses[mu]->end(),
+                        masses[mu]->begin() + num_clusters,
                         masses[cu]->begin(),
                         queue[cu]);
             }
