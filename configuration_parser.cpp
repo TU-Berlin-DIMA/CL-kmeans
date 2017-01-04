@@ -12,6 +12,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <stdexcept>
 
 #include <boost/program_options.hpp>
 
@@ -21,7 +22,14 @@ namespace Clustering {
 
 void ConfigurationParser::parse_file(std::string file) {
 
-    std::ifstream handle(file);
+    // TODO: check if file exits and throw exception
+    std::ifstream handle;
+    handle.open(file);
+
+    if (not handle.is_open()) {
+        throw std::invalid_argument(
+                "Could not open file \"" + file + "\"");
+    }
 
     po::options_description desc;
     desc.add(benchmark_options());
