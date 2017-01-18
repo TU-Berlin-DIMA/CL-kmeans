@@ -45,7 +45,17 @@ public:
 
     MassUpdateFunction create(
             boost::compute::context context,
-            MassUpdateConfiguration config) {
+            MassUpdateConfiguration config,
+            Measurement::Measurement& measurement) {
+
+        measurement.set_parameter(
+                "MassUpdateGlobalSize",
+                std::to_string(config.global_size[0])
+                );
+        measurement.set_parameter(
+                "MassUpdateLocalSize",
+                std::to_string(config.local_size[0])
+                );
 
         if (config.strategy == "global_atomic") {
             MassUpdateGlobalAtomic<LabelT, MassT> strategy;

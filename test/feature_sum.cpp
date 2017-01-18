@@ -91,7 +91,7 @@ protected:
     size_t local_size_ = 32;
 };
 
-template <typename Kernel, Measurement::DataPointType::t point_type>
+template <typename Kernel>
 class FeatureSum : public AbstractFeatureSum {
 public:
     void virtual test(
@@ -381,25 +381,25 @@ TEST_P(UniformDistribution, Performance) {
     Measurement::Measurement measurement;
     measurement_setup(measurement, clenv->device, num_runs);
     measurement.set_parameter(
-            Measurement::ParameterType::NumFeatures,
+            "NumFeatures",
             std::to_string(num_features));
     measurement.set_parameter(
-            Measurement::ParameterType::NumPoints,
+            "NumPoints",
             std::to_string(points.rows()));
     measurement.set_parameter(
-            Measurement::ParameterType::NumClusters,
+            "NumClusters",
             std::to_string(num_clusters));
     measurement.set_parameter(
-            Measurement::ParameterType::IntType,
+            "IntType",
             "uint32_t");
     measurement.set_parameter(
-            Measurement::ParameterType::FloatType,
+            "FloatType",
             "float");
     measurement.set_parameter(
-            Measurement::ParameterType::CLLocalSize,
+            "LocalSize",
             std::to_string(local_size));
     measurement.set_parameter(
-            Measurement::ParameterType::CLGlobalSize,
+            "GlobalSize",
             std::to_string(global_size));
 
     cle::Matrix<float, std::allocator<float>, uint32_t> test_centroids;
@@ -422,8 +422,8 @@ INSTANTIATE_TEST_CASE_P(
             ::testing::Values((32 * 4 * 64), (32 * 4 * 64 * 32)),
             ::testing::Values(32, 64, 128, 256),
             ::testing::Values(
-                new FeatureSum<cle::LloydMergeSumAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsMergeSum>,
-                new FeatureSum<cle::LloydFeatureSumPardimAPI<cl_float, cl_uint>, Measurement::DataPointType::LloydCentroidsFeatureSumPardim>
+                new FeatureSum<cle::LloydMergeSumAPI<cl_float, cl_uint>>,
+                new FeatureSum<cle::LloydFeatureSumPardimAPI<cl_float, cl_uint>>
                 )
             ));
 

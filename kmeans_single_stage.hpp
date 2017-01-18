@@ -115,7 +115,8 @@ public:
         FusedFactory<PointT, LabelT, MassT, ColMajor> factory;
         f_fused = factory.create(
                 this->context,
-                config);
+                config,
+                *this->measurement);
     }
 
     void set_context(boost::compute::context c) {
@@ -124,6 +125,16 @@ public:
 
     void set_queue(boost::compute::command_queue q) {
         queue = q;
+
+        auto device = q.get_device();
+        this->measurement->set_parameter(
+                "FusedPlatform",
+                device.platform().name()
+                );
+        this->measurement->set_parameter(
+                "FusedDevice",
+                device.name()
+                );
     }
 
 private:

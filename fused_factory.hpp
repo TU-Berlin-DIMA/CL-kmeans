@@ -48,8 +48,18 @@ public:
 
     FusedFunction create(
             boost::compute::context context,
-            FusedConfiguration config)
+            FusedConfiguration config,
+            Measurement::Measurement& measurement)
     {
+        measurement.set_parameter(
+                "FusedGlobalSize",
+                std::to_string(config.global_size[0])
+                );
+        measurement.set_parameter(
+                "FusedLocalSize",
+                std::to_string(config.local_size[0])
+                );
+
         if (config.strategy == "cluster_merge") {
             FusedClusterMerge<PointT, LabelT, MassT, ColMajor> strategy;
             strategy.prepare(context, config);

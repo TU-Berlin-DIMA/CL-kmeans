@@ -27,8 +27,6 @@ uint32_t const max_hostname_length = 30;
 
 Clustering::ClusteringBenchmarkStats::ClusteringBenchmarkStats(const uint32_t num_runs)
     :
-        microseconds(num_runs),
-        measurements(num_runs),
         num_runs_(num_runs)
 {}
 
@@ -67,44 +65,33 @@ void Clustering::ClusteringBenchmarkStats::to_csv(
     boost::filesystem::path input_file_path(input_file);
     boost::filesystem::path input_file_name = input_file_path.filename();
 
-    std::string int_type = is_uint32 ? "uint32_t" : "uint64_t";
-    std::string float_type = is_float32 ? "float" : "double";
-
-    for (Measurement::Measurement& m : measurements) {
-        m.set_parameter(
-                Measurement::ParameterType::Version,
+    for (auto& m : measurements) {
+        m->set_parameter(
+                "Version",
                 GIT_REVISION
                 );
-        m.set_parameter(
-                Measurement::ParameterType::Filename,
+        m->set_parameter(
+                "Filename",
                 input_file_name.c_str()
                 );
-        m.set_parameter(
-                Measurement::ParameterType::Hostname,
+        m->set_parameter(
+                "Hostname",
                 hostname
                 );
-        m.set_parameter(
-                Measurement::ParameterType::NumFeatures,
+        m->set_parameter(
+                "NumFeatures",
                 std::to_string(num_features_)
                 );
-        m.set_parameter(
-                Measurement::ParameterType::NumPoints,
+        m->set_parameter(
+                "NumPoints",
                 std::to_string(num_points_)
                 );
-        m.set_parameter(
-                Measurement::ParameterType::NumClusters,
+        m->set_parameter(
+                "NumClusters",
                 std::to_string(num_clusters_)
                 );
-        m.set_parameter(
-                Measurement::ParameterType::IntType,
-                int_type
-                );
-        m.set_parameter(
-                Measurement::ParameterType::FloatType,
-                float_type
-                );
 
-        m.write_csv(csv_file);
+        m->write_csv(csv_file);
     }
 
 }
@@ -150,9 +137,9 @@ Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, Lab
         ClusteringFunction f) {
 
     Timer::Timer timer;
+    std::shared_ptr<Measurement::Measurement> measurement;
     ClusteringBenchmarkStats bs(this->num_runs_);
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
-    bs.set_types<PointT, MassT>();
 
     for (uint32_t r = 0; r < this->num_runs_; ++r) {
         init_centroids_(
@@ -161,15 +148,17 @@ Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, Lab
                 );
 
         timer.start();
-        f(
+        measurement = f(
                 max_iterations_,
                 points_,
                 centroids_,
                 cluster_mass_,
-                labels_,
-                bs.measurements[r]
-         );
-        bs.microseconds[r] = timer.stop<std::chrono::microseconds>();
+                labels_
+                );
+        bs.microseconds
+            .push_back(timer.stop<std::chrono::microseconds>());
+        measurement->set_run(r);
+        bs.measurements.push_back(measurement);
     }
 
     return bs;
@@ -179,9 +168,9 @@ template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
 Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::run(ClClusteringFunction f) {
 
     Timer::Timer timer;
+    std::shared_ptr<Measurement::Measurement> measurement;
     ClusteringBenchmarkStats bs(this->num_runs_);
     bs.set_dimensions(points_.cols(), points_.rows(), centroids_.rows());
-    bs.set_types<PointT, MassT>();
 
     // Dirty hack to avoid freeing object
     // when shared_ptr goes out of scope.
@@ -209,22 +198,19 @@ Clustering::ClusteringBenchmarkStats Clustering::ClusteringBenchmark<PointT, Lab
                 centroids_
                 );
 
-        std::shared_ptr<Measurement::Measurement> measurement(
-                &bs.measurements[r],
-                [](const Measurement::Measurement *){}
-                );
-
         timer.start();
-        f(
+        measurement = f(
                 max_iterations_,
                 points_.cols(),
                 points,
                 centroids,
                 masses,
-                labels,
-                measurement
-         );
-        bs.microseconds[r] = timer.stop<std::chrono::microseconds>();
+                labels
+                );
+        bs.microseconds
+            .push_back(timer.stop<std::chrono::microseconds>());
+        measurement->set_run(r);
+        bs.measurements.push_back(measurement);
     }
 
     return bs;
@@ -240,8 +226,6 @@ template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
 int Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerificationReference(
         ClusteringFunction ref) {
 
-    Measurement::Measurement stats;
-
     reference_centroids_.resize(centroids_.rows(), centroids_.cols());
     reference_cluster_mass_.resize(num_clusters_);
     reference_labels_.resize(num_points_);
@@ -256,8 +240,7 @@ int Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerific
             points_,
             reference_centroids_,
             reference_cluster_mass_,
-            reference_labels_,
-            stats
+            reference_labels_
        );
 
     return 1;
@@ -265,8 +248,6 @@ int Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::setVerific
 
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor>
 uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verify(ClusteringFunction f) {
-
-    Measurement::Measurement stats;
 
     init_centroids_(
             points_,
@@ -278,9 +259,8 @@ uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verif
             points_,
             centroids_,
             cluster_mass_,
-            labels_,
-            stats
-       );
+            labels_
+     );
 
     uint64_t counter = 0;
     for (size_t l = 0; l < labels_.size(); ++l) {
@@ -323,8 +303,7 @@ uint64_t Clustering::ClusteringBenchmark<PointT, LabelT, MassT, ColMajor>::verif
             points,
             centroids,
             masses,
-            labels,
-            nullptr
+            labels
      );
 
     uint64_t counter = 0;

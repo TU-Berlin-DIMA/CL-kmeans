@@ -27,13 +27,12 @@ public:
     int initialize();
     int finalize();
 
-    void operator() (
+    std::shared_ptr<Measurement::Measurement> operator() (
             uint32_t const max_iterations,
             cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
             cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids,
             std::vector<MassT>& cluster_mass,
-            std::vector<LabelT>& labels,
-            Measurement::Measurement& stats
+            std::vector<LabelT>& labels
             );
 };
 

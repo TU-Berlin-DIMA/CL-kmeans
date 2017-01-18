@@ -57,21 +57,21 @@ void measurement_setup(
     device.getInfo(CL_DEVICE_NAME, &device_name);
 
     m.set_parameter(
-            Measurement::ParameterType::Device,
+            "Device",
             device_name.c_str() // remove trailing '\0'
             );
 
     m.set_parameter(
-            Measurement::ParameterType::Version,
+            "Version",
             GIT_REVISION
             );
     m.set_parameter(
-            Measurement::ParameterType::Hostname,
+            "Hostname",
             hostname
             );
 
     m.set_parameter(
-            Measurement::ParameterType::NumIterations,
+            "NumIterations",
             std::to_string(num_iterations)
             );
 }

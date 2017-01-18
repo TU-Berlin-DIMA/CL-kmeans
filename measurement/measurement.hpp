@@ -10,9 +10,6 @@
 #ifndef MEASUREMENT_HPP
 #define MEASUREMENT_HPP
 
-#include "type_definition.hpp"
-#include "units.hpp"
-
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -38,10 +35,6 @@ using Event = boost::compute::event;
 public:
     void set_name(std::string name) {
         name_ = name;
-    }
-
-    void set_unit(Unit::u unit) {
-        unit_ = unit;
     }
 
     inline Event &add_event() {
@@ -81,13 +74,11 @@ private:
     {}
 
     std::string get_name();
-    Unit::u get_unit();
     bool is_iterative();
     int get_iteration();
     uint64_t get_value();
 
     std::string name_;
-    Unit::u unit_;
     bool iterative_;
     int iteration_;
     bool has_event_;
@@ -102,7 +93,8 @@ public:
   Measurement();
   ~Measurement();
 
-  void set_parameter(ParameterType::t, std::string value);
+  void set_run(int run);
+  void set_parameter(std::string name, std::string value);
 
   inline DataPoint &add_datapoint() {
     data_points_.push_back(DataPoint());
@@ -117,21 +109,14 @@ public:
   void write_csv(std::string filename);
 
 private:
-  int get_num_parameter_types();
-  int get_parameter_type_id(ParameterType::t type);
-
-  std::string get_unit_name(Unit::u unit);
-  std::string get_parameter_type_name(ParameterType::t type);
-  bool exists_parameter(ParameterType::t type);
-  std::string get_parameter_value(ParameterType::t type);
-
   std::string get_unique_id();
   std::string get_datetime();
 
   std::string format_filename(std::string basefile, std::string experiment_id, std::string suffix);
 
+  int run_;
   std::deque<DataPoint> data_points_;
-  std::map<ParameterType::t, std::string> parameters_;
+  std::map<std::string, std::string> parameters_;
   std::chrono::system_clock::time_point run_date_;
 };
 }

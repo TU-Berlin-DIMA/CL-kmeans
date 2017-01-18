@@ -49,7 +49,20 @@ public:
                 )
         >;
 
-    CentroidUpdateFunction create(boost::compute::context context, CentroidUpdateConfiguration config) {
+    CentroidUpdateFunction create(
+            boost::compute::context context,
+            CentroidUpdateConfiguration config,
+            Measurement::Measurement& measurement
+            )
+    {
+        measurement.set_parameter(
+                "CentroidUpdateGlobalSize",
+                std::to_string(config.global_size[0])
+                );
+        measurement.set_parameter(
+                "CentroidUpdateLocalSize",
+                std::to_string(config.local_size[0])
+                );
 
         if (config.strategy == "feature_sum") {
             CentroidUpdateFeatureSum<
@@ -62,6 +75,15 @@ public:
             return strategy;
         }
         else if (config.strategy == "feature_sum_pardim") {
+            measurement.set_parameter(
+                    "CentroidUpdateLocalFeatures",
+                    std::to_string(config.local_features)
+                    );
+            measurement.set_parameter(
+                    "CentroidUpdateThreadFeatures",
+                    std::to_string(config.thread_features)
+                    );
+
             CentroidUpdateFeatureSumPardim<
                 PointT,
                 LabelT,

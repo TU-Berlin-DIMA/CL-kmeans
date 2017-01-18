@@ -138,11 +138,10 @@ int picture_cluster(
 
     Clustering::KmeansNaive64 kmeans;
     Clustering::KmeansInitializer64 kmeans_init;
-    Measurement::Measurement stats;
 
     kmeans_init.forgy(img_matrix, centroids);
     kmeans.initialize();
-    kmeans(100, img_matrix, centroids, cluster_mass, labels, stats);
+    kmeans(100, img_matrix, centroids, cluster_mass, labels);
     kmeans.finalize();
 
     uint8_t mycolors[2 * 3];

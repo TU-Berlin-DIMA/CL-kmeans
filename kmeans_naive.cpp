@@ -28,13 +28,13 @@ template <typename PointT, typename LabelT, typename MassT>
 int Clustering::KmeansNaive<PointT, LabelT, MassT>::finalize() { return 1; }
 
 template <typename PointT, typename LabelT, typename MassT>
-void Clustering::KmeansNaive<PointT, LabelT, MassT>::operator() (
+std::shared_ptr<Measurement::Measurement>
+Clustering::KmeansNaive<PointT, LabelT, MassT>::operator() (
         uint32_t const max_iterations,
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true> const& points,
         cle::Matrix<PointT, std::allocator<PointT>, size_t, true>& centroids,
         std::vector<MassT>& cluster_mass,
-        std::vector<LabelT>& labels,
-        Measurement::Measurement& stats) {
+        std::vector<LabelT>& labels) {
 
     assert(labels.size() == points.rows());
     assert(cluster_mass.size() == centroids.rows());
@@ -102,10 +102,7 @@ void Clustering::KmeansNaive<PointT, LabelT, MassT>::operator() (
         ++iterations;
     }
 
-    stats.set_parameter(
-            Measurement::ParameterType::NumIterations,
-            std::to_string(iterations)
-            );
+    return std::make_shared<Measurement::Measurement>();
 }
 
 template class Clustering::KmeansNaive<float, uint32_t, uint32_t>;

@@ -24,6 +24,7 @@ namespace Clustering {
 template <typename PointT, typename LabelT, typename MassT, bool ColMajor = true>
 class AbstractKmeans {
 public:
+    using MeasurementPtr = std::shared_ptr<Measurement::Measurement>;
     template <typename T>
     using Vector = boost::compute::vector<T>;
     template <typename T>
@@ -102,14 +103,13 @@ public:
 
     virtual void run() = 0;
 
-    virtual void operator() (
+    virtual MeasurementPtr operator() (
             size_t max_iterations,
             size_t num_features,
             std::shared_ptr<const std::vector<PointT>> points,
             HostVectorPtr<PointT> centroids,
             HostVectorPtr<MassT> masses,
-            HostVectorPtr<LabelT> labels,
-            std::shared_ptr<Measurement::Measurement> measurement
+            HostVectorPtr<LabelT> labels
             ) {
 
         this->max_iterations = max_iterations;
@@ -120,11 +120,10 @@ public:
         this->host_centroids = centroids;
         this->host_masses = masses;
         this->host_labels = labels;
-        if (measurement) {
-            this->measurement = measurement;
-        }
 
         this->run();
+
+        return this->measurement;
     }
 
 protected:

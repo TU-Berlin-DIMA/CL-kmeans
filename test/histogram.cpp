@@ -66,7 +66,7 @@ protected:
     size_t num_bins_ = 2;
 };
 
-template <typename Kernel, Measurement::DataPointType::t point_type>
+template <typename Kernel>
 class Histogram : public AbstractHistogram {
 public:
     void test(
@@ -236,22 +236,22 @@ TEST_P(UniformDistribution, Performance) {
     Measurement::Measurement measurement;
     measurement_setup(measurement, clenv->device, num_runs);
     measurement.set_parameter(
-            Measurement::ParameterType::NumFeatures,
+            "NumFeatures",
             std::to_string(1));
     measurement.set_parameter(
-            Measurement::ParameterType::NumPoints,
+            "NumPoints",
             std::to_string(num_data));
     measurement.set_parameter(
-            Measurement::ParameterType::NumClusters,
+            "NumClusters",
             std::to_string(num_bins));
     measurement.set_parameter(
-            Measurement::ParameterType::IntType,
+            "IntType",
             "uint32_t");
     measurement.set_parameter(
-            Measurement::ParameterType::CLLocalSize,
+            "LocalSize",
             std::to_string(local_size));
     measurement.set_parameter(
-            Measurement::ParameterType::CLGlobalSize,
+            "GlobalSize",
             std::to_string(global_size));
 
     std::vector<uint32_t> test_output(num_bins), verify_output(num_bins);
@@ -270,9 +270,9 @@ INSTANTIATE_TEST_CASE_P(StandardParameters,
         ::testing::Combine(
             ::testing::Values(2, 4, 8, 16),
             ::testing::Values(
-                new Histogram<cle::HistogramPartPrivateAPI<cl_uint>, Measurement::DataPointType::HistogramPartPrivate>,
-                new Histogram<cle::HistogramPartLocalAPI<cl_uint>, Measurement::DataPointType::LloydMassSumMerge>,
-                new Histogram<cle::HistogramPartGlobalAPI<cl_uint>, Measurement::DataPointType::HistogramPartGlobal>
+                new Histogram<cle::HistogramPartPrivateAPI<cl_uint>>,
+                new Histogram<cle::HistogramPartLocalAPI<cl_uint>>,
+                new Histogram<cle::HistogramPartGlobalAPI<cl_uint>>
                 ),
             ::testing::Values((32 * 4 * 64), (32 * 4 * 64 * 32)),
             ::testing::Values(32, 64)));

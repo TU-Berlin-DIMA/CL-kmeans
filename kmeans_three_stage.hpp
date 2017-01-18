@@ -202,21 +202,24 @@ public:
         LabelingFactory<PointT, LabelT, ColMajor> factory;
         f_labeling = factory.create(
                 this->context_labeling,
-                config);
+                config,
+                *this->measurement);
     }
 
     void set_mass_updater(MassUpdateConfiguration config) {
         MassUpdateFactory<LabelT, MassT> factory;
         f_mass_update = factory.create(
                 this->context_mass_update,
-                config);
+                config,
+                *this->measurement);
     }
 
     void set_centroid_updater(CentroidUpdateConfiguration config) {
         CentroidUpdateFactory<PointT, LabelT, MassT, ColMajor> factory;
         f_centroid_update = factory.create(
                 this->context_centroid_update,
-                config);
+                config,
+                *this->measurement);
     }
 
     void set_labeling_context(boost::compute::context c) {
@@ -233,14 +236,44 @@ public:
 
     void set_labeling_queue(boost::compute::command_queue q) {
         q_labeling = q;
+
+        auto device = q.get_device();
+        this->measurement->set_parameter(
+                "LabelingPlatform",
+                device.platform().name()
+                );
+        this->measurement->set_parameter(
+                "LabelingDevice",
+                device.name()
+                );
     }
 
     void set_mass_update_queue(boost::compute::command_queue q) {
         q_mass_update = q;
+
+        auto device = q.get_device();
+        this->measurement->set_parameter(
+                "MassUpdatePlatform",
+                device.platform().name()
+                );
+        this->measurement->set_parameter(
+                "MassUpdateDevice",
+                device.name()
+                );
     }
 
     void set_centroid_update_queue(boost::compute::command_queue q) {
         q_centroid_update = q;
+
+        auto device = q.get_device();
+        this->measurement->set_parameter(
+                "CentroidUpdatePlatform",
+                device.platform().name()
+                );
+        this->measurement->set_parameter(
+                "CentroidUpdateDevice",
+                device.name()
+                );
     }
 
 private:

@@ -9,9 +9,6 @@
 
 #include "measurement.hpp"
 
-#include "mapping_definition.hpp"
-#include "type_definition.hpp"
-
 #include <boost/filesystem/path.hpp>
 #include <chrono>
 #include <fstream>
@@ -26,8 +23,6 @@ char const *const experiment_file_suffix = "_expm";
 char const *const measurements_file_suffix = "_mnts";
 
 std::string Measurement::DataPoint::get_name() { return name_; }
-
-Measurement::Unit::u Measurement::DataPoint::get_unit() { return unit_; }
 
 bool Measurement::DataPoint::is_iterative() { return iterative_; }
 
@@ -69,15 +64,17 @@ uint64_t Measurement::DataPoint::get_value() {
 
 Measurement::Measurement::Measurement() {
     run_date_ = std::chrono::system_clock::now();
-    set_parameter(ParameterType::TimeStamp, get_datetime());
+    set_parameter("TimeStamp", get_datetime());
 }
 Measurement::Measurement::~Measurement() {}
 
+void Measurement::Measurement::set_run(int run) { run_ = run; }
+
 void Measurement::Measurement::set_parameter(
-        ParameterType::t type,
+        std::string name,
         std::string value
         ) {
-  parameters_[type] = value;
+  parameters_[name] = value;
 }
 
 void Measurement::Measurement::write_csv(std::string filename) {
@@ -100,7 +97,7 @@ void Measurement::Measurement::write_csv(std::string filename) {
     for (auto const& p : parameters_) {
         pf << experiment_id;
         pf << ',';
-        pf << get_parameter_type_name(p.first);
+        pf << p.first;
         pf << ',';
         pf << p.second;
         pf << '\n';
@@ -118,18 +115,20 @@ void Measurement::Measurement::write_csv(std::string filename) {
 
     mf << "ExperimentID";
     mf << ',';
+    mf << "Run";
+    mf << ',';
     mf << "TypeName";
     mf << ',';
     mf << "Iteration";
     mf << ',';
     mf << "Value";
-    mf << ',';
-    mf << "Unit";
 
     mf << '\n';
 
     for (DataPoint dp : data_points_) {
         mf << experiment_id;
+        mf << ',';
+        mf << 1;
         mf << ',';
         mf << dp.get_name();
         mf << ',';
@@ -138,41 +137,12 @@ void Measurement::Measurement::write_csv(std::string filename) {
         }
         mf << ',';
         mf << dp.get_value();
-        mf << ',';
-        mf << get_unit_name(dp.get_unit());
         mf << '\n';
     }
 
     mf.close();
     mf.clear();
   }
-}
-
-int Measurement::Measurement::get_num_parameter_types() {
-  return Mapping::parameter_name.size();
-}
-
-int Measurement::Measurement::get_parameter_type_id(ParameterType::t type) {
-  return type;
-}
-
-std::string Measurement::Measurement::get_unit_name(Unit::u unit) {
-    std::string unit_name = Mapping::unit_name[unit];
-    return unit_name;
-}
-
-std::string Measurement::Measurement::get_parameter_type_name(ParameterType::t type) {
-  std::string type_name = Mapping::parameter_name[type];
-  return type_name;
-}
-
-bool Measurement::Measurement::exists_parameter(ParameterType::t type) {
-  return (parameters_.count(type) == 1) ? true : false;
-}
-
-std::string Measurement::Measurement::get_parameter_value(ParameterType::t type) {
-  std::string value = parameters_[type];
-  return value;
 }
 
 std::string Measurement::Measurement::get_unique_id() {

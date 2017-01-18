@@ -33,22 +33,15 @@ public:
             uint64_t num_clusters
             );
 
-    template <typename FP, typename INT>
-    void set_types() {
-        is_uint32 = std::is_same<uint32_t, INT>::value;
-        is_float32 = std::is_same<float, FP>::value;
-    }
-
     void print_times();
     void to_csv(char const* csv_file, char const* input_file);
 
     std::vector<uint64_t> microseconds;
-    std::vector<Measurement::Measurement> measurements;
+    std::vector<std::shared_ptr<Measurement::Measurement>> measurements;
 
 private:
     uint32_t num_runs_;
     uint64_t num_features_, num_points_, num_clusters_;
-    bool is_uint32, is_float32;
 
     static char const *const parameters_suffix_;
     static char const *const iterated_measurements_suffix_;
@@ -64,25 +57,23 @@ template <typename PointT, typename LabelT, typename MassT,
 class ClusteringBenchmark {
 public:
     using ClusteringFunction = std::function<
-        void(
+        std::shared_ptr<Measurement::Measurement>(
             uint32_t,
             cle::Matrix<PointT, std::allocator<PointT>, size_t, ColMajor> const&,
             cle::Matrix<PointT, std::allocator<PointT>, size_t, ColMajor>&,
             std::vector<MassT, std::allocator<LabelT>>&,
-            std::vector<LabelT, std::allocator<MassT>>&,
-            Measurement::Measurement&
+            std::vector<LabelT, std::allocator<MassT>>&
             )>;
 
     using ClClusteringFunction = std::function<
-        void(
+        std::shared_ptr<Measurement::Measurement>(
                 size_t,
                 size_t,
                 std::shared_ptr<const std::vector<PointT>>,
                 std::shared_ptr<std::vector<PointT>>,
                 std::shared_ptr<std::vector<MassT>>,
-                std::shared_ptr<std::vector<LabelT>>,
-                std::shared_ptr<Measurement::Measurement>)
-        >;
+                std::shared_ptr<std::vector<LabelT>>
+                )>;
 
     using InitCentroidsFunction = std::function<
         void(

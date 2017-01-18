@@ -47,9 +47,32 @@ public:
 
     LabelingFunction create(
             boost::compute::context context,
-            LabelingConfiguration config) {
+            LabelingConfiguration config,
+            Measurement::Measurement& measurement) {
+
+        measurement.set_parameter(
+                "LabelingGlobalSize",
+                std::to_string(config.global_size[0])
+                );
+        measurement.set_parameter(
+                "LabelingLocalSize",
+                std::to_string(config.local_size[0])
+                );
 
         if (config.strategy == "unroll_vector") {
+            measurement.set_parameter(
+                    "LabelingVectorLength",
+                    std::to_string(config.vector_length)
+                    );
+            measurement.set_parameter(
+                    "LabelingUnrollClustersLength",
+                    std::to_string(config.unroll_clusters_length)
+                    );
+            measurement.set_parameter(
+                    "LabelingUnrollFeaturesLength",
+                    std::to_string(config.unroll_features_length)
+                    );
+
             LabelingUnrollVector<PointT, LabelT, ColMajor> strategy;
             strategy.prepare(context, config);
             return strategy;
