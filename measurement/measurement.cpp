@@ -128,7 +128,7 @@ void Measurement::Measurement::write_csv(std::string filename) {
     for (DataPoint dp : data_points_) {
         mf << experiment_id;
         mf << ',';
-        mf << 1;
+        mf << run_;
         mf << ',';
         mf << dp.get_name();
         mf << ',';
