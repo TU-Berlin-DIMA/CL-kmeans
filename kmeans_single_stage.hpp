@@ -14,6 +14,7 @@
 #include "fused_factory.hpp"
 
 #include "measurement/measurement.hpp"
+#include "timer.hpp"
 
 #include <functional>
 #include <algorithm>
@@ -75,6 +76,9 @@ public:
                     buffer_manager.get_centroids());
         }
 
+        Timer::Timer total_timer;
+        total_timer.start();
+
         for (
                 uint32_t iteration = 0;
                 iteration < this->max_iterations;
@@ -98,6 +102,12 @@ public:
 
         // Wait for all to finish
         fu_wait_list.wait();
+
+        uint64_t total_time = total_timer
+            .stop<std::chrono::nanoseconds>();
+        this->measurement->add_datapoint()
+            .set_name("TotalTime")
+            .add_value() = total_time;
 
         // Copy centroids and labels to host
         buffer_manager.get_centroids(

@@ -16,6 +16,7 @@
 #include "centroid_update_factory.hpp"
 
 #include "measurement/measurement.hpp"
+#include "timer.hpp"
 
 #include <functional>
 #include <algorithm>
@@ -91,6 +92,9 @@ public:
                     buffer_map.get_points(BufferMap::ll),
                     buffer_map.get_centroids(BufferMap::ll));
         }
+
+        Timer::Timer total_timer;
+        total_timer.start();
 
         uint32_t iterations = 0;
         bool did_changes = true;
@@ -185,6 +189,12 @@ public:
 
         // Wait for last queue to finish processing
         this->q_centroid_update.finish();
+
+        uint64_t total_time = total_timer
+            .stop<std::chrono::nanoseconds>();
+        this->measurement->add_datapoint()
+            .set_name("TotalTime")
+            .add_value() = total_time;
 
         // copy centroids and labels to host
         buffer_map.get_centroids(
