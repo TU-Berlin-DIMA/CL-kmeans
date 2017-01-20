@@ -33,8 +33,10 @@ friend class Measurement;
 using Event = boost::compute::event;
 
 public:
-    void set_name(std::string name) {
+    DataPoint &set_name(std::string name) {
         name_ = name;
+
+        return *this;
     }
 
     inline Event &add_event() {
