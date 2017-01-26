@@ -102,7 +102,7 @@ public:
         assert(points.size() == num_points * num_features);
         assert(labels.size() == num_points);
 
-        datapoint.set_name("FusedClusterMerge");
+        datapoint.set_name("FusedFeatureSum");
 
         size_t min_centroids_size =
             this->config.global_size[0]
