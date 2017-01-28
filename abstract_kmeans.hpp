@@ -123,7 +123,10 @@ public:
 
         this->run();
 
-        return this->measurement;
+        auto current_measurement = this->measurement;
+        this->measurement.reset(new Measurement::Measurement);
+
+        return current_measurement;
     }
 
 protected:
