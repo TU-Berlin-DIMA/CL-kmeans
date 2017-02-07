@@ -111,9 +111,9 @@ public:
 
         if (
                 data_size != result_rows
-                && data_size == 2 * MAX_WORKGROUP_SIZE
                 )
         {
+            // assert(is_power_of_2(data_size));
             this->kernel_inner.set_args(
                     data,
                     (cl_uint) num_cols,
@@ -122,8 +122,8 @@ public:
             event = queue.enqueue_1d_range_kernel(
                     this->kernel_inner,
                     work_offset,
-                    (cl_int) MAX_WORKGROUP_SIZE,
-                    (cl_int) MAX_WORKGROUP_SIZE,
+                    (cl_int) data_size / 2,
+                    (cl_int) data_size / 2,
                     wait_list);
             datapoint.add_event() = event;
         }
@@ -132,7 +132,7 @@ public:
     }
 
 private:
-    static constexpr size_t MAX_WORKGROUP_SIZE = 512;
+    static constexpr size_t MAX_WORKGROUP_SIZE = 256;
 
     static constexpr const char *PROGRAM_FILE =
         CL_KERNEL_FILE_PATH("reduce_vector_parcol.cl");
