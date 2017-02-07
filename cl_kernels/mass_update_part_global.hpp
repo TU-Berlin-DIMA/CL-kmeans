@@ -74,17 +74,14 @@ public:
             boost::compute::wait_list const& events
             )
     {
-        size_t const buffer_size =
-            num_clusters *
-            (this->config.global_size[0]
-             / this->config.local_size[0]);
-
         assert(labels.size() == num_points);
 
         datapoint.set_name("MassUpdatePartGlobal");
 
         size_t num_work_groups =
             this->config.global_size[0] / this->config.local_size[0];
+
+        size_t const buffer_size = num_clusters * num_work_groups;
 
         if (masses.size() < buffer_size) {
             masses.resize(buffer_size);
@@ -93,18 +90,17 @@ public:
         this->kernel.set_args(
                 labels,
                 masses,
-                (LabelT) num_points,
-                (LabelT) num_clusters);
+                (uint32_t) num_points,
+                (uint32_t) num_clusters);
 
         size_t work_offset[3] = {0, 0, 0};
 
         Event event;
-        event = queue.enqueue_nd_range_kernel(
+        event = queue.enqueue_1d_range_kernel(
                 this->kernel,
-                1,
-                work_offset,
-                this->config.global_size,
-                this->config.local_size,
+                work_offset[0],
+                this->config.global_size[0],
+                this->config.local_size[0],
                 events);
         datapoint.add_event() = event;
 
@@ -117,7 +113,8 @@ public:
                 num_clusters,
                 masses,
                 datapoint.create_child(),
-                wait_list);
+                wait_list
+                );
 
         return event;
     }
@@ -128,7 +125,7 @@ private:
 
     Kernel kernel;
     MassUpdateConfiguration config;
-    Clustering::ReduceVectorParcol<MassT> reduce;
+    ReduceVectorParcol<MassT> reduce;
 };
 }
 
