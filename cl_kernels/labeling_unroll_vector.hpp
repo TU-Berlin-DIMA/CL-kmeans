@@ -18,6 +18,7 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -35,6 +36,10 @@ public:
     template <typename T>
     using LocalBuffer = boost::compute::local_buffer<T>;
 
+    LabelingUnrollVector() :
+        kernel(num_unroll_variants)
+    {}
+
     void prepare(Context context, LabelingConfiguration config) {
         this->config = config;
 
@@ -49,18 +54,89 @@ public:
             assert(false);
         }
 
-        defines += " -DVEC_LEN=" + std::to_string(this->config.vector_length);
-        defines += " -DCLUSTERS_UNROLL=" + std::to_string(this->config.unroll_clusters_length);
-        defines += " -DFEATURES_UNROLL=" + std::to_string(this->config.unroll_features_length);
+        defines += " -DVEC_LEN="
+            + std::to_string(this->config.vector_length);
 
-        Program program = Program::create_with_source_file(
-                PROGRAM_FILE,
-                context);
+        if (
+                this->config.unroll_clusters_length == 0
+                && this->config.unroll_features_length == 0
+           ) {
+            for (int i = 0; i < num_unroll_variants; ++i) {
+                int unroll_features;
+                int unroll_clusters;
 
-        program.build(defines);
+                switch (i) {
+                    case 0:
+                        unroll_clusters = 2;
+                        unroll_features = 2;
+                        break;
+                    case 1:
+                        unroll_clusters = 2;
+                        unroll_features = 4;
+                        break;
+                    case 2:
+                        unroll_clusters = 2;
+                        unroll_features = 8;
+                        break;
+                    case 3:
+                        unroll_clusters = 2;
+                        unroll_features = 16;
+                        break;
+                    case 4:
+                        unroll_clusters = 4;
+                        unroll_features = 2;
+                        break;
+                    case 5:
+                        unroll_clusters = 4;
+                        unroll_features = 4;
+                        break;
+                    case 6:
+                        unroll_clusters = 4;
+                        unroll_features = 8;
+                        break;
+                    case 7:
+                        unroll_clusters = 8;
+                        unroll_features = 2;
+                        break;
+                    case 8:
+                        unroll_clusters = 8;
+                        unroll_features = 4;
+                        break;
+                    case 9:
+                        unroll_clusters = 16;
+                        unroll_features = 2;
+                        break;
+                }
 
-        this->kernel = program.create_kernel(KERNEL_NAME);
+                std::string unroll =
+                    " -DCLUSTERS_UNROLL="
+                    + std::to_string(unroll_clusters)
+                    + " -DFEATURES_UNROLL="
+                    + std::to_string(unroll_features);
 
+
+                Program program = Program::create_with_source_file(
+                        PROGRAM_FILE,
+                        context);
+
+                program.build(defines + unroll);
+                this->kernel[i] = program.create_kernel(KERNEL_NAME);
+            }
+        }
+        else {
+            std::string unroll =
+                " -DCLUSTERS_UNROLL="
+                + std::to_string(this->config.unroll_clusters_length)
+                + " -DFEATURES_UNROLL="
+                + std::to_string(this->config.unroll_features_length);
+
+            Program program = Program::create_with_source_file(
+                    PROGRAM_FILE,
+                    context);
+
+            program.build(defines + unroll);
+            this->kernel[0] = program.create_kernel(KERNEL_NAME);
+        }
     }
 
     Event operator() (
@@ -79,7 +155,81 @@ public:
 
         LocalBuffer<PointT> local_centroids(num_clusters * num_features);
 
-        this->kernel.set_args(
+        int num = 0;
+        if (
+                this->config.unroll_clusters_length == 0
+                && this->config.unroll_features_length == 0
+           ) {
+            int cluster_unroll = num_clusters;
+            int feature_unroll = num_features;
+
+            if (cluster_unroll > unroll_max) {
+                cluster_unroll = unroll_max;
+                feature_unroll = 2;
+            }
+
+            switch (cluster_unroll) {
+                case 2:
+                    switch (feature_unroll) {
+                        case 2:
+                            num = 0;
+                            break;
+                        case 4:
+                            num = 1;
+                            break;
+                        case 8:
+                            num = 2;
+                            break;
+                        case 16:
+                        default:
+                            num = 3;
+                            break;
+                    }
+                    break;
+                case 4:
+                    switch (feature_unroll) {
+                        case 2:
+                            num = 4;
+                            break;
+                        case 4:
+                            num = 5;
+                            break;
+                        case 8:
+                        default:
+                            num = 6;
+                            break;
+                    }
+                    break;
+                case 8:
+                    switch (feature_unroll) {
+                        case 2:
+                            num = 7;
+                            break;
+                        case 4:
+                        default:
+                            num = 8;
+                            break;
+                    }
+                    break;
+                case 16:
+                    switch (feature_unroll) {
+                        case 2:
+                        default:
+                            num = 9;
+                            break;
+                    }
+                    break;
+                default:
+                    num = -1;
+            }
+
+            assert(num != -1 /* unsupported num clusters or featurs */);
+        }
+        else {
+            num = 0;
+        }
+
+        this->kernel[num].set_args(
                 did_changes,
                 points,
                 centroids,
@@ -93,7 +243,7 @@ public:
 
         Event event;
         event = queue.enqueue_nd_range_kernel(
-                this->kernel,
+                this->kernel[num],
                 1,
                 work_offset,
                 this->config.global_size,
@@ -107,8 +257,10 @@ public:
 private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling_vp_clc.cl");
     static constexpr const char* KERNEL_NAME = "lloyd_labeling_vp_clc";
+    static constexpr const int num_unroll_variants = 10;
+    static constexpr const int unroll_max = 16;
 
-    Kernel kernel;
+    std::vector<Kernel> kernel;
     LabelingConfiguration config;
 
 };
