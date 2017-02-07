@@ -125,7 +125,7 @@ void Measurement::Measurement::write_csv(std::string filename) {
 
     mf << '\n';
 
-    for (DataPoint dp : data_points_) {
+    for (DataPoint dp : get_flattened_datapoints()) {
         mf << experiment_id;
         mf << ',';
         mf << run_;
@@ -187,3 +187,30 @@ std::string Measurement::Measurement::format_filename(
   return filename.string();
 }
 
+std::deque<Measurement::DataPoint>
+Measurement::Measurement::get_flattened_datapoints() {
+    std::deque<DataPoint> subpoints;
+
+    for (auto& dp : data_points_) {
+        if (not dp.children_.empty()) {
+
+            DataPoint cp;
+            if (dp.is_iterative()) {
+                cp = DataPoint(dp.get_iteration());
+            }
+            cp.set_name(dp.get_name() + "#Sub");
+
+            uint64_t child_values = 0;
+            for (auto& child : dp.children_) {
+                child_values += child.get_value();
+            }
+
+            cp.add_value() = child_values;
+            subpoints.push_back(cp);
+        }
+
+        subpoints.push_back(dp);
+    }
+
+    return subpoints;
+}

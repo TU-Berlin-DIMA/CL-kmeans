@@ -115,6 +115,7 @@ private:
   std::string get_datetime();
 
   std::string format_filename(std::string basefile, std::string experiment_id, std::string suffix);
+  std::deque<DataPoint> get_flattened_datapoints();
 
   int run_;
   std::deque<DataPoint> data_points_;
