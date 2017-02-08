@@ -10,11 +10,12 @@
 
 #include "clustering_benchmark.hpp"
 #include "configuration_parser.hpp"
-#include "kmeans.hpp"
 #include "matrix.hpp"
 
 #include "kmeans_three_stage.hpp"
 #include "kmeans_single_stage.hpp"
+#include "kmeans_naive.hpp"
+#include "kmeans_initializer.hpp"
 
 #include "SystemConfig.h"
 

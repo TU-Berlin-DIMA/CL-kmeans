@@ -7,7 +7,8 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#include "kmeans.hpp"
+#include "kmeans_naive.hpp"
+#include "kmeans_initializer.hpp"
 #include "matrix.hpp"
 #include "measurement/measurement.hpp"
 

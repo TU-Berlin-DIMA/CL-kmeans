@@ -11,7 +11,6 @@
 #define CLUSTERING_BENCHMARK_HPP
 
 #include "timer.hpp"
-#include "kmeans.hpp"
 #include "matrix.hpp"
 #include "measurement/measurement.hpp"
 
