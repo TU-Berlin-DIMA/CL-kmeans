@@ -17,7 +17,7 @@ stem = "cluster_data_2f_10c_"
 postfix = "mb.bin"
 features = 2
 clusters = 10
-divisor = 8
+divisor = 32
 size = [16, 32, 64, 128, 256, 512, 1024, 2048]
 
 if not os.path.exists(outdir):

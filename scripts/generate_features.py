@@ -14,11 +14,11 @@ generator = "build/generator"
 
 outdir = "data"
 stem = "cluster_data_"
-postfix = "f_10c_512mb.bin"
+postfix = "f_10c_2048mb.bin"
 features = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 clusters = 10
-divisor = 8
-size = 512
+divisor = 32
+size = 2048
 
 if not os.path.exists(outdir):
     os.mkdir(outdir)
