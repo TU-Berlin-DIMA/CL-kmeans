@@ -7,8 +7,7 @@
  * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#include <cl_kernels/reduce_vector_parcol_api.hpp>
-#include <matrix.hpp>
+#include <cl_kernels/reduce_vector_parcol.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -19,6 +18,9 @@
 
 #include "data_generator.hpp"
 #include "opencl_setup.hpp"
+
+#include <boost/compute/core.hpp>
+#include <boost/compute/container/vector.hpp>
 
 void reduce_vector_verify(
         cle::Matrix<uint32_t, std::allocator<uint32_t>, uint32_t> const& data,
@@ -36,47 +38,37 @@ void reduce_vector_verify(
 }
 
 void reduce_vector_run(
-        cl::Context context,
-        cl::CommandQueue queue,
+        boost::compute::context context,
+        boost::compute::command_queue queue,
         cle::Matrix<uint32_t, std::allocator<uint32_t>, uint32_t> const& data,
-        std::vector<uint32_t>& reduced
+        std::vector<uint32_t>& reduced,
+        Measurement::Measurement& measurement
         ) {
 
     reduced.resize(data.rows());
-    cle::TypedBuffer<cl_uint> d_buffer(context, CL_MEM_READ_WRITE, data.size());
+    boost::compute::vector<uint32_t> d_buffer(data.get_data(), queue);
 
-    cle::ReduceVectorParcolAPI<cl_uint, cl_uint> reducevector;
-    reducevector.initialize(context);
-    cl::Event event;
+    Clustering::ReduceVectorParcol<uint32_t> reducevector;
+    reducevector.prepare(context);
+    boost::compute::wait_list wait_list;
 
-    queue.enqueueWriteBuffer(
-        d_buffer,
-        CL_FALSE,
-        0,
-        d_buffer.bytes(),
-        data.data(),
-        NULL,
-        NULL);
+    auto& dp = measurement.add_datapoint();
+    dp.set_name("ReduceVectorParcol");
 
     reducevector(
-        cl::EnqueueArgs(
             queue,
-            cl::NDRange(0),
-            cl::NDRange(0)
-            ),
-        data.cols(),
-        data.rows(),
-        d_buffer,
-        event);
+            data.cols(),
+            data.rows(),
+            d_buffer,
+            dp,
+            wait_list);
 
-    queue.enqueueReadBuffer(
-        d_buffer,
-        CL_TRUE,
-        0,
-        reduced.size() * sizeof(uint32_t),
-        reduced.data(),
-        NULL,
-        NULL);
+    boost::compute::copy(
+            d_buffer.begin(),
+            d_buffer.begin() + reduced.size(),
+            reduced.begin(),
+            queue
+            );
 }
 
 TEST(ReduceVectorParcol, Ascending) {
@@ -84,8 +76,15 @@ TEST(ReduceVectorParcol, Ascending) {
     auto const& data = dgen.ascending();
     std::vector<uint32_t> test_output;
     std::vector<uint32_t> verify_output;
+    Measurement::Measurement measurement;
 
-    reduce_vector_run(clenv->context, clenv->queue, data, test_output);
+    reduce_vector_run(
+            clenv->context,
+            clenv->queue,
+            data,
+            test_output,
+            measurement
+            );
     reduce_vector_verify(data, verify_output);
 
     EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
@@ -96,8 +95,15 @@ TEST(ReduceVectorParcol, Large) {
     auto const& data = dgen.large();
     std::vector<uint32_t> test_output;
     std::vector<uint32_t> verify_output;
+    Measurement::Measurement measurement;
 
-    reduce_vector_run(clenv->context, clenv->queue, data, test_output);
+    reduce_vector_run(
+            clenv->context,
+            clenv->queue,
+            data,
+            test_output,
+            measurement
+            );
     reduce_vector_verify(data, verify_output);
 
     EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
@@ -108,11 +114,87 @@ TEST(ReduceVectorParcol, Random) {
     auto const& data = dgen.random();
     std::vector<uint32_t> test_output;
     std::vector<uint32_t> verify_output;
+    Measurement::Measurement measurement;
 
-    reduce_vector_run(clenv->context, clenv->queue, data, test_output);
+    reduce_vector_run(
+            clenv->context,
+            clenv->queue,
+            data,
+            test_output,
+            measurement
+            );
     reduce_vector_verify(data, verify_output);
 
     EXPECT_TRUE(std::equal(test_output.begin(), test_output.end(), verify_output.begin()));
+}
+
+TEST(ReduceVectorParcol, BigRandom) {
+
+    auto const& data = dgen.def_size(4, 2048 * 32);
+    std::vector<uint32_t> test_output;
+    std::vector<uint32_t> verify_output;
+    Measurement::Measurement measurement;
+
+    reduce_vector_run(
+            clenv->context,
+            clenv->queue,
+            data,
+            test_output,
+            measurement
+            );
+    reduce_vector_verify(data, verify_output);
+
+    EXPECT_TRUE(std::equal(
+                test_output.begin(),
+                test_output.end(),
+                verify_output.begin()
+                ));
+}
+
+TEST(ReduceVectorParcol, TeslaSize) {
+
+    auto const& data = dgen.def_size(256, 90 * 32 * 16);
+    std::vector<uint32_t> test_output;
+    std::vector<uint32_t> verify_output;
+    Measurement::Measurement measurement;
+
+    reduce_vector_run(
+            clenv->context,
+            clenv->queue,
+            data,
+            test_output,
+            measurement
+            );
+    reduce_vector_verify(data, verify_output);
+
+    EXPECT_TRUE(std::equal(
+                test_output.begin(),
+                test_output.end(),
+                verify_output.begin()
+                ));
+}
+
+TEST(ReduceVectorParcol, FurySize) {
+
+    auto const& data = dgen.def_size(4, 56 * 64 * 16);
+    std::vector<uint32_t> test_output;
+    std::vector<uint32_t> verify_output;
+    Measurement::Measurement measurement;
+
+    reduce_vector_run(
+            clenv->context,
+            clenv->queue,
+            data,
+            test_output,
+            measurement
+            );
+    reduce_vector_verify(data, verify_output);
+
+    EXPECT_TRUE(std::equal(
+                test_output.begin(),
+                test_output.end(),
+                verify_output.begin()
+                ));
 }
 
 int main(int argc, char **argv) {

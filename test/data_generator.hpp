@@ -55,10 +55,24 @@ public:
         return random_;
     }
 
+    Matrix const& def_size(uint64_t rows, uint64_t cols) {
+        def_size_.resize(rows, cols);
+        std::default_random_engine rgen;
+        std::uniform_int_distribution<uint32_t> uniform;
+        std::generate(
+                def_size_.begin(),
+                def_size_.end(),
+                [&](){return uniform(rgen);}
+                );
+
+        return def_size_;
+    }
+
 private:
     Matrix ascending_;
     Matrix large_;
     Matrix random_;
+    Matrix def_size_;
 
     uint64_t num_rows_ = 4;
     uint64_t num_cols_ = 256;

@@ -23,6 +23,6 @@ FUNCTION(add_test_module TEST_NAME TEST_SOURCE)
 ENDFUNCTION()
 
 ENABLE_TESTING()
-ADD_TEST_MODULE("histogram" histogram.cpp)
+# ADD_TEST_MODULE("histogram" histogram.cpp)
 ADD_TEST_MODULE("reduce_vector" reduce_vector.cpp)
-ADD_TEST_MODULE("feature_sum" feature_sum.cpp)
+# ADD_TEST_MODULE("feature_sum" feature_sum.cpp)

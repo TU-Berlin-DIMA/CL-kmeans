@@ -10,14 +10,14 @@
 #ifndef OPENCL_SETUP_HPP
 #define OPENCL_SETUP_HPP
 
-#include <clext.hpp>
-
 #include <measurement/measurement.hpp>
 #include <gtest/gtest.h>
 
 #include <unistd.h>
 #include <cstdint>
 #include <string>
+
+#include <boost/compute/core.hpp>
 
 #include <Version.h>
 
@@ -28,37 +28,29 @@ public:
     virtual ~CLEnvironment() {}
 
     virtual void SetUp() {
-        clinit.init(0, 0);
-        context = clinit.get_context();
-        queue = clinit.get_commandqueue();
-        queue.getInfo(CL_QUEUE_DEVICE, &device);
+        context = boost::compute::system::default_context();
+        queue = boost::compute::system::default_queue();
+        device = boost::compute::system::default_device();
     }
 
-    cl::Context context;
-    cl::CommandQueue queue;
-    cl::Device device;
-
-private:
-    cle::CLInitializer clinit;
-
+    boost::compute::context context;
+    boost::compute::command_queue queue;
+    boost::compute::device device;
 };
 
 CLEnvironment *clenv;
 
 void measurement_setup(
         Measurement::Measurement& m,
-        cl::Device device,
+        boost::compute::device device,
         int num_iterations) {
 
     char hostname[max_hostname_length];
     gethostname(hostname, max_hostname_length);
 
-    std::string device_name;
-    device.getInfo(CL_DEVICE_NAME, &device_name);
-
     m.set_parameter(
             "Device",
-            device_name.c_str() // remove trailing '\0'
+            device.name() // remove trailing '\0'
             );
 
     m.set_parameter(
