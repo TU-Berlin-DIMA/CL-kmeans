@@ -31,7 +31,8 @@ CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     __kernel
 void lloyd_fused_feature_sum(
         __global CL_POINT const *const restrict g_points,
-        __global CL_POINT *const restrict g_centroids,
+        __global CL_POINT const *const restrict g_old_centroids,
+        __global CL_POINT *const restrict g_new_centroids,
         __global CL_MASS *const restrict g_masses,
         __global CL_LABEL *const restrict g_labels,
         __local CL_POINT *const restrict l_points,
@@ -88,7 +89,7 @@ void lloyd_fused_feature_sum(
                 c += get_local_size(0))
         {
             l_old_centroids[ccoord2ind(NUM_CLUSTERS, c, f)]
-                = g_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
+                = g_old_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
 
         }
     }
@@ -193,7 +194,7 @@ void lloyd_fused_feature_sum(
             CL_POINT centroid = l_new_centroids[
                 block_offset + ccoord2ind(NUM_CLUSTERS, c, f)
             ];
-            g_centroids[
+            g_new_centroids[
                 tile_offset + ccoord2ind(NUM_CLUSTERS, c, f)
             ] = centroid;
         }
