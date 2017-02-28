@@ -99,24 +99,28 @@ public:
             )
     {
         assert(points.size() == num_points * num_features);
+        assert(centroids.size() == num_clusters * num_features);
         assert(labels.size() == num_points);
+        assert(masses.size() == num_clusters);
 
         datapoint.set_name("FusedClusterMerge");
 
-        size_t min_centroids_size =
+        size_t const min_centroids_size =
             this->config.global_size[0]
             * num_clusters
             * num_features;
-        if (centroids.size() < min_centroids_size) {
-            centroids.resize(min_centroids_size);
-        }
+        Vector<PointT> new_centroids(
+                min_centroids_size,
+                queue.get_context()
+                );
 
-        size_t min_masses_size =
+        size_t const min_masses_size =
             this->config.global_size[0]
             * num_clusters;
-        if (masses.size() < min_masses_size) {
-            masses.resize(min_masses_size);
-        }
+        Vector<MassT> new_masses(
+                min_masses_size,
+                queue.get_context()
+                );
 
         LocalBuffer<PointT> local_points(
                 this->config.local_size[0] * num_features
@@ -137,7 +141,8 @@ public:
         this->kernel.set_args(
                 points,
                 centroids,
-                masses,
+                new_centroids,
+                new_masses,
                 labels,
                 local_points,
                 local_old_centroids,
@@ -167,9 +172,17 @@ public:
                 queue,
                 this->config.global_size[0],
                 num_clusters * num_features,
-                centroids,
+                new_centroids,
                 datapoint.create_child(),
                 wait_list
+                );
+
+        boost::compute::copy_async(
+                new_centroids.begin(),
+                new_centroids.begin()
+                + num_features * num_clusters,
+                centroids.begin(),
+                queue
                 );
 
         wait_list.insert(event);
@@ -178,9 +191,16 @@ public:
                 queue,
                 this->config.global_size[0],
                 num_clusters,
-                masses,
+                new_masses,
                 datapoint.create_child(),
                 wait_list
+                );
+
+        boost::compute::copy_async(
+                new_masses.begin(),
+                new_masses.begin() + num_clusters,
+                masses.begin(),
+                queue
                 );
 
         wait_list.insert(event);
