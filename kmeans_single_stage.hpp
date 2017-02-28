@@ -76,6 +76,10 @@ public:
                     buffer_manager.get_centroids());
         }
 
+        // Wait for all preprocessing steps to finish before
+        // starting timer
+        this->queue.finish();
+
         Timer::Timer total_timer;
         total_timer.start();
 
@@ -101,7 +105,7 @@ public:
         }
 
         // Wait for all to finish
-        fu_wait_list.wait();
+        this->queue.finish();
 
         uint64_t total_time = total_timer
             .stop<std::chrono::nanoseconds>();

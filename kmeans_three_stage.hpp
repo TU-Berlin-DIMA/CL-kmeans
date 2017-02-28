@@ -93,6 +93,12 @@ public:
                     buffer_map.get_centroids(BufferMap::ll));
         }
 
+        // Wait for all preprocessing steps to finish before
+        // starting timer
+        this->q_labeling.finish();
+        this->q_mass_update.finish();
+        this->q_centroid_update.finish();
+
         Timer::Timer total_timer;
         total_timer.start();
 
