@@ -4,75 +4,43 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  * 
  * 
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifdef TYPE32
-#define CL_INT uint
-#define ATOMIC_ADD atomic_add
-#else
-#ifdef TYPE64
-#define CL_INT ulong
-#define ATOMIC_ADD atom_add
-#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
-#endif
-#endif
-
-#define CASE_STMT(X) case (X): ++p_bins[X]; break;
-
-#define CASE_REPL_2(BASE) CASE_STMT(BASE) CASE_STMT(BASE+1)
-#define CASE_REPL_4(BASE) CASE_REPL_2(BASE) CASE_REPL_2(BASE+2)
-#define CASE_REPL_8(BASE) CASE_REPL_4(BASE) CASE_REPL_4(BASE+4)
-#define CASE_REPL_16(BASE) CASE_REPL_8(BASE) CASE_REPL_8(BASE+8)
-
-#define CASE_REPL_E(NUM) CASE_REPL_##NUM(0)
-#define CASE_REPL(NUM) CASE_REPL_E(NUM)
-
-#define WRITE_STMT(X) ATOMIC_ADD(&g_out[group_offset + X], p_bins[X]);
-
-#define WRITE_REPL_2(BASE) WRITE_STMT(BASE) WRITE_STMT(BASE+1)
-#define WRITE_REPL_4(BASE) WRITE_REPL_2(BASE) WRITE_REPL_2(BASE+2)
-#define WRITE_REPL_8(BASE) WRITE_REPL_4(BASE) WRITE_REPL_4(BASE+4)
-#define WRITE_REPL_16(BASE) WRITE_REPL_8(BASE) WRITE_REPL_8(BASE+8)
-
-#define WRITE_REPL_E(NUM) WRITE_REPL_##NUM(0)
-#define WRITE_REPL(NUM) WRITE_REPL_E(NUM)
-
-/*
- * Calculate histogram in paritions per work group
- * 
- * g_in: global_size
- * g_out: num_work_groups * NUM_BINS
- *
- * NUM_BINS defined as power of 2 at compile time
- */
 __kernel
 void histogram_part_private(
-            __global CL_INT const *const restrict g_in,
-            __global CL_INT *const restrict g_out,
-            const CL_INT NUM_ITEMS
-       ) {
+            __global CL_TYPE_IN const *const restrict g_in,
+            __global CL_TYPE_OUT *const restrict g_out,
+            __local CL_TYPE_OUT *const restrict local_buf,
+            const CL_INT NUM_ITEMS,
+            const CL_INT NUM_BINS
+       )
+{
+    CL_INT const local_offset = get_local_id(0) * NUM_BINS;
+    CL_INT const group_bins = get_local_size(0) * NUM_BINS;
+    CL_INT const group_offset = get_group_id(0) * group_bins;
 
-    CL_INT p_bins[NUM_BINS] = {};
+    for (CL_INT c = 0; c < NUM_BINS; ++c) {
+        local_buf[local_offset + c] = 0;
+    }
 
     for (
-            CL_INT r = get_global_id(0);
-            r < NUM_BINS * get_num_groups(0);
-            r += get_global_size(0)
-            ) {
-        g_out[r] = 0;
+            CL_INT p = get_global_id(0);
+            p < NUM_ITEMS;
+            p += get_global_size(0)
+        )
+    {
+        CL_TYPE_IN cluster = g_in[p];
+        local_buf[local_offset + cluster] += 1;
     }
 
-    for (CL_INT p = get_global_id(0); p < NUM_ITEMS; p += get_global_size(0)) {
-        CL_INT cluster = g_in[p];
+    barrier(CLK_LOCAL_MEM_FENCE);
 
-        switch (cluster) {
-            CASE_REPL(NUM_BINS);
-        }
-    }
-
-    barrier(CLK_GLOBAL_MEM_FENCE);
-
-    CL_INT group_offset = get_group_id(0) * NUM_BINS;
-    WRITE_REPL(NUM_BINS);
+    event_t event;
+    async_work_group_copy(
+            &g_out[group_offset],
+            local_buf,
+            group_bins,
+            event
+            );
 }

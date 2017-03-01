@@ -17,6 +17,7 @@
 #include "cl_kernels/mass_update_global_atomic.hpp"
 #include "cl_kernels/mass_update_part_global.hpp"
 #include "cl_kernels/mass_update_part_local.hpp"
+#include "cl_kernels/mass_update_part_private.hpp"
 
 #include <functional>
 #include <string>
@@ -70,6 +71,11 @@ public:
         }
         else if (config.strategy == "part_local") {
             MassUpdatePartLocal<LabelT, MassT> strategy;
+            strategy.prepare(context, config);
+            return strategy;
+        }
+        else if (config.strategy == "part_private") {
+            MassUpdatePartPrivate<LabelT, MassT> strategy;
             strategy.prepare(context, config);
             return strategy;
         }
