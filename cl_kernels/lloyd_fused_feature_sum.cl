@@ -82,17 +82,14 @@ void lloyd_fused_feature_sum(
     }
 
     // Cache old centroids
-    for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-        for (
-                CL_INT c = get_local_id(0);
-                c < NUM_CLUSTERS;
-                c += get_local_size(0))
-        {
-            l_old_centroids[ccoord2ind(NUM_CLUSTERS, c, f)]
-                = g_old_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
-
-        }
-    }
+    event_t centroids_cache_event;
+    async_work_group_copy(
+            l_old_centroids,
+            g_old_centroids,
+            NUM_CLUSTERS * NUM_FEATURES,
+            centroids_cache_event
+            );
+    wait_group_events(1, &centroids_cache_event);
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
