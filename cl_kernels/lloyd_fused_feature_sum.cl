@@ -178,25 +178,27 @@ void lloyd_fused_feature_sum(
 
     }
 
-    // No barrier necessary, as only writing back private data
+    barrier(CLK_LOCAL_MEM_FENCE);
 
-    for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-        // Write back masses
-        CL_MASS mass = l_masses[l_masses_offset + c];
-        g_masses[g_masses_offset + c] = mass;
+    event_t mass_event;
+    async_work_group_copy(
+            &g_masses[
+            NUM_CLUSTERS * get_group_id(0) * get_local_size(0)
+            ],
+            l_masses,
+            NUM_CLUSTERS * get_local_size(0),
+            mass_event
+            );
 
-        // Write back centroids
-        for (
-                CL_INT f = l_feature * NUM_THREAD_FEATURES;
-                f < (l_feature + 1) * NUM_THREAD_FEATURES;
-                f += 1)
-        {
-            CL_POINT centroid = l_new_centroids[
-                block_offset + ccoord2ind(NUM_CLUSTERS, c, f)
-            ];
-            g_new_centroids[
-                tile_offset + ccoord2ind(NUM_CLUSTERS, c, f)
-            ] = centroid;
-        }
-    }
+    event_t centroid_event;
+    async_work_group_copy(
+            &g_new_centroids[
+            NUM_CLUSTERS * NUM_FEATURES * get_group_id(0) * num_blocks
+            ],
+            l_new_centroids,
+            NUM_CLUSTERS * NUM_FEATURES * num_blocks,
+            centroid_event
+            );
+    wait_group_events(1, &mass_event);
+    wait_group_events(1, &centroid_event);
 }
