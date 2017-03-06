@@ -93,65 +93,87 @@ void lloyd_fused_feature_sum(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
+    // Main loop over points
+    //
+    // All threads must participate!
+    // This is because we must handle thread work item assignment
+    // separately for each phase
     for (
-            CL_INT p = get_global_id(0);
-            p < NUM_POINTS;
-            p += get_global_size(0))
+            CL_INT group_offset = get_group_id(0) * get_local_size(0);
+            group_offset < NUM_POINTS;
+            group_offset += get_global_size(0))
     {
-        // Cache current point
-        for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-            // Read point
-            CL_POINT point
-                = g_points[ccoord2ind(NUM_POINTS, p, f)];
+        CL_INT p = group_offset + get_local_id(0);
 
-            // Cache point
-            l_points[
-                ccoord2ind(get_local_size(0), get_local_id(0), f)
-            ] = point;
-        }
+        if (p < NUM_POINTS) {
 
-        // Labeling phase
-        CL_LABEL label;
-        CL_POINT min_dist = CL_POINT_MAX;
-
-        for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-
-            CL_POINT dist = 0;
-
+            // Cache current point
             for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
                 // Read point
                 CL_POINT point
-                    = l_points[
-                    ccoord2ind(get_local_size(0), get_local_id(0), f)
-                    ];
+                    = g_points[ccoord2ind(NUM_POINTS, p, f)];
 
-                // Calculate distance
-                CL_POINT difference
-                    = point - l_old_centroids[
-                    ccoord2ind(NUM_CLUSTERS, c, f)
-                    ];
-                dist += difference * difference;
+                // Cache point
+                l_points[
+                    ccoord2ind(get_local_size(0), get_local_id(0), f)
+                ] = point;
             }
 
-            bool is_dist_smaller = dist < min_dist;
-            min_dist = is_dist_smaller ? dist : min_dist;
-            label = is_dist_smaller ? c : label;
+            // Labeling phase
+            CL_LABEL label;
+            CL_POINT min_dist = CL_POINT_MAX;
+
+            for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+
+                CL_POINT dist = 0;
+
+                for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
+                    // Read point
+                    CL_POINT point
+                        = l_points[
+                        ccoord2ind(get_local_size(0), get_local_id(0), f)
+                        ];
+
+                    // Calculate distance
+                    CL_POINT difference
+                        = point - l_old_centroids[
+                        ccoord2ind(NUM_CLUSTERS, c, f)
+                        ];
+                    dist += difference * difference;
+                }
+
+                bool is_dist_smaller = dist < min_dist;
+                min_dist = is_dist_smaller ? dist : min_dist;
+                label = is_dist_smaller ? c : label;
+            }
+
+            // Write back label
+            l_labels[get_local_id(0)] = label;
+            g_labels[p] = label;
+
+
+            // Masses update phase
+            l_masses[l_masses_offset + label] += 1;
+
         }
 
-        // Write back label
-        l_labels[get_local_id(0)] = label;
-        g_labels[p] = label;
-
-
-        // Masses update phase
-        l_masses[l_masses_offset + label] += 1;
-
         barrier(CLK_LOCAL_MEM_FENCE);
+
+        // Calculate the number of points to process in CU phase
+        //
+        // Usually this is num_local_points
+        // In case when local size is not a divisor of NUM_POINTS,
+        // this doesn't hold and we need to get real number.
+        CL_INT num_real_local_points =
+            (group_offset + get_local_size(0) > NUM_POINTS)
+            ? NUM_POINTS - group_offset
+            : num_local_points ;
 
         // Centroids update phase
         for (
                 CL_INT bp = block * num_block_points;
-                bp < (block + 1) * num_block_points;
+                bp < (block + 1) * num_block_points
+                && bp < num_real_local_points;
                 bp += 1)
         {
             for (
@@ -159,7 +181,7 @@ void lloyd_fused_feature_sum(
                     f < (l_feature + 1) * NUM_THREAD_FEATURES;
                     f += 1)
             {
-                label = l_labels[bp];
+                CL_INT label = l_labels[bp];
 
                 CL_POINT point
                     = l_points[
