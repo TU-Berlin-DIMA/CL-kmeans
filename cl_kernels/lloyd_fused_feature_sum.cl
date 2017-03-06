@@ -100,7 +100,7 @@ void lloyd_fused_feature_sum(
     // separately for each phase
     for (
             CL_INT group_offset = get_group_id(0) * get_local_size(0);
-            group_offset < NUM_POINTS;
+            group_offset <= NUM_POINTS;
             group_offset += get_global_size(0))
     {
         CL_INT p = group_offset + get_local_id(0);
