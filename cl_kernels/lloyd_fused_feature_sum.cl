@@ -55,6 +55,7 @@ void lloyd_fused_feature_sum(
         get_local_size(0) / block_size;
     CL_INT const num_block_points =
         num_local_points / num_blocks;
+    CL_INT const block_points_offset = block * num_block_points;
     CL_INT const tile =
         get_global_id(0) / block_size;
     CL_INT const block_offset = NUM_CLUSTERS * NUM_FEATURES * block;
@@ -164,16 +165,18 @@ void lloyd_fused_feature_sum(
         // Usually this is num_local_points
         // In case when local size is not a divisor of NUM_POINTS,
         // this doesn't hold and we need to get real number.
-        CL_INT num_real_local_points =
-            (group_offset + get_local_size(0) > NUM_POINTS)
-            ? NUM_POINTS - group_offset
-            : num_local_points ;
+        CL_INT g_block_points_offset =
+            group_offset + block_points_offset;
+
+        CL_INT num_real_block_points =
+            (g_block_points_offset + num_block_points > NUM_POINTS)
+            ? sub_sat(NUM_POINTS, (g_block_points_offset))
+            : num_block_points;
 
         // Centroids update phase
         for (
-                CL_INT bp = block * num_block_points;
-                bp < (block + 1) * num_block_points
-                && bp < num_real_local_points;
+                CL_INT bp = block_points_offset;
+                bp < block_points_offset + num_real_block_points;
                 bp += 1)
         {
             for (
