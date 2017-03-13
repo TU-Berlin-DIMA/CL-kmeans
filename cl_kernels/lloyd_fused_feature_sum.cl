@@ -59,7 +59,6 @@ void lloyd_fused_feature_sum(
     CL_INT const tile =
         get_global_id(0) / block_size;
     CL_INT const block_offset = NUM_CLUSTERS * NUM_FEATURES * block;
-    CL_INT const tile_offset = NUM_CLUSTERS * NUM_FEATURES * (get_group_id(0) * num_blocks + block);
     CL_INT const l_feature = get_local_id(0) % block_size;
 
     // Calculate masses offset
@@ -71,7 +70,7 @@ void lloyd_fused_feature_sum(
     // Zero new centroids in local memory
     for (
             CL_INT i = get_local_id(0);
-            i < get_local_size(0) * NUM_THREAD_FEATURES * NUM_CLUSTERS;
+            i < num_blocks * NUM_FEATURES * NUM_CLUSTERS;
             i += get_local_size(0))
     {
         l_new_centroids[i] = 0;
