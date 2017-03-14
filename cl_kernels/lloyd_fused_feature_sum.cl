@@ -100,7 +100,7 @@ void lloyd_fused_feature_sum(
     // separately for each phase
     for (
             CL_INT group_offset = get_group_id(0) * get_local_size(0);
-            group_offset <= NUM_POINTS;
+            group_offset < NUM_POINTS;
             group_offset += get_global_size(0))
     {
         CL_INT p = group_offset + get_local_id(0);
@@ -168,7 +168,7 @@ void lloyd_fused_feature_sum(
             group_offset + block_points_offset;
 
         CL_INT num_real_block_points =
-            (g_block_points_offset + num_block_points > NUM_POINTS)
+            (g_block_points_offset + num_block_points >= NUM_POINTS)
             ? sub_sat(NUM_POINTS, (g_block_points_offset))
             : num_block_points;
 
