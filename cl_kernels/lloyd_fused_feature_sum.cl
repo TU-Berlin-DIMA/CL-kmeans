@@ -56,8 +56,6 @@ void lloyd_fused_feature_sum(
     CL_INT const num_block_points =
         num_local_points / num_blocks;
     CL_INT const block_points_offset = block * num_block_points;
-    CL_INT const tile =
-        get_global_id(0) / block_size;
     CL_INT const block_offset = NUM_CLUSTERS * NUM_FEATURES * block;
     CL_INT const l_feature = get_local_id(0) % block_size;
 
