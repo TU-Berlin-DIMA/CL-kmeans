@@ -1,6 +1,3 @@
-[submodule "clext"]
-	path = clext
-	url = https://github.com/LutzCle/clext.git
 [submodule "libs/gtest"]
 	path = libs/gtest
 	url = https://github.com/google/googletest.git
