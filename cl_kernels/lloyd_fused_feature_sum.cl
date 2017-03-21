@@ -89,8 +89,6 @@ void lloyd_fused_feature_sum(
             );
     wait_group_events(1, &centroids_cache_event);
 
-    barrier(CLK_LOCAL_MEM_FENCE);
-
     // Main loop over points
     //
     // All threads must participate!
@@ -102,6 +100,10 @@ void lloyd_fused_feature_sum(
             group_offset += get_global_size(0))
     {
         CL_INT p = group_offset + get_local_id(0);
+
+        // In 1st iteration, wait for zero-ed buffers and old centroids
+        // In 2nd iteration, wait for feature sums from previous iteration
+        barrier(CLK_LOCAL_MEM_FENCE);
 
         if (p < NUM_POINTS) {
 
@@ -155,6 +157,7 @@ void lloyd_fused_feature_sum(
 
         }
 
+        // Wait for labels
         barrier(CLK_LOCAL_MEM_FENCE);
 
         // Calculate the number of points to process in CU phase
