@@ -179,13 +179,13 @@ void lloyd_fused_feature_sum(
                 bp < block_points_offset + num_real_block_points;
                 bp += 1)
         {
+            CL_INT label = l_labels[bp];
+
             for (
                     CL_INT f = l_feature * NUM_THREAD_FEATURES;
                     f < (l_feature + 1) * NUM_THREAD_FEATURES;
                     f += 1)
             {
-                CL_INT label = l_labels[bp];
-
                 CL_POINT point
                     = l_points[
                     ccoord2ind(num_local_points, bp, f)
