@@ -38,15 +38,6 @@ uint64_t Measurement::DataPoint::get_value() {
       }
 
   }
-  else if (has_event_ && not cl_events_.empty()) {
-      cl_ulong start, end;
-      for (cl::Event const& e: cl_events_) {
-          e.wait();
-          e.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
-          e.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
-          value += end - start;
-      }
-  }
   else {
       for (uint64_t const& v : values_) {
           value += v;

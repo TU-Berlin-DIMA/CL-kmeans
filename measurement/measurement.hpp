@@ -17,12 +17,6 @@
 
 #include <boost/compute/event.hpp>
 
-#ifdef MAC
-#include <OpenCL/cl.hpp>
-#else
-#include <CL/cl.hpp>
-#endif
-
 namespace Measurement {
 
 class Measurement;
@@ -43,12 +37,6 @@ public:
         has_event_ = true;
         events_.push_back(Event());
         return events_.back();
-    }
-
-    inline cl::Event &add_opencl_event() {
-        has_event_ = true;
-        cl_events_.push_back(cl::Event());
-        return cl_events_.back();
     }
 
     inline uint64_t &add_value() {
@@ -85,7 +73,6 @@ private:
     int iteration_;
     bool has_event_;
     std::deque<Event> events_;
-    std::deque<cl::Event> cl_events_;
     std::deque<uint64_t> values_;
     std::deque<DataPoint> children_;
 };
