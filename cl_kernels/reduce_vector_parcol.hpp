@@ -71,6 +71,7 @@ public:
             ) {
 
         assert(data.size() >= num_cols * result_rows);
+        assert(result_rows <= MAX_WORKGROUP_SIZE);
 
         datapoint.set_name("ReduceVectorParcol");
 
