@@ -361,6 +361,13 @@ private:
                         context[ll]);
 
             points.resize(3);
+
+            // Clear buffers before allocating to avoid temporary
+            // double space allocation
+            points[ll].reset();
+            points[mu].reset();
+            points[cu].reset();
+
             points[ll] = dev_buf;
             points[mu] = nullptr;
             points[cu] = device_map[ll][cu] ? points[ll] :
@@ -435,6 +442,13 @@ private:
         void set_labels_buffer()
         {
             labels.resize(3);
+
+            // Clear buffers before allocating to avoid temporary
+            // double space allocation
+            labels[ll].reset();
+            labels[mu].reset();
+            labels[cu].reset();
+
             labels[ll] = std::make_shared<Vector<LabelT>>(
                     num_points,
                     0,

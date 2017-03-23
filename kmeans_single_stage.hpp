@@ -179,9 +179,12 @@ private:
         {
             dp.set_name("PointsH2D");
 
-            points = std::make_shared<Vector<PointT>>(
-                    buf->size(),
-                    context);
+            if (not points || points->size() != buf->size()) {
+                points.reset();
+                points = std::make_shared<Vector<PointT>>(
+                        buf->size(),
+                        context);
+            }
 
             Future future = boost::compute::copy_async(
                     buf->begin(),
@@ -215,10 +218,13 @@ private:
 
         void set_labels_buffer()
         {
-            labels = std::make_shared<Vector<LabelT>>(
-                    num_points,
-                    0,
-                    queue);
+            if (not labels || labels->size() != num_points) {
+                labels.reset();
+                labels = std::make_shared<Vector<LabelT>>(
+                        num_points,
+                        0,
+                        queue);
+            }
         }
 
         void set_masses_buffer()
