@@ -103,6 +103,10 @@ public:
         assert(centroids.size() == num_clusters * num_features);
         assert(labels.size() == num_points);
         assert(masses.size() == num_clusters);
+        assert(num_features <=
+                this->config.local_size[0]
+                /* * this->config.num_feature_threads */
+                );
 
         datapoint.set_name("FusedFeatureSum");
 
