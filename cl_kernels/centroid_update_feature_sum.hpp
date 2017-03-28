@@ -4,13 +4,16 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef CENTROID_UPDATE_FEATURE_SUM_HPP
 #define CENTROID_UPDATE_FEATURE_SUM_HPP
 
 #include "kernel_path.hpp"
+
+#include "reduce_vector_parcol.hpp"
+#include "matrix_binary_op.hpp"
 
 #include "../centroid_update_configuration.hpp"
 #include "../measurement/measurement.hpp"
@@ -40,18 +43,26 @@ public:
     void prepare(
             Context context,
             CentroidUpdateConfiguration config) {
+        static_assert(boost::compute::is_fundamental<PointT>(),
+                "PointT must be a boost compute fundamental type");
+        static_assert(boost::compute::is_fundamental<LabelT>(),
+                "LabelT must be a boost compute fundamental type");
+        static_assert(boost::compute::is_fundamental<MassT>(),
+                "MassT must be a boost compute fundamental type");
+        static_assert(std::is_same<float, PointT>::value
+                or std::is_same<double, PointT>::value,
+                "PointT must be float or double");
+
         this->config = config;
 
         std::string defines;
-        if (std::is_same<float, PointT>::value) {
-            defines = "-DTYPE32";
-        }
-        else if (std::is_same<double, PointT>::value) {
-            defines = "-DTYPE64";
-        }
-        else {
-            assert(false);
-        }
+        defines += " -DCL_INT=uint";
+        defines += " -DCL_POINT=";
+        defines += boost::compute::type_name<PointT>();
+        defines += " -DCL_LABEL=";
+        defines += boost::compute::type_name<LabelT>();
+        defines += " -DCL_MASS=";
+        defines += boost::compute::type_name<MassT>();
 
         Program program = Program::create_with_source_file(
                 PROGRAM_FILE,
@@ -60,6 +71,9 @@ public:
         program.build(defines);
 
         this->kernel = program.create_kernel(KERNEL_NAME);
+
+        reduce_centroids.prepare(context);
+        divide_matrix.prepare(context, divide_matrix.Divide);
     }
 
     Event operator() (
@@ -77,48 +91,77 @@ public:
 
         assert(points.size() == num_points * num_features);
         assert(labels.size() == num_points);
-        assert(centroids.size() == num_clusters * num_features);
+        assert(centroids.size() >= num_clusters * num_features);
         assert(masses.size() >= num_clusters);
+        assert(num_features <= this->config.global_size[0]);
 
         datapoint.set_name("CentroidUpdateFeatureSum");
 
-        LocalBuffer<PointT> local_centroids(
-                num_clusters * this->config.local_size[0]);
-        LocalBuffer<PointT> local_points(
-                this->config.local_size[0] * this->config.local_size[0]);
+        size_t min_centroids_size =
+            num_clusters * this->config.global_size[0];
+
+        if (centroids.size() < min_centroids_size) {
+            centroids.resize(min_centroids_size);
+        }
 
         this->kernel.set_args(
                 points,
                 centroids,
-                masses,
                 labels,
-                local_centroids,
-                local_points,
-                (LabelT)num_features,
-                (LabelT)num_points,
-                (LabelT)num_clusters);
+                (cl_uint)num_features,
+                (cl_uint)num_points,
+                (cl_uint)num_clusters);
 
-        size_t work_offset[3] = {0, 0, 0};
+        size_t work_offset = 0;
 
         Event event;
-        event = queue.enqueue_nd_range_kernel(
+        event = queue.enqueue_1d_range_kernel(
                 this->kernel,
-                1,
                 work_offset,
-                this->config.global_size,
-                this->config.local_size,
+                this->config.global_size[0],
+                this->config.local_size[0],
                 events);
         datapoint.add_event() = event;
+
+        boost::compute::wait_list wait_list;
+        wait_list.insert(event);
+
+        size_t num_point_blocks =
+            this->config.global_size[0] / num_features;
+
+        event = reduce_centroids(
+                queue,
+                num_point_blocks,
+                num_clusters * num_features,
+                centroids,
+                datapoint.create_child(),
+                wait_list
+                );
+
+        wait_list.insert(event);
+
+        event = divide_matrix.row(
+                queue,
+                num_features,
+                num_clusters,
+                centroids,
+                masses,
+                datapoint.create_child(),
+                wait_list
+                );
+
         return event;
     }
 
 
 private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_feature_sum.cl");
-    static constexpr const char* KERNEL_NAME = "lloyd_feature_sum";
+    static constexpr const char* KERNEL_NAME = "lloyd_feature_sum_sequential";
 
     Kernel kernel;
     CentroidUpdateConfiguration config;
+    ReduceVectorParcol<PointT> reduce_centroids;
+    MatrixBinaryOp<PointT, MassT> divide_matrix;
 };
 
 }
