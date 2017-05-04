@@ -7,6 +7,20 @@
  * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
+// #define UNIT_STRIDE // i.e. sequential
+// #define LOCAL_STRIDE
+// Default: global stride access
+
+#ifndef CL_INT
+#define CL_INT uint
+#endif
+#ifndef CL_TYPE_IN
+#define CL_TYPE_IN uint
+#endif
+#ifndef CL_TYPE_OUT
+#define CL_TYPE_OUT uint
+#endif
+
 __kernel
 void histogram_part_private(
             __global CL_TYPE_IN const *const restrict g_in,
@@ -24,11 +38,46 @@ void histogram_part_private(
         local_buf[local_offset + c] = 0;
     }
 
+#ifdef UNIT_STRIDE
+    CL_INT block_size =
+        (NUM_ITEMS + get_global_size(0) - 1) / get_global_size(0);
+    CL_INT start_offset = get_global_id(0) * block_size;
+    CL_INT real_block_size = (start_offset + block_size > NUM_ITEMS)
+        ? sub_sat(NUM_ITEMS, start_offset)
+        : block_size
+        ;
+
+    for (
+            CL_INT p = start_offset;
+            p < start_offset + real_block_size;
+            ++p
+        )
+#else
+#ifdef LOCAL_STRIDE
+    CL_INT stride = get_local_size(0);
+    CL_INT block_size =
+        (NUM_ITEMS + get_num_groups(0) - 1) / get_num_groups(0);
+    CL_INT group_start_offset = get_group_id(0) * block_size;
+    CL_INT start_offset = group_start_offset + get_local_id(0);
+    CL_INT real_block_size =
+        (group_start_offset + block_size > NUM_ITEMS)
+        ? sub_sat(NUM_ITEMS, group_start_offset)
+        : block_size
+        ;
+
+    for (
+            CL_INT p = start_offset;
+            p < group_start_offset + real_block_size;
+            p += stride
+        )
+#else
     for (
             CL_INT p = get_global_id(0);
             p < NUM_ITEMS;
             p += get_global_size(0)
         )
+#endif
+#endif
     {
         CL_TYPE_IN cluster = g_in[p];
         local_buf[local_offset + cluster] += 1;
