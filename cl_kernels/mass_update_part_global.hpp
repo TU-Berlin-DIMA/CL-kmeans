@@ -53,13 +53,18 @@ public:
             assert(false);
         }
 
-        Program program = Program::create_with_source_file(
+        Program gs_program = Program::create_with_source_file(
                 PROGRAM_FILE,
                 context);
+        gs_program.build(defines);
+        this->global_stride_kernel = gs_program.create_kernel(KERNEL_NAME);
 
-        program.build(defines);
-
-        this->kernel = program.create_kernel(KERNEL_NAME);
+        defines += " -DLOCAL_STRIDE";
+        Program ls_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        ls_program.build(defines);
+        this->local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
 
         reduce.prepare(context);
     }
@@ -87,7 +92,13 @@ public:
             masses.resize(buffer_size);
         }
 
-        this->kernel.set_args(
+        boost::compute::device device = queue.get_device();
+        Kernel& kernel = (device.type() == device.cpu)
+            ? this->local_stride_kernel
+            : this->global_stride_kernel
+            ;
+
+        kernel.set_args(
                 labels,
                 masses,
                 (uint32_t) num_points,
@@ -97,7 +108,7 @@ public:
 
         Event event;
         event = queue.enqueue_1d_range_kernel(
-                this->kernel,
+                kernel,
                 work_offset[0],
                 this->config.global_size[0],
                 this->config.local_size[0],
@@ -123,7 +134,8 @@ private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("histogram_part_global.cl");
     static constexpr const char* KERNEL_NAME = "histogram_part_global";
 
-    Kernel kernel;
+    Kernel global_stride_kernel;
+    Kernel local_stride_kernel;
     MassUpdateConfiguration config;
     ReduceVectorParcol<MassT> reduce;
 };
