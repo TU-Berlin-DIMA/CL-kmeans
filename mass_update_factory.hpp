@@ -59,6 +59,13 @@ public:
                 std::to_string(config.local_size[0])
                 );
 
+        if (config.strategy == "part_private") {
+            measurement.set_parameter(
+                    "MassUpdateVectorLength",
+                    std::to_string(config.vector_length)
+                    );
+        }
+
         if (config.strategy == "global_atomic") {
             MassUpdateGlobalAtomic<LabelT, MassT> strategy;
             strategy.prepare(context, config);

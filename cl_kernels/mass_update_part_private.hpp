@@ -49,6 +49,8 @@ public:
         defines += boost::compute::type_name<LabelT>();
         defines += " -DCL_TYPE_OUT=";
         defines += boost::compute::type_name<MassT>();
+        defines += " -DVEC_LEN=";
+        defines += std::to_string(this->config.vector_length);
 
         Program gs_program = Program::create_with_source_file(
                 PROGRAM_FILE,

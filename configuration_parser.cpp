@@ -85,6 +85,7 @@ po::options_description ConfigurationParser::kmeans_options() {
         ("kmeans.mass_update.strategy", po::value<std::string>())
         ("kmeans.mass_update.global_size", po::value<std::vector<size_t>>())
         ("kmeans.mass_update.local_size", po::value<std::vector<size_t>>())
+        ("kmeans.mass_update.vector_length", po::value<size_t>())
 
         // Centroid update specific
         ("kmeans.centroid_update.platform", po::value<size_t>())
@@ -231,6 +232,9 @@ MassUpdateConfiguration ConfigurationParser::get_mass_update_configuration() {
             conf.local_size[0] = v[0];
             conf.local_size[1] = v.size() > 1 ? v[1] : 1;
             conf.local_size[2] = v.size() == 3 ? v[2] : 1;
+        }
+        else if (option.first == "kmeans.mass_update.vector_length") {
+            conf.vector_length = option.second.as<size_t>();
         }
     }
 
