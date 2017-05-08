@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef LABELING_UNROLL_VECTOR_HPP
@@ -12,9 +12,13 @@
 
 #include "kernel_path.hpp"
 
+#include "../utility.hpp"
 #include "../labeling_configuration.hpp"
 #include "../measurement/measurement.hpp"
+#include "../allocator/readonly_allocator.hpp"
 
+#include <iostream>
+#include <stdexcept>
 #include <cassert>
 #include <string>
 #include <type_traits>
@@ -37,18 +41,25 @@ public:
     using LocalBuffer = boost::compute::local_buffer<T>;
 
     LabelingUnrollVector() :
-        kernel(num_unroll_variants)
+        kernel(Utility::log2(MAX_FEATURES))
     {}
 
     void prepare(Context context, LabelingConfiguration config) {
         this->config = config;
 
         std::string defines;
-        if (std::is_same<cl_float, PointT>::value) {
-            defines = "-DTYPE32";
+        defines += " -DCL_INT=uint";
+        defines += " -DCL_POINT=";
+        defines += boost::compute::type_name<PointT>();
+        defines += " -DCL_LABEL=";
+        defines += boost::compute::type_name<LabelT>();
+        if (std::is_same<float, PointT>::value) {
+            defines += " -DCL_SINT=int";
+            defines += " -DCL_POINT_MAX=FLT_MAX";
         }
-        else if (std::is_same<cl_double, PointT>::value) {
-            defines = "-DTYPE64";
+        else if (std::is_same<double, PointT>::value) {
+            defines += " -DCL_SINT=long";
+            defines += " -DCL_POINT_MAX=DBL_MAX";
         }
         else {
             assert(false);
@@ -57,85 +68,27 @@ public:
         defines += " -DVEC_LEN="
             + std::to_string(this->config.vector_length);
 
-        if (
-                this->config.unroll_clusters_length == 0
-                && this->config.unroll_features_length == 0
-           ) {
-            for (int i = 0; i < num_unroll_variants; ++i) {
-                int unroll_features;
-                int unroll_clusters;
+        for (uint32_t d = 2; d <= MAX_FEATURES; d = d * 2) {
 
-                switch (i) {
-                    case 0:
-                        unroll_clusters = 2;
-                        unroll_features = 2;
-                        break;
-                    case 1:
-                        unroll_clusters = 2;
-                        unroll_features = 4;
-                        break;
-                    case 2:
-                        unroll_clusters = 2;
-                        unroll_features = 8;
-                        break;
-                    case 3:
-                        unroll_clusters = 2;
-                        unroll_features = 16;
-                        break;
-                    case 4:
-                        unroll_clusters = 4;
-                        unroll_features = 2;
-                        break;
-                    case 5:
-                        unroll_clusters = 4;
-                        unroll_features = 4;
-                        break;
-                    case 6:
-                        unroll_clusters = 4;
-                        unroll_features = 8;
-                        break;
-                    case 7:
-                        unroll_clusters = 8;
-                        unroll_features = 2;
-                        break;
-                    case 8:
-                        unroll_clusters = 8;
-                        unroll_features = 4;
-                        break;
-                    case 9:
-                        unroll_clusters = 16;
-                        unroll_features = 2;
-                        break;
-                }
-
-                std::string unroll =
-                    " -DCLUSTERS_UNROLL="
-                    + std::to_string(unroll_clusters)
-                    + " -DFEATURES_UNROLL="
-                    + std::to_string(unroll_features);
-
-
-                Program program = Program::create_with_source_file(
-                        PROGRAM_FILE,
-                        context);
-
-                program.build(defines + unroll);
-                this->kernel[i] = program.create_kernel(KERNEL_NAME);
-            }
-        }
-        else {
-            std::string unroll =
-                " -DCLUSTERS_UNROLL="
-                + std::to_string(this->config.unroll_clusters_length)
-                + " -DFEATURES_UNROLL="
-                + std::to_string(this->config.unroll_features_length);
+            std::string features =
+                " -DNUM_FEATURES="
+                + std::to_string(d);
 
             Program program = Program::create_with_source_file(
                     PROGRAM_FILE,
                     context);
 
-            program.build(defines + unroll);
-            this->kernel[0] = program.create_kernel(KERNEL_NAME);
+            try {
+                size_t kernel_index = Utility::log2(d) - 1;
+                program.build(defines + features);
+                this->kernel[kernel_index] =
+                    program.create_kernel(KERNEL_NAME);
+            }
+            catch (std::exception e) {
+                std::cout << program.build_log() << std::endl;
+                throw e;
+            }
+
         }
     }
 
@@ -144,106 +97,47 @@ public:
             size_t num_features,
             size_t num_points,
             size_t num_clusters,
-            boost::compute::vector<char>& did_changes,
             boost::compute::vector<PointT>& points,
             boost::compute::vector<PointT>& centroids,
             boost::compute::vector<LabelT>& labels,
             Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events) {
 
+        assert(num_features <= MAX_FEATURES);
+
         datapoint.set_name("LabelingUnrollVector");
 
-        LocalBuffer<PointT> local_centroids(num_clusters * num_features);
+        LocalBuffer<PointT> local_points(
+                this->config.local_size[0]
+                * this->config.vector_length
+                * num_features
+                );
 
-        int num = 0;
-        if (
-                this->config.unroll_clusters_length == 0
-                && this->config.unroll_features_length == 0
-           ) {
-            int cluster_unroll = num_clusters;
-            int feature_unroll = num_features;
+        boost::compute::vector<PointT, readonly_allocator<PointT>> ro_centroids(
+                num_clusters * num_features,
+                queue.get_context()
+                );
+        boost::compute::copy(
+                centroids.begin(),
+                centroids.begin() + num_clusters * num_features,
+                ro_centroids.begin(),
+                queue
+                );
 
-            if (cluster_unroll > unroll_max) {
-                cluster_unroll = unroll_max;
-                feature_unroll = 2;
-            }
-
-            switch (cluster_unroll) {
-                case 2:
-                    switch (feature_unroll) {
-                        case 2:
-                            num = 0;
-                            break;
-                        case 4:
-                            num = 1;
-                            break;
-                        case 8:
-                            num = 2;
-                            break;
-                        case 16:
-                        default:
-                            num = 3;
-                            break;
-                    }
-                    break;
-                case 4:
-                    switch (feature_unroll) {
-                        case 2:
-                            num = 4;
-                            break;
-                        case 4:
-                            num = 5;
-                            break;
-                        case 8:
-                        default:
-                            num = 6;
-                            break;
-                    }
-                    break;
-                case 8:
-                    switch (feature_unroll) {
-                        case 2:
-                            num = 7;
-                            break;
-                        case 4:
-                        default:
-                            num = 8;
-                            break;
-                    }
-                    break;
-                case 16:
-                    switch (feature_unroll) {
-                        case 2:
-                        default:
-                            num = 9;
-                            break;
-                    }
-                    break;
-                default:
-                    num = -1;
-            }
-
-            assert(num != -1 /* unsupported num clusters or featurs */);
-        }
-        else {
-            num = 0;
-        }
-
-        this->kernel[num].set_args(
-                did_changes,
+        size_t kernel_index = Utility::log2(num_features) - 1;
+        this->kernel[kernel_index].set_args(
                 points,
-                centroids,
+                ro_centroids,
                 labels,
-                local_centroids,
-                (LabelT) num_features,
-                (LabelT) num_points,
-                (LabelT) num_clusters);
+                local_points,
+                (cl_uint) num_points,
+                (cl_uint) num_clusters);
 
         size_t work_offset[3] = {0, 0, 0};
 
         Event event;
         event = queue.enqueue_nd_range_kernel(
-                this->kernel[num],
+                this->kernel[kernel_index],
                 1,
                 work_offset,
                 this->config.global_size,
@@ -255,10 +149,9 @@ public:
     }
 
 private:
-    static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling_vp_clc.cl");
-    static constexpr const char* KERNEL_NAME = "lloyd_labeling_vp_clc";
-    static constexpr const int num_unroll_variants = 10;
-    static constexpr const int unroll_max = 16;
+    static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_labeling_vp_clcp.cl");
+    static constexpr const char* KERNEL_NAME = "lloyd_labeling_vp_clcp";
+    static constexpr const size_t MAX_FEATURES = 1024;
 
     std::vector<Kernel> kernel;
     LabelingConfiguration config;

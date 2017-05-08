@@ -4,84 +4,51 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  * 
  * 
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
-#ifdef TYPE32
-#define CL_FP float
+#ifndef CL_INT
 #define CL_INT uint
-#define CL_FP_MAX FLT_MAX
+#endif
+
+// float -> int ; double -> long
+#ifndef CL_SINT
+#define CL_SINT int
+#endif
+
+#ifndef CL_POINT
+#define CL_POINT float
+#endif
+
+#ifndef CL_LABEL
+#define CL_LABEL uint
+#endif
+
+#ifndef CL_POINT_MAX
+#define CL_POINT_MAX FLT_MAX
+#endif
+
+#ifndef VEC_LEN
+#define VEC_LEN 1
+#endif
 
 #if VEC_LEN == 1
-#define CL_FPVEC float
-#define CL_INTVEC uint
-#define CL_SINTVEC int
-#define CL_VLOAD vload1
-#define CL_VSTORE vstore1
-#endif
-
-#if VEC_LEN == 2
-#define CL_FPVEC float2
-#define CL_INTVEC uint2
-#define CL_SINTVEC int2
-#define CL_VLOAD vload2
-#define CL_VSTORE vstore2
-#endif
-
-#if VEC_LEN == 4
-#define CL_FPVEC float4
-#define CL_INTVEC uint4
-#define CL_SINTVEC int4
-#define CL_VLOAD vload4
-#define CL_VSTORE vstore4
-#endif
-
-#if VEC_LEN == 8
-#define CL_FPVEC float8
-#define CL_INTVEC uint8
-#define CL_SINTVEC int8
-#define CL_VLOAD vload8
-#define CL_VSTORE vstore8
-#endif
+#define VEC_TYPE(TYPE) TYPE
+#define VLOAD(P) (*(P))
+#define VSTORE(DATA, P) do { *(P) = DATA; } while (false)
 
 #else
+#define VEC_TYPE_JUMP(TYPE, LEN) TYPE##LEN
+#define VEC_TYPE_JUMP_2(TYPE, LEN) VEC_TYPE_JUMP(TYPE, LEN)
+#define VEC_TYPE(TYPE) VEC_TYPE_JUMP_2(TYPE, VEC_LEN)
 
-#ifdef TYPE64
-#define CL_FP double
-#define CL_INT ulong
-#define CL_FP_MAX DBL_MAX
+#define VLOAD_JUMP(P, LEN) vload##LEN(0, P)
+#define VLOAD_JUMP_2(P, LEN) VLOAD_JUMP(P, LEN)
+#define VLOAD(P) VLOAD_JUMP_2(P, VEC_LEN)
 
-#if VEC_LEN == 1
-#define CL_FPVEC double
-#define CL_INTVEC ulong
-#define CL_SINTVEC long
-#endif
-
-#if VEC_LEN == 2
-#define CL_FPVEC double2
-#define CL_INTVEC ulong2
-#define CL_SINTVEC long2
-#define CL_VLOAD vload2
-#define CL_VSTORE vstore2
-#endif
-
-#if VEC_LEN == 4
-#define CL_FPVEC double4
-#define CL_INTVEC ulong4
-#define CL_SINTVEC long4
-#define CL_VLOAD vload4
-#define CL_VSTORE vstore4
-#endif
-
-#if VEC_LEN == 8
-#define CL_FPVEC double8
-#define CL_INTVEC ulong8
-#define CL_SINTVEC long8
-#define CL_VLOAD vload8
-#define CL_VSTORE vstore8
-#endif
-
-#endif
+#define VSTORE_JUMP(DATA, P, LEN) vstore##LEN(DATA, 0, P)
+#define VSTORE_JUMP_2(DATA, P, LEN) VSTORE_JUMP(DATA, P, LEN)
+#define VSTORE(DATA, P) VSTORE_JUMP_2(DATA, P, VEC_LEN)
 #endif
 
 CL_INT ccoord2ind(CL_INT rdim, CL_INT row, CL_INT col) {
@@ -92,108 +59,64 @@ CL_INT rcoord2ind(CL_INT cdim, CL_INT row, CL_INT col) {
     return cdim * row + col;
 }
 
+// Note: Define NUM_FEATURES with preprocessor
 __kernel
 void lloyd_labeling_vp_clcp(
-            __global char *g_did_changes,
-            __global CL_FP const *const restrict g_points,
-            __global CL_FP const *const restrict g_centroids,
-            __global CL_INT *const restrict g_labels,
-            __local CL_FPVEC *const restrict l_points,
-            __local CL_FP *const restrict l_centroids,
-            const CL_INT NUM_FEATURES,
+            __global CL_POINT const *const restrict g_points,
+            __constant CL_POINT const *const restrict g_centroids,
+            __global CL_LABEL *const restrict g_labels,
+            __local VEC_TYPE(CL_POINT) *const restrict l_points,
             const CL_INT NUM_POINTS,
             const CL_INT NUM_CLUSTERS
        ) {
 
-    bool did_changes = false;
-
-    // Assume centroids fit into local memory
-
-    // Read to local memory
-    for (CL_INT i = get_local_id(0); i < NUM_CLUSTERS; i += get_local_size(0)) {
-        for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-            l_centroids[ccoord2ind(NUM_CLUSTERS, i, f)]
-                = g_centroids[ccoord2ind(NUM_CLUSTERS, i, f)];
-        }
-    }
-
-	barrier(CLK_LOCAL_MEM_FENCE);
-
-    for (CL_INT p = get_global_id(0) * VEC_LEN; p < NUM_POINTS; p += get_global_size(0) * VEC_LEN) {
+    for (
+            CL_INT p = get_global_id(0) * VEC_LEN;
+            p < NUM_POINTS;
+            p += get_global_size(0) * VEC_LEN
+        )
+    {
 
         // Phase 1
-#if VEC_LEN == 1
-        CL_INTVEC label = g_labels[p];
-#else
-        CL_INTVEC label = CL_VLOAD(0, &g_labels[p]);
-#endif
+        VEC_TYPE(CL_LABEL) label = VLOAD(&g_labels[p]);
 
-        for (CL_INT g = 0; g < NUM_FEATURES; g += FEATURES_UNROLL) {
-#pragma unroll FEATURES_UNROLL
-            for (CL_INT f = 0; f < FEATURES_UNROLL; ++f) {
-#if VEC_LEN == 1
-                l_points[ccoord2ind(get_local_size(0), get_local_id(0), g + f)] =
-                    g_points[ccoord2ind(NUM_POINTS, p, g + f)];
-#else
-                CL_FPVEC point =
-                    CL_VLOAD(
-                            0,
-                            &g_points[ccoord2ind(NUM_POINTS, p, g + f)]
-                            );
+        for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
+            VEC_TYPE(CL_POINT) point =
+                VLOAD(&g_points[ccoord2ind(NUM_POINTS, p, f)]);
 
-                l_points[ccoord2ind(
-                        get_local_size(0),
-                        get_local_id(0),
-                        g + f
-                        )] = point;
-#endif
-            }
+            l_points[ccoord2ind(
+                    get_local_size(0),
+                    get_local_id(0),
+                    f
+                    )] = point;
         }
 
-        CL_INTVEC min_c;
-        CL_FPVEC min_dist = CL_FP_MAX;
+        VEC_TYPE(CL_LABEL) min_c;
+        VEC_TYPE(CL_POINT) min_dist = CL_POINT_MAX;
 
-        for (CL_INT d = 0; d < NUM_CLUSTERS; d += CLUSTERS_UNROLL) {
-#pragma unroll CLUSTERS_UNROLL
-            for (CL_INT c = 0; c < CLUSTERS_UNROLL; ++c) {
-                CL_FPVEC dist = 0;
+        for (CL_LABEL c = 0; c < NUM_CLUSTERS; ++c) {
+            VEC_TYPE(CL_POINT) dist = 0;
 
-                for (CL_INT g = 0; g < NUM_FEATURES; g += FEATURES_UNROLL) {
-#pragma unroll FEATURES_UNROLL
-                    for (CL_INT f = 0; f < FEATURES_UNROLL; ++f) {
-                        CL_FPVEC point =
-                            l_points[ccoord2ind(
-                                    get_local_size(0),
-                                    get_local_id(0),
-                                    g + f
-                                    )];
+            for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
 
-                        CL_FPVEC difference =
-                            point - l_centroids[
-                            ccoord2ind(NUM_CLUSTERS, d + c, g + f)
-                            ];
+                VEC_TYPE(CL_POINT) point =
+                    l_points[ccoord2ind(
+                            get_local_size(0),
+                            get_local_id(0),
+                            f
+                            )];
 
-                        dist += difference * difference;
-                    }
-                }
+                VEC_TYPE(CL_POINT) difference =
+                    point - g_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
 
-                CL_SINTVEC is_dist_smaller = isless(dist, min_dist);
-                min_dist = select(min_dist, dist, is_dist_smaller);
-                min_c = select(min_c, d + c, is_dist_smaller);
+                dist = fma(difference, difference, dist);
             }
+
+            VEC_TYPE(CL_SINT) is_dist_smaller = isless(dist, min_dist);
+            min_dist = fmin(min_dist, dist);
+            min_c = select(min_c, c, is_dist_smaller);
         }
 
-#if VEC_LEN == 1
-        g_labels[p] = min_c;
-        did_changes |= min_c != label;
-#else
-        CL_VSTORE(min_c, 0, &g_labels[p]);
-        did_changes |= any(min_c != label);
-#endif
-    }
-
-    // Write back to global memory
-    if (did_changes == true) {
-        *g_did_changes = true;
+        VSTORE(min_c, &g_labels[p]);
     }
 }

@@ -103,15 +103,7 @@ public:
         total_timer.start();
 
         uint32_t iterations = 0;
-        bool did_changes = true;
-        while (/*did_changes == true &&*/ iterations < this->max_iterations) {
-
-            // set did_changes to false on device
-            boost::compute::fill(
-                    ll_did_changes->begin(),
-                    ll_did_changes->end(),
-                    false,
-                    this->q_labeling);
+        while (iterations < this->max_iterations) {
 
             // execute labeling
             sync_centroids_event = buffer_map.sync_centroids(
@@ -125,28 +117,13 @@ public:
                     this->num_features,
                     this->num_points,
                     this->num_clusters,
-                    *ll_did_changes,
                     buffer_map.get_points(BufferMap::ll),
                     buffer_map.get_centroids(BufferMap::ll),
                     buffer_map.get_labels(BufferMap::ll),
                     this->measurement->add_datapoint(iterations),
                     ll_wait_list);
 
-            // copy did_changes from device to host
-            boost::compute::copy(
-                    host_did_changes.begin(),
-                    host_did_changes.end(),
-                    ll_did_changes->begin(),
-                    q_labeling);
-
-            // inspect did_changes
-            did_changes = std::any_of(
-                    host_did_changes.cbegin(),
-                    host_did_changes.cend(),
-                    [](int i){ return i == 1; }
-                    );
-
-            if (/*did_changes == true && */ true) {
+            if (/* not converged */ true) {
                 // execute mass update
                 sync_labels_event = buffer_map.sync_labels(
                         this->measurement->add_datapoint(iterations),

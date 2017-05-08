@@ -36,7 +36,6 @@ public:
                 size_t num_features,
                 size_t num_points,
                 size_t num_clusters,
-                Vector<char>& did_changes,
                 Vector<PointT>& points,
                 Vector<PointT>& centroids,
                 Vector<LabelT>& labels,
