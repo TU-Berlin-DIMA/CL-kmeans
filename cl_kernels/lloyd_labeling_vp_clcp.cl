@@ -72,7 +72,7 @@ void lloyd_labeling_vp_clcp(
 
     for (
             CL_INT p = get_global_id(0) * VEC_LEN;
-            p < NUM_POINTS;
+            p < NUM_POINTS - VEC_LEN + 1;
             p += get_global_size(0) * VEC_LEN
         )
     {
