@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef UTILITY_HPP
@@ -60,6 +60,14 @@ public:
     static bool is_power_of_two(T v) {
         // http://www.graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
         return v && !(v & (v - 1));
+    }
+
+    static uint32_t log2(uint32_t x) {
+        return 31 - __builtin_clz(x);
+    }
+
+    static uint64_t log2(uint64_t x) {
+        return 63 - __builtin_clzll(x);
     }
 };
 }
