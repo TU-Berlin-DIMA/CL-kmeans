@@ -77,9 +77,6 @@ void lloyd_labeling_vp_clcp(
         )
     {
 
-        // Phase 1
-        VEC_TYPE(CL_LABEL) label = VLOAD(&g_labels[p]);
-
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
             VEC_TYPE(CL_POINT) point =
                 VLOAD(&g_points[ccoord2ind(NUM_POINTS, p, f)]);

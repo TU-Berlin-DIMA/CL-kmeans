@@ -59,11 +59,6 @@ public:
         Event ll_event, mu_event, cu_event;
         Event sync_labels_event, sync_centroids_event, sync_masses_event;
 
-        std::vector<char> host_did_changes(1);
-        VectorPtr<char> ll_did_changes = std::make_shared<Vector<char>>(
-                host_did_changes.size(),
-                this->context_labeling);
-
         buffer_map.set_queues(
                 this->q_labeling,
                 this->q_mass_update,
