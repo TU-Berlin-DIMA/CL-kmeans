@@ -64,6 +64,13 @@ public:
                 std::to_string(config.local_size[0])
                 );
 
+        if (config.strategy == "cluster_merge") {
+            measurement.set_parameter(
+                    "CentroidUpdateVectorLength",
+                    std::to_string(config.vector_length)
+                    );
+        }
+
         if (config.strategy == "feature_sum") {
             CentroidUpdateFeatureSum<
                 PointT,

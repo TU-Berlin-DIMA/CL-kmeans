@@ -95,6 +95,7 @@ po::options_description ConfigurationParser::kmeans_options() {
         ("kmeans.centroid_update.local_size", po::value<std::vector<size_t>>())
         ("kmeans.centroid_update.local_features", po::value<size_t>())
         ("kmeans.centroid_update.thread_features", po::value<size_t>())
+        ("kmeans.centroid_update.vector_length", po::value<size_t>())
 
         // Fused specific
         ("kmeans.fused.platform", po::value<size_t>())
@@ -277,6 +278,9 @@ CentroidUpdateConfiguration ConfigurationParser::get_centroid_update_configurati
         }
         else if (option.first == "kmeans.centroid_update.thread_features") {
             conf.thread_features = option.second.as<size_t>();
+        }
+        else if (option.first == "kmeans.centroid_update.vector_length") {
+            conf.vector_length = option.second.as<size_t>();
         }
     }
 

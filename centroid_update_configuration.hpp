@@ -23,6 +23,7 @@ struct CentroidUpdateConfiguration {
     size_t local_size[3];
     size_t local_features;
     size_t thread_features;
+    size_t vector_length;
 };
 
 }
