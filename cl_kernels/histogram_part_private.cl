@@ -97,10 +97,10 @@ void histogram_part_private(
         BASE_STEP(a) BASE_STEP(b) BASE_STEP(c) BASE_STEP(d) \
         BASE_STEP(e) BASE_STEP(f)
 #define REP_STEP_JUMP(NUM) REP_STEP_ ## NUM
-#define REP_STEP(NUM) REP_STEP_JUMP(NUM)
+#define REP_STEP(NUM) do { REP_STEP_JUMP(NUM) } while (false)
 
         VEC_TYPE(CL_TYPE_IN) cluster = VLOAD(0, &g_in[p]);
-        REP_STEP(VEC_LEN)
+        REP_STEP(VEC_LEN);
 #else
         CL_TYPE_IN cluster = g_in[p];
         local_buf[ccoord2ind(get_local_size(0), get_local_id(0), cluster)] += 1;
