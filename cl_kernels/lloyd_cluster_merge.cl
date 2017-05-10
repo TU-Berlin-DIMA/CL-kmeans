@@ -53,6 +53,12 @@ CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     return dim * col + row;
 }
 
+// Anti-bank conflict column major indexing
+// Warning: Use only for local memory buffers
+CL_INT ccoord2abc(CL_INT dim, CL_INT row, CL_INT col) {
+    return get_local_size(0) * (dim * col + row) + get_local_id(0);
+}
+
 __kernel
 void lloyd_cluster_merge(
         __global CL_POINT const *const restrict g_points,
@@ -65,10 +71,6 @@ void lloyd_cluster_merge(
         CL_INT const NUM_CLUSTERS
         )
 {
-    CL_INT const l_cluster_offset =
-        get_local_id(0)
-        * NUM_FEATURES
-        * NUM_CLUSTERS;
     CL_INT const g_cluster_offset =
         get_global_id(0)
         * NUM_FEATURES
@@ -76,9 +78,7 @@ void lloyd_cluster_merge(
 
     for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-            l_centroids[
-                l_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, f)
-            ] = 0;
+            l_centroids[ccoord2abc(NUM_CLUSTERS, c, f)] = 0;
         }
     }
 
@@ -120,7 +120,7 @@ void lloyd_cluster_merge(
 #if VEC_LEN > 1
 #define BASE_STEP(NUM)                                                  \
             l_centroids[                                                \
-                l_cluster_offset + ccoord2ind(                          \
+                ccoord2abc(                          \
                         NUM_CLUSTERS, label.s ## NUM, f                 \
                         )                                               \
             ] += point.s ## NUM;
@@ -138,7 +138,7 @@ void lloyd_cluster_merge(
             REP_STEP(VEC_LEN);
 #else
             l_centroids[
-                l_cluster_offset + ccoord2ind(NUM_CLUSTERS, label, f)
+                ccoord2abc(NUM_CLUSTERS, label, f)
             ] += point;
 #endif
 
@@ -152,7 +152,7 @@ void lloyd_cluster_merge(
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             CL_MASS mass = g_masses[c];
             CL_POINT centroid = l_centroids[
-                l_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, f)
+                ccoord2abc(NUM_CLUSTERS, c, f)
             ];
             centroid = centroid / mass;
             g_centroids[
