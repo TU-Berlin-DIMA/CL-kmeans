@@ -19,10 +19,6 @@
 #define CL_LABEL ulong
 #endif
 
-#ifndef CL_MASS
-#define CL_MASS ulong
-#endif
-
 CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     return dim * col + row;
 }
@@ -46,7 +42,6 @@ __kernel
 void lloyd_feature_sum_pardim(
         __global CL_POINT const *const restrict g_points,
         __global CL_POINT *const restrict g_centroids,
-        __global CL_MASS const *const restrict g_mass,
         __global CL_LABEL const *const restrict g_labels,
         __local CL_POINT *const restrict l_centroids,
         CL_INT const NUM_FEATURES,
@@ -85,11 +80,9 @@ void lloyd_feature_sum_pardim(
 
     for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-            CL_MASS mass = g_mass[c];
             CL_POINT centroid = l_centroids[
                 block_offset + ccoord2ind(NUM_CLUSTERS, c, l_feature_base + f)
             ];
-            centroid = centroid / mass;
             g_centroids[
                 g_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, g_feature_base + f)
             ] = centroid;

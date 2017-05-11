@@ -13,6 +13,7 @@
 #include "kernel_path.hpp"
 
 #include "reduce_vector_parcol.hpp"
+#include "matrix_binary_op.hpp"
 
 #include "../centroid_update_configuration.hpp"
 #include "../measurement/measurement.hpp"
@@ -59,8 +60,6 @@ public:
         defines += boost::compute::type_name<PointT>();
         defines += " -DCL_LABEL=";
         defines += boost::compute::type_name<LabelT>();
-        defines += " -DCL_MASS=";
-        defines += boost::compute::type_name<MassT>();
         defines += " -DNUM_THREAD_FEATURES=";
         defines += std::to_string(config.thread_features);
 
@@ -73,6 +72,7 @@ public:
         this->kernel = program.create_kernel(KERNEL_NAME);
 
         reduce.prepare(context);
+        divide_matrix.prepare(context, divide_matrix.Divide);
     }
 
     Event operator() (
@@ -136,7 +136,6 @@ public:
         this->kernel.set_args(
                 points,
                 centroids,
-                masses,
                 labels,
                 local_centroids,
                 (cl_uint)num_features,
@@ -168,6 +167,18 @@ public:
                 wait_list
                 );
 
+        wait_list.insert(event);
+
+        event = divide_matrix.row(
+                queue,
+                num_features,
+                num_clusters,
+                centroids,
+                masses,
+                datapoint.create_child(),
+                wait_list
+                );
+
         return event;
     }
 
@@ -179,6 +190,7 @@ private:
     Kernel kernel;
     CentroidUpdateConfiguration config;
     ReduceVectorParcol<PointT> reduce;
+    MatrixBinaryOp<PointT, MassT> divide_matrix;
 };
 
 }

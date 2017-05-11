@@ -22,10 +22,6 @@
 #define CL_LABEL ulong
 #endif
 
-#ifndef CL_MASS
-#define CL_MASS ulong
-#endif
-
 #ifndef VEC_LEN
 #define VEC_LEN 1
 #endif
@@ -63,7 +59,6 @@ __kernel
 void lloyd_cluster_merge(
         __global CL_POINT const *const restrict g_points,
         __global CL_POINT *const restrict g_centroids,
-        __global CL_MASS const *const restrict g_masses,
         __global CL_LABEL const *const restrict g_labels,
         __local CL_POINT *const restrict l_centroids,
         CL_INT const NUM_FEATURES,
@@ -150,11 +145,9 @@ void lloyd_cluster_merge(
 
     for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-            CL_MASS mass = g_masses[c];
             CL_POINT centroid = l_centroids[
                 ccoord2abc(NUM_CLUSTERS, c, f)
             ];
-            centroid = centroid / mass;
             g_centroids[
                 g_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, f)
             ] = centroid;
