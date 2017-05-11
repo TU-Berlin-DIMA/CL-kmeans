@@ -27,6 +27,7 @@
 #include <boost/compute/container/vector.hpp>
 #include <boost/compute/algorithm/copy.hpp>
 #include <boost/compute/async/wait.hpp>
+#include <boost/compute/allocator/pinned_allocator.hpp>
 
 namespace Clustering {
 
@@ -36,9 +37,15 @@ class KmeansThreeStage :
 {
 public:
     template <typename T>
+    using PinnedAllocator = boost::compute::pinned_allocator<T>;
+    template <typename T>
     using Vector = boost::compute::vector<T>;
     template <typename T>
     using VectorPtr = std::shared_ptr<Vector<T>>;
+    template <typename T>
+    using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
+    template <typename T>
+    using PinnedVectorPtr = std::shared_ptr<PinnedVector<T>>;
     template <typename T>
     using HostVectorPtr = std::shared_ptr<std::vector<T>>;
     using Event = boost::compute::event;
@@ -421,18 +428,18 @@ private:
             labels[mu].reset();
             labels[cu].reset();
 
-            labels[ll] = std::make_shared<Vector<LabelT>>(
+            labels[ll] = std::make_shared<PinnedVector<LabelT>>(
                     num_points,
                     0,
                     queue[ll]);
             labels[mu] = device_map[mu][ll] ? labels[ll] :
-                std::make_shared<Vector<LabelT>>(
+                std::make_shared<PinnedVector<LabelT>>(
                         num_points,
                         0,
                         queue[mu]);
             labels[cu] = device_map[cu][ll] ? labels[ll] :
                 device_map[cu][mu] ? labels[mu] :
-                std::make_shared<Vector<LabelT>>(
+                std::make_shared<PinnedVector<LabelT>>(
                         num_points,
                         0,
                         queue[cu]);
@@ -691,7 +698,7 @@ private:
             return *centroids[p];
         }
 
-        Vector<LabelT>& get_labels(BufferMap::Phase p) {
+        PinnedVector<LabelT>& get_labels(BufferMap::Phase p) {
             return *labels[p];
         }
 
@@ -707,7 +714,7 @@ private:
         std::vector<boost::compute::context> context;
         std::vector<VectorPtr<PointT>> points;
         std::vector<VectorPtr<PointT>> centroids;
-        std::vector<VectorPtr<LabelT>> labels;
+        std::vector<PinnedVectorPtr<LabelT>> labels;
         std::vector<VectorPtr<MassT>> masses;
     } buffer_map;
 };

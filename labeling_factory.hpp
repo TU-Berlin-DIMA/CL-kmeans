@@ -21,6 +21,7 @@
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
+#include <boost/compute/allocator/pinned_allocator.hpp>
 
 namespace Clustering {
 
@@ -29,6 +30,10 @@ class LabelingFactory {
 public:
     template <typename T>
     using Vector = boost::compute::vector<T>;
+    template <typename T>
+    using PinnedAllocator = boost::compute::pinned_allocator<T>;
+    template <typename T>
+    using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
 
     using LabelingFunction = std::function<
         boost::compute::event(
@@ -38,7 +43,7 @@ public:
                 size_t num_clusters,
                 Vector<PointT>& points,
                 Vector<PointT>& centroids,
-                Vector<LabelT>& labels,
+                PinnedVector<LabelT>& labels,
                 Measurement::DataPoint& datapoint,
                 boost::compute::wait_list const& events
             )

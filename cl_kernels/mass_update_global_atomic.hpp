@@ -22,6 +22,7 @@
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
 #include <boost/compute/algorithm/fill.hpp>
+#include <boost/compute/allocator/pinned_allocator.hpp>
 
 namespace Clustering {
 
@@ -35,6 +36,10 @@ public:
     using Program = boost::compute::program;
     template <typename T>
     using Vector = boost::compute::vector<T>;
+    template <typename T>
+    using PinnedAllocator = boost::compute::pinned_allocator<T>;
+    template <typename T>
+    using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
 
     void prepare(
             Context context,
@@ -65,7 +70,7 @@ public:
             boost::compute::command_queue queue,
             size_t num_points,
             size_t num_clusters,
-            Vector<LabelT>& labels,
+            PinnedVector<LabelT>& labels,
             Vector<MassT>& masses,
             Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events

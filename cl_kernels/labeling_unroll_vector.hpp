@@ -27,6 +27,7 @@
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
 #include <boost/compute/memory/local_buffer.hpp>
+#include <boost/compute/allocator/pinned_allocator.hpp>
 
 namespace Clustering {
 
@@ -39,6 +40,12 @@ public:
     using Program = boost::compute::program;
     template <typename T>
     using LocalBuffer = boost::compute::local_buffer<T>;
+    template <typename T>
+    using Vector = boost::compute::vector<T>;
+    template <typename T>
+    using PinnedAllocator = boost::compute::pinned_allocator<T>;
+    template <typename T>
+    using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
 
     LabelingUnrollVector() :
         kernel(Utility::log2(MAX_FEATURES))
@@ -97,9 +104,9 @@ public:
             size_t num_features,
             size_t num_points,
             size_t num_clusters,
-            boost::compute::vector<PointT>& points,
-            boost::compute::vector<PointT>& centroids,
-            boost::compute::vector<LabelT>& labels,
+            Vector<PointT>& points,
+            Vector<PointT>& centroids,
+            PinnedVector<LabelT>& labels,
             Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events) {
 
