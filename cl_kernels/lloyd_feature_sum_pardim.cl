@@ -19,6 +19,29 @@
 #define CL_LABEL ulong
 #endif
 
+#ifndef VEC_LEN
+#define VEC_LEN 1
+#endif
+
+#if VEC_LEN == 1
+#define VEC_TYPE(TYPE) TYPE
+#define VLOAD(P) (*(P))
+#define VSTORE(DATA, P) do { *(P) = DATA; } while (false)
+
+#else
+#define VEC_TYPE_JUMP(TYPE, LEN) TYPE##LEN
+#define VEC_TYPE_JUMP_2(TYPE, LEN) VEC_TYPE_JUMP(TYPE, LEN)
+#define VEC_TYPE(TYPE) VEC_TYPE_JUMP_2(TYPE, VEC_LEN)
+
+#define VLOAD_JUMP(P, LEN) vload##LEN(0, P)
+#define VLOAD_JUMP_2(P, LEN) VLOAD_JUMP(P, LEN)
+#define VLOAD(P) VLOAD_JUMP_2(P, VEC_LEN)
+
+#define VSTORE_JUMP(DATA, P, LEN) vstore##LEN(DATA, 0, P)
+#define VSTORE_JUMP_2(DATA, P, LEN) VSTORE_JUMP(DATA, P, LEN)
+#define VSTORE(DATA, P) VSTORE_JUMP_2(DATA, P, VEC_LEN)
+#endif
+
 CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     return dim * col + row;
 }
@@ -66,13 +89,44 @@ void lloyd_feature_sum_pardim(
         }
     }
 
-    for (CL_INT r = get_global_id(0); r < NUM_POINTS; r += get_global_size(0)) {
-        CL_LABEL label = g_labels[r];
+    for (
+            CL_INT r = get_global_id(0) * VEC_LEN;
+            r < NUM_POINTS - VEC_LEN + 1;
+            r += get_global_size(0) * VEC_LEN
+        )
+    {
+
+        VEC_TYPE(CL_LABEL) label = VLOAD(&g_labels[r]);
         for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
-            CL_POINT point = g_points[ccoord2ind(NUM_POINTS, r, g_feature_base + f)];
+            VEC_TYPE(CL_POINT) point =
+                VLOAD(&g_points[
+                        ccoord2ind(NUM_POINTS, r, g_feature_base + f)
+                ]);
+#if VEC_LEN > 1
+#define BASE_STEP(NUM)                                                   \
+            l_centroids[                                                 \
+                ccoord2abc(                                              \
+                        NUM_CLUSTERS, label.s ## NUM, l_feature_base + f \
+                        )                                                \
+            ] += point.s ## NUM;
+
+#define REP_STEP_2 BASE_STEP(0) BASE_STEP(1)
+#define REP_STEP_4 REP_STEP_2 BASE_STEP(2) BASE_STEP(3)
+#define REP_STEP_8 REP_STEP_4 BASE_STEP(4) BASE_STEP(5)         \
+        BASE_STEP(6) BASE_STEP(7)
+#define REP_STEP_16 REP_STEP_8 BASE_STEP(8) BASE_STEP(9)        \
+        BASE_STEP(a) BASE_STEP(b) BASE_STEP(c) BASE_STEP(d) \
+        BASE_STEP(e) BASE_STEP(f)
+#define REP_STEP_JUMP(NUM) REP_STEP_ ## NUM
+#define REP_STEP(NUM) do { REP_STEP_JUMP(NUM) } while (false)
+
+            REP_STEP(VEC_LEN);
+#else
             l_centroids[
                 ccoord2abc(NUM_CLUSTERS, label, l_feature_base + f)
             ] += point;
+#endif
+
         }
     }
 

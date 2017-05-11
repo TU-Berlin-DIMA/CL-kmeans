@@ -62,6 +62,8 @@ public:
         defines += boost::compute::type_name<LabelT>();
         defines += " -DNUM_THREAD_FEATURES=";
         defines += std::to_string(config.thread_features);
+        defines += " -DVEC_LEN=";
+        defines += std::to_string(this->config.vector_length);
 
         Program program = Program::create_with_source_file(
                 PROGRAM_FILE,
