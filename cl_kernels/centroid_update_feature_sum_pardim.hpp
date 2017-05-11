@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef CENTROID_UPDATE_FEATURE_SUM_PARDIM_HPP
@@ -54,15 +54,13 @@ public:
         this->config = config;
 
         std::string defines;
-        if (std::is_same<float, PointT>::value) {
-            defines = "-DTYPE32";
-        }
-        else if (std::is_same<double, PointT>::value) {
-            defines = "-DTYPE64";
-        }
-        else {
-            assert(false);
-        }
+        defines += " -DCL_INT=uint";
+        defines += " -DCL_POINT=";
+        defines += boost::compute::type_name<PointT>();
+        defines += " -DCL_LABEL=";
+        defines += boost::compute::type_name<LabelT>();
+        defines += " -DCL_MASS=";
+        defines += boost::compute::type_name<MassT>();
         defines += " -DNUM_THREAD_FEATURES=";
         defines += std::to_string(config.thread_features);
 
@@ -141,9 +139,9 @@ public:
                 masses,
                 labels,
                 local_centroids,
-                (LabelT)num_features,
-                (LabelT)num_points,
-                (LabelT)num_clusters);
+                (cl_uint)num_features,
+                (cl_uint)num_points,
+                (cl_uint)num_clusters);
 
         size_t work_offset[3] = {0, 0, 0};
 
