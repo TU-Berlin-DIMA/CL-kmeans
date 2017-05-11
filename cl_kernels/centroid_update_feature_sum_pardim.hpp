@@ -65,13 +65,18 @@ public:
         defines += " -DVEC_LEN=";
         defines += std::to_string(this->config.vector_length);
 
-        Program program = Program::create_with_source_file(
+        Program gs_program = Program::create_with_source_file(
                 PROGRAM_FILE,
                 context);
+        gs_program.build(defines);
+        global_stride_kernel = gs_program.create_kernel(KERNEL_NAME);
 
-        program.build(defines);
-
-        this->kernel = program.create_kernel(KERNEL_NAME);
+        defines += " -DLOCAL_STRIDE";
+        Program ls_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        ls_program.build(defines);
+        local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
 
         reduce.prepare(context);
         divide_matrix.prepare(context, divide_matrix.Divide);
@@ -135,7 +140,13 @@ public:
                 * num_clusters
                 );
 
-        this->kernel.set_args(
+        boost::compute::device device = queue.get_device();
+        Kernel& kernel = (device.type() == device.cpu)
+            ? this->local_stride_kernel
+            : this->global_stride_kernel
+            ;
+
+        kernel.set_args(
                 points,
                 centroids,
                 labels,
@@ -148,7 +159,7 @@ public:
 
         Event event;
         event = queue.enqueue_nd_range_kernel(
-                this->kernel,
+                kernel,
                 2,
                 work_offset,
                 global_size,
@@ -189,7 +200,8 @@ private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_feature_sum_pardim.cl");
     static constexpr const char* KERNEL_NAME = "lloyd_feature_sum_pardim";
 
-    Kernel kernel;
+    Kernel global_stride_kernel;
+    Kernel local_stride_kernel;
     CentroidUpdateConfiguration config;
     ReduceVectorParcol<PointT> reduce;
     MatrixBinaryOp<PointT, MassT> divide_matrix;

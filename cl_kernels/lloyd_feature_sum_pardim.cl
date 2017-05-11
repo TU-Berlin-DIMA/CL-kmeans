@@ -7,6 +7,9 @@
  * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
+// #define LOCAL_STRIDE
+// Default: global stride access
+
 #ifndef CL_INT
 #define CL_INT ulong
 #endif
@@ -89,11 +92,32 @@ void lloyd_feature_sum_pardim(
         }
     }
 
+    CL_INT r;
+#ifdef LOCAL_STRIDE
+    CL_INT stride = VEC_LEN * get_local_size(0);
+    CL_INT block_size =
+        (NUM_POINTS + get_num_groups(0) - 1) / get_num_groups(0);
+    block_size = block_size - block_size % VEC_LEN;
+    CL_INT group_start_offset = get_group_id(0) * block_size;
+    CL_INT start_offset = group_start_offset + VEC_LEN * get_local_id(0);
+    CL_INT real_block_size =
+        (group_start_offset + block_size > NUM_POINTS)
+        ? sub_sat(NUM_POINTS, group_start_offset)
+        : block_size
+        ;
+
     for (
-            CL_INT r = get_global_id(0) * VEC_LEN;
+            r = start_offset;
+            r < group_start_offset + real_block_size;
+            r += stride
+        )
+#else
+    for (
+            r = get_global_id(0) * VEC_LEN;
             r < NUM_POINTS - VEC_LEN + 1;
             r += get_global_size(0) * VEC_LEN
         )
+#endif
     {
 
         /*
