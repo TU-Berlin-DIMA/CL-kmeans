@@ -96,7 +96,24 @@ void lloyd_feature_sum_pardim(
         )
     {
 
+        /*
+         * Load label from memory and sync work group.
+         *
+         * Sync ensures that small time variances in
+         * local memory access when adding point do not
+         * cause one warp to outrun the others.
+         * If one warp is faster than the others,
+         * loading labels will experience L1 cache misses,
+         * causing a performance decrease on GPUs
+         * (tested with Nvidia GTX 1080).
+         *
+         * Note that local fence is intentional,
+         * as global mem fence introduces more latency;
+         * no writes occur that could cause inconsisteny.
+        */
         VEC_TYPE(CL_LABEL) label = VLOAD(&g_labels[r]);
+        barrier(CLK_LOCAL_MEM_FENCE);
+
         for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
             VEC_TYPE(CL_POINT) point =
                 VLOAD(&g_points[
