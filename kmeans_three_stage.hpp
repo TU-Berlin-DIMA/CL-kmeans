@@ -18,6 +18,8 @@
 #include "measurement/measurement.hpp"
 #include "timer.hpp"
 
+#include "container/vector_map_hack.hpp"
+
 #include <functional>
 #include <algorithm>
 #include <vector>
@@ -533,6 +535,7 @@ private:
                 if (queue[cu].get_device().type() == Device::cpu) {
                     auto& buf = centroids[cu]->get_buffer();
 
+                    Event map_event;
                     PointT *buf_ptr = (PointT*) queue[cu]
                         .enqueue_map_buffer(
                                 buf,
@@ -579,42 +582,54 @@ private:
             datapoint.set_name("SyncLabels");
 
             if (not device_map[ll][mu]) {
-                Future copy_future;
+                Event sync_event;
                 auto dev_type = queue[mu].get_device().type();
 
                 if (dev_type == Device::cpu) {
-                    auto& buf = labels[mu]->get_buffer();
 
-                    LabelT *buf_ptr = (LabelT*) queue[mu]
+                    auto& dev_buf = labels[ll]->get_buffer();
+
+                    LabelT *dev_buf_ptr = (LabelT*) queue[ll]
                         .enqueue_map_buffer(
-                                buf,
-                                CL_MAP_READ | CL_MAP_WRITE,
+                                dev_buf,
+                                CL_MAP_READ,
                                 0,
-                                buf.size());
+                                dev_buf.size(),
+                                sync_event
+                                );
 
-                    copy_future = boost::compute::copy_async(
-                            labels[ll]->begin(),
-                            labels[ll]->end(),
-                            buf_ptr,
-                            queue[ll]);
+                    // Warning: Potential use-after-free violation
+                    // Probably works because we're using pinned memory
+                    // and (hopefully) not exceeding the object's lifetime
+                    boost::compute::buffer host_buf(
+                            context[mu],
+                            dev_buf.size(),
+                            boost::compute::buffer::read_write |
+                            boost::compute::buffer::use_host_ptr,
+                            dev_buf_ptr
+                            );
 
-                    copy_future.wait();
+                    // Explicitly specialized template function
+                    // Warning: This violates sanity
+                    labels[mu]->assign(host_buf, host_buf);
 
-                    queue[mu].enqueue_unmap_buffer(
-                            buf,
-                            buf_ptr);
+                    queue[ll].enqueue_unmap_buffer(
+                            labels[ll]->get_buffer(),
+                            dev_buf_ptr);
+
                 }
                 else {
-                    copy_future = boost::compute::copy_async(
+                    Future copy_future = boost::compute::copy_async(
                             labels[ll]->begin(),
                             labels[ll]->end(),
                             labels[mu]->begin(),
                             queue[mu]);
 
                     copy_future.wait();
+                    sync_event = copy_future.get_event();
                 }
 
-                datapoint.add_event() = copy_future.get_event();
+                datapoint.add_event() = sync_event;
             }
 
             if (not device_map[ll][cu] && not device_map[mu][cu]) {
