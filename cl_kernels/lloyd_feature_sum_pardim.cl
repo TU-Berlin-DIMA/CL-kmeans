@@ -50,8 +50,6 @@ void lloyd_feature_sum_pardim(
         ) {
 
     CL_INT block = get_local_id(0);
-    CL_INT block_offset = block * get_local_size(1)
-        * NUM_THREAD_FEATURES * NUM_CLUSTERS;
     CL_INT tile_row = get_global_id(0);
     CL_INT tile_col = get_global_id(1);
     CL_INT num_col_tiles = get_global_size(1);
@@ -63,7 +61,7 @@ void lloyd_feature_sum_pardim(
     for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             l_centroids[
-                block_offset + ccoord2ind(NUM_CLUSTERS, c, l_feature_base + f)
+                ccoord2abc(NUM_CLUSTERS, c, l_feature_base + f)
             ] = 0.0;
         }
     }
@@ -73,7 +71,7 @@ void lloyd_feature_sum_pardim(
         for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
             CL_POINT point = g_points[ccoord2ind(NUM_POINTS, r, g_feature_base + f)];
             l_centroids[
-                block_offset + ccoord2ind(NUM_CLUSTERS, label, l_feature_base + f)
+                ccoord2abc(NUM_CLUSTERS, label, l_feature_base + f)
             ] += point;
         }
     }
@@ -81,7 +79,7 @@ void lloyd_feature_sum_pardim(
     for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             CL_POINT centroid = l_centroids[
-                block_offset + ccoord2ind(NUM_CLUSTERS, c, l_feature_base + f)
+                ccoord2abc(NUM_CLUSTERS, c, l_feature_base + f)
             ];
             g_centroids[
                 g_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, g_feature_base + f)
