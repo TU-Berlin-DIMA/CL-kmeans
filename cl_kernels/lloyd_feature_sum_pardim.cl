@@ -49,7 +49,8 @@ CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
 // Anti-bank conflict column major indexing
 // Warning: Use only for local memory buffers
 CL_INT ccoord2abc(CL_INT dim, CL_INT row, CL_INT col) {
-    return get_local_size(0) * (dim * col + row) + get_local_id(0);
+    return get_local_size(0) * get_local_size(1) * (dim * col + row)
+        + get_local_id(0) * get_local_size(1) + get_local_id(1);
 }
 
 CL_INT rcoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
@@ -76,7 +77,6 @@ void lloyd_feature_sum_pardim(
     CL_INT tile_row = get_global_id(0);
     CL_INT tile_col = get_global_id(1);
     CL_INT num_col_tiles = get_global_size(1);
-    CL_INT l_feature_base = NUM_THREAD_FEATURES * get_local_id(1);
     CL_INT g_feature_base = NUM_THREAD_FEATURES * get_global_id(1);
     CL_INT g_cluster_offset = (num_col_tiles * tile_row)
         * NUM_THREAD_FEATURES * NUM_CLUSTERS;
@@ -84,7 +84,7 @@ void lloyd_feature_sum_pardim(
     for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             l_centroids[
-                ccoord2abc(NUM_CLUSTERS, c, l_feature_base + f)
+                ccoord2abc(NUM_CLUSTERS, c, f)
             ] = 0.0;
         }
     }
@@ -106,7 +106,7 @@ void lloyd_feature_sum_pardim(
 #define BASE_STEP(NUM)                                                   \
             l_centroids[                                                 \
                 ccoord2abc(                                              \
-                        NUM_CLUSTERS, label.s ## NUM, l_feature_base + f \
+                        NUM_CLUSTERS, label.s ## NUM, f                  \
                         )                                                \
             ] += point.s ## NUM;
 
@@ -123,7 +123,7 @@ void lloyd_feature_sum_pardim(
             REP_STEP(VEC_LEN);
 #else
             l_centroids[
-                ccoord2abc(NUM_CLUSTERS, label, l_feature_base + f)
+                ccoord2abc(NUM_CLUSTERS, label, f)
             ] += point;
 #endif
 
@@ -133,7 +133,7 @@ void lloyd_feature_sum_pardim(
     for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             CL_POINT centroid = l_centroids[
-                ccoord2abc(NUM_CLUSTERS, c, l_feature_base + f)
+                ccoord2abc(NUM_CLUSTERS, c, f)
             ];
             g_centroids[
                 g_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, g_feature_base + f)
