@@ -8,21 +8,65 @@
  */
 
 #ifndef CL_INT
-#define CL_INT ulong
+#define CL_INT uint
+#endif
+
+// float -> int ; double -> long
+#ifndef CL_SINT
+#define CL_SINT int
 #endif
 
 #ifndef CL_POINT
-#define CL_POINT double
-#define CL_POINT_MAX DBL_MAX
+#define CL_POINT float
 #endif
 
 #ifndef CL_LABEL
-#define CL_LABEL ulong
+#define CL_LABEL uint
 #endif
 
 #ifndef CL_MASS
-#define CL_MASS ulong
+#define CL_MASS uint
 #endif
+
+#ifndef CL_POINT_MAX
+#define CL_POINT_MAX FLT_MAX
+#endif
+
+#ifndef VEC_LEN
+#define VEC_LEN 1
+#endif
+
+#if VEC_LEN == 1
+#define VEC_TYPE(TYPE) TYPE
+#define VLOAD(P) (*(P))
+#define VSTORE(DATA, P) do { *(P) = DATA; } while (false)
+
+#else
+#define VEC_TYPE_JUMP(TYPE, LEN) TYPE##LEN
+#define VEC_TYPE_JUMP_2(TYPE, LEN) VEC_TYPE_JUMP(TYPE, LEN)
+#define VEC_TYPE(TYPE) VEC_TYPE_JUMP_2(TYPE, VEC_LEN)
+
+#define VLOAD_JUMP(P, LEN) vload##LEN(0, P)
+#define VLOAD_JUMP_2(P, LEN) VLOAD_JUMP(P, LEN)
+#define VLOAD(P) VLOAD_JUMP_2(P, VEC_LEN)
+
+#define VSTORE_JUMP(DATA, P, LEN) vstore##LEN(DATA, 0, P)
+#define VSTORE_JUMP_2(DATA, P, LEN) VSTORE_JUMP(DATA, P, LEN)
+#define VSTORE(DATA, P) VSTORE_JUMP_2(DATA, P, VEC_LEN)
+#endif
+
+#define REP_STEP_2(BASE_STEP) BASE_STEP(0) BASE_STEP(1)
+#define REP_STEP_4(BASE_STEP) REP_STEP_2(BASE_STEP)                 \
+    BASE_STEP(2) BASE_STEP(3)
+#define REP_STEP_8(BASE_STEP) REP_STEP_4(BASE_STEP)                 \
+    BASE_STEP(4) BASE_STEP(5)                                       \
+    BASE_STEP(6) BASE_STEP(7)
+#define REP_STEP_16(BASE_STEP) REP_STEP_8(BASE_STEP)                \
+    BASE_STEP(8) BASE_STEP(9) BASE_STEP(a) BASE_STEP(b)             \
+    BASE_STEP(c) BASE_STEP(d) BASE_STEP(e) BASE_STEP(f)
+#define REP_STEP_JUMP(BASE_STEP, NUM) REP_STEP_ ## NUM (BASE_STEP)
+#define REP_STEP(BASE_STEP, NUM)                                    \
+do { REP_STEP_JUMP(BASE_STEP, NUM) } while (false)
 
 CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     return dim * col + row;
@@ -41,7 +85,7 @@ void lloyd_fused_cluster_merge(
         __global CL_POINT *const restrict g_new_centroids,
         __global CL_MASS *const restrict g_masses,
         __global CL_LABEL *const restrict g_labels,
-        __local CL_POINT *const restrict l_points,
+        __local VEC_TYPE(CL_POINT) *const restrict l_points,
         __local CL_POINT *const restrict l_new_centroids,
         __local CL_MASS *const restrict l_masses,
         CL_INT const NUM_FEATURES,
@@ -77,15 +121,15 @@ void lloyd_fused_cluster_merge(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     for (
-            CL_INT p = get_global_id(0);
-            p < NUM_POINTS;
-            p += get_global_size(0))
+            CL_INT p = get_global_id(0) * VEC_LEN;
+            p < NUM_POINTS - VEC_LEN + 1;
+            p += get_global_size(0) * VEC_LEN)
     {
         // Cache current point
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
             // Read point
-            CL_POINT point
-            = g_points[ccoord2ind(NUM_POINTS, p, f)];
+            VEC_TYPE(CL_POINT) point
+            = VLOAD(&g_points[ccoord2ind(NUM_POINTS, p, f)]);
 
             // Cache point
             l_points[
@@ -94,49 +138,67 @@ void lloyd_fused_cluster_merge(
         }
 
         // Labeling phase
-        CL_LABEL label;
-        CL_POINT min_dist = CL_POINT_MAX;
+        VEC_TYPE(CL_LABEL) label;
+        VEC_TYPE(CL_POINT) min_dist = CL_POINT_MAX;
 
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
 
-            CL_POINT dist = 0;
+            VEC_TYPE(CL_POINT) dist = 0;
 
             for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
                 // Read point
-                CL_POINT point
+                VEC_TYPE(CL_POINT) point
                     = l_points[
                     ccoord2ind(get_local_size(0), get_local_id(0), f)
                     ];
 
                 // Calculate distance
-                CL_POINT difference
+                VEC_TYPE(CL_POINT) difference
                     = point - g_old_centroids[
                     ccoord2ind(NUM_CLUSTERS, c, f)
                     ];
-                dist += difference * difference;
+                dist = fma(difference, difference, dist);
             }
 
-            bool is_dist_smaller = dist < min_dist;
-            min_dist = is_dist_smaller ? dist : min_dist;
-            label = is_dist_smaller ? c : label;
+            VEC_TYPE(CL_SINT) is_dist_smaller = isless(dist, min_dist);
+            min_dist = fmin(dist, min_dist);
+            label = select(label, c, is_dist_smaller);
         }
 
         // Write back label
-        g_labels[p] = label;
+        VSTORE(label, &g_labels[p]);
 
         // Masses update phase
+#if VEC_LEN > 1
+#define MASS_INC_BASE(NUM)                                               \
+        l_masses[                                                        \
+        ccoord2ind(get_local_size(0), get_local_id(0), label.s ## NUM )  \
+        ] += 1;
+
+        REP_STEP(MASS_INC_BASE, VEC_LEN);
+#else
         l_masses[ccoord2ind(get_local_size(0), get_local_id(0), label)] += 1;
+#endif
 
         // Centroids update phase
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-            CL_POINT point
+            VEC_TYPE(CL_POINT) point
                 = l_points[
                 ccoord2ind(get_local_size(0), get_local_id(0), f)
                 ];
 
+#if VEC_LEN > 1
+#define CENTROID_UPDATE_BASE(NUM)                               \
+            l_new_centroids[                                    \
+                ccoord2abc(NUM_CLUSTERS, label.s ## NUM, f)     \
+            ] += point.s ## NUM;
+
+            REP_STEP(CENTROID_UPDATE_BASE, VEC_LEN);
+#else
             l_new_centroids[
                 ccoord2abc(NUM_CLUSTERS, label, f)
             ] += point;
+#endif
 
         }
 

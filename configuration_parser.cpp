@@ -103,6 +103,7 @@ po::options_description ConfigurationParser::kmeans_options() {
         ("kmeans.fused.strategy", po::value<std::string>())
         ("kmeans.fused.global_size", po::value<std::vector<size_t>>())
         ("kmeans.fused.local_size", po::value<std::vector<size_t>>())
+        ("kmeans.fused.vector_length", po::value<size_t>())
 
         ;
 
@@ -317,6 +318,9 @@ FusedConfiguration ConfigurationParser::get_fused_configuration() {
             conf.local_size[0] = v[0];
             conf.local_size[1] = v.size() > 1 ? v[1] : 1;
             conf.local_size[2] = v.size() == 3 ? v[2] : 1;
+        }
+        else if (option.first == "kmeans.fused.vector_length") {
+            conf.vector_length = option.second.as<size_t>();
         }
     }
 

@@ -21,6 +21,7 @@ struct FusedConfiguration {
     std::string strategy;
     size_t global_size[3];
     size_t local_size[3];
+    size_t vector_length;
 };
 
 }

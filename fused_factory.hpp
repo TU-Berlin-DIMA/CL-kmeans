@@ -59,6 +59,10 @@ public:
                 "FusedLocalSize",
                 std::to_string(config.local_size[0])
                 );
+        measurement.set_parameter(
+                "FusedVectorLength",
+                std::to_string(config.vector_length)
+                );
 
         if (config.strategy == "cluster_merge") {
             FusedClusterMerge<PointT, LabelT, MassT, ColMajor> strategy;

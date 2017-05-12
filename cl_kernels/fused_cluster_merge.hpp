@@ -65,15 +65,22 @@ public:
         defines += " -DCL_POINT=";
         defines += boost::compute::type_name<PointT>();
         if (std::is_same<float, PointT>::value) {
+            defines += " -DCL_SINT=int";
             defines += " -DCL_POINT_MAX=FLT_MAX";
         }
         else if (std::is_same<double, PointT>::value) {
+            defines += " -DCL_SINT=long";
             defines += " -DCL_POINT_MAX=DBL_MAX";
+        }
+        else {
+            assert(false);
         }
         defines += " -DCL_LABEL=";
         defines += boost::compute::type_name<LabelT>();
         defines += " -DCL_MASS=";
         defines += boost::compute::type_name<MassT>();
+        defines += " -DVEC_LEN=";
+        defines += std::to_string(this->config.vector_length);
 
         Program program = Program::create_with_source_file(
                 PROGRAM_FILE,
@@ -126,7 +133,9 @@ public:
                 );
 
         LocalBuffer<PointT> local_points(
-                this->config.local_size[0] * num_features
+                this->config.local_size[0]
+                * this->config.vector_length
+                * num_features
                 );
         LocalBuffer<PointT> local_new_centroids(
                 this->config.local_size[0]
