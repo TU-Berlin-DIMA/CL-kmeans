@@ -82,13 +82,18 @@ public:
         defines += " -DVEC_LEN=";
         defines += std::to_string(this->config.vector_length);
 
-        Program program = Program::create_with_source_file(
+        Program gs_program = Program::create_with_source_file(
                 PROGRAM_FILE,
                 context);
+        gs_program.build(defines);
+        this->global_stride_kernel = gs_program.create_kernel(KERNEL_NAME);
 
-        program.build(defines);
-
-        this->kernel = program.create_kernel(KERNEL_NAME);
+        defines += " -DLOCAL_STRIDE";
+        Program ls_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        ls_program.build(defines);
+        this->local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
 
         reduce_centroids.prepare(context);
         reduce_masses.prepare(context);
@@ -157,7 +162,13 @@ public:
                 queue
                 );
 
-        this->kernel.set_args(
+        boost::compute::device device = queue.get_device();
+        Kernel& kernel = (device.type() == device.cpu)
+            ? this->local_stride_kernel
+            : this->global_stride_kernel
+            ;
+
+        kernel.set_args(
                 points,
                 ro_centroids,
                 new_centroids,
@@ -174,7 +185,7 @@ public:
 
         Event event;
         event = queue.enqueue_nd_range_kernel(
-                this->kernel,
+                kernel,
                 1,
                 work_offset,
                 this->config.global_size,
@@ -241,7 +252,8 @@ private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_fused_cluster_merge.cl");
     static constexpr const char* KERNEL_NAME = "lloyd_fused_cluster_merge";
 
-    Kernel kernel;
+    Kernel global_stride_kernel;
+    Kernel local_stride_kernel;
     FusedConfiguration config;
     ReduceVectorParcol<PointT> reduce_centroids;
     ReduceVectorParcol<MassT> reduce_masses;
