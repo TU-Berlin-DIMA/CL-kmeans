@@ -75,12 +75,11 @@ CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     __kernel
 void lloyd_fused_feature_sum(
         __global CL_POINT const *const restrict g_points,
-        __global CL_POINT const *const restrict g_old_centroids,
+        __constant CL_POINT const *const restrict g_old_centroids,
         __global CL_POINT *const restrict g_new_centroids,
         __global CL_MASS *const restrict g_masses,
         __global CL_LABEL *const restrict g_labels,
         __local VEC_TYPE(CL_POINT) *const restrict l_points,
-        __local CL_POINT *const restrict l_old_centroids,
         __local CL_POINT *const restrict l_new_centroids,
         __local CL_MASS *const restrict l_masses,
         __local VEC_TYPE(CL_LABEL) *const restrict l_labels,
@@ -122,16 +121,6 @@ void lloyd_fused_feature_sum(
     for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
         l_masses[l_masses_offset + c] = 0;
     }
-
-    // Cache old centroids
-    event_t centroids_cache_event;
-    async_work_group_copy(
-            l_old_centroids,
-            g_old_centroids,
-            NUM_CLUSTERS * NUM_FEATURES,
-            centroids_cache_event
-            );
-    wait_group_events(1, &centroids_cache_event);
 
     // Main loop over points
     //
@@ -181,7 +170,7 @@ void lloyd_fused_feature_sum(
 
                     // Calculate distance
                     VEC_TYPE(CL_POINT) difference
-                        = point - l_old_centroids[
+                        = point - g_old_centroids[
                         ccoord2ind(NUM_CLUSTERS, c, f)
                         ];
                     dist = fma(difference, difference, dist);

@@ -17,6 +17,7 @@
 
 #include "../fused_configuration.hpp"
 #include "../measurement/measurement.hpp"
+#include "../allocator/readonly_allocator.hpp"
 
 #include <cassert>
 #include <string>
@@ -37,6 +38,8 @@ public:
     using Program = boost::compute::program;
     template <typename T>
     using Vector = boost::compute::vector<T>;
+    template <typename T>
+    using ReadonlyVector = boost::compute::vector<T, readonly_allocator<T>>;
     template <typename T>
     using LocalBuffer = boost::compute::local_buffer<T>;
 
@@ -151,14 +154,24 @@ public:
                 this->config.local_size[0] * this->config.vector_length
                 );
 
+        ReadonlyVector<PointT> ro_centroids(
+                num_clusters * num_features,
+                queue.get_context()
+                );
+        boost::compute::copy(
+                centroids.begin(),
+                centroids.begin() + num_clusters * num_features,
+                ro_centroids.begin(),
+                queue
+                );
+
         this->kernel.set_args(
                 points,
-                centroids,
+                ro_centroids,
                 new_centroids,
                 new_masses,
                 labels,
                 local_points,
-                local_old_centroids,
                 local_new_centroids,
                 local_masses,
                 local_labels,
