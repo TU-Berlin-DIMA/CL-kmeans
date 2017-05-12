@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef CL_INT
@@ -28,6 +28,12 @@ CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     return dim * col + row;
 }
 
+// Anti-bank conflict column major indexing
+// Warning: Use only for local memory buffers
+CL_INT ccoord2abc(CL_INT dim, CL_INT row, CL_INT col) {
+    return get_local_size(0) * (dim * col + row) + get_local_id(0);
+}
+
 __kernel
 void lloyd_fused_cluster_merge(
         __global CL_POINT const *const restrict g_points,
@@ -46,18 +52,12 @@ void lloyd_fused_cluster_merge(
 {
 
     // Calculate centroids offset
-    CL_INT const l_cluster_offset =
-        get_local_id(0)
-        * NUM_FEATURES
-        * NUM_CLUSTERS;
     CL_INT const g_cluster_offset =
         get_global_id(0)
         * NUM_FEATURES
         * NUM_CLUSTERS;
 
     // Calculate masses offset
-    CL_INT const l_masses_offset =
-        get_local_id(0) * NUM_CLUSTERS;
     CL_INT const g_masses_offset =
         get_global_id(0) * NUM_CLUSTERS;
 
@@ -65,14 +65,14 @@ void lloyd_fused_cluster_merge(
     for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             l_new_centroids[
-                l_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, f)
+                ccoord2abc(NUM_CLUSTERS, c, f)
             ] = 0;
         }
     }
 
     // Zero masses in local memory
     for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-        l_masses[l_masses_offset + c] = 0;
+        l_masses[ccoord2ind(get_local_size(0), get_local_id(0), c)] = 0;
     }
 
     // Cache old centroids
@@ -139,7 +139,7 @@ void lloyd_fused_cluster_merge(
         g_labels[p] = label;
 
         // Masses update phase
-        l_masses[l_masses_offset + label] += 1;
+        l_masses[ccoord2ind(get_local_size(0), get_local_id(0), label)] += 1;
 
         // Centroids update phase
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
@@ -149,7 +149,7 @@ void lloyd_fused_cluster_merge(
                 ];
 
             l_new_centroids[
-                l_cluster_offset + ccoord2ind(NUM_CLUSTERS, label, f)
+                ccoord2abc(NUM_CLUSTERS, label, f)
             ] += point;
 
         }
@@ -160,13 +160,13 @@ void lloyd_fused_cluster_merge(
 
     for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
         // Write back masses
-        CL_MASS mass = l_masses[l_masses_offset + c];
+        CL_MASS mass = l_masses[ccoord2ind(get_local_size(0), get_local_id(0), c)];
         g_masses[g_masses_offset + c] = mass;
 
         // Write back centroids
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
             CL_POINT centroid = l_new_centroids[
-                l_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, f)
+                ccoord2abc(NUM_CLUSTERS, c, f)
             ];
             g_new_centroids[
                 g_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, f)
