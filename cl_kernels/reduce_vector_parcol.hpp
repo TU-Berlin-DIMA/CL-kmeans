@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef REDUCE_VECTOR_PARCOL_HPP
@@ -46,8 +46,8 @@ public:
         defines += " -DCL_TYPE=";
         defines += boost::compute::type_name<T>();
         defines += " -DCL_INT=uint";
-        defines += " -DMAX_WORKGROUP_SIZE=";
-        defines += std::to_string(MAX_WORKGROUP_SIZE);
+        defines += " -DWORKGROUP_SIZE=";
+        defines += std::to_string(WORKGROUP_SIZE);
 
         Program program = Program::create_with_source_file(
                 PROGRAM_FILE,
@@ -71,7 +71,6 @@ public:
             ) {
 
         assert(data.size() >= num_cols * result_rows);
-        assert(result_rows <= MAX_WORKGROUP_SIZE);
 
         datapoint.set_name("ReduceVectorParcol");
 
@@ -84,7 +83,7 @@ public:
 
         while (
                 data_size > result_rows
-                && data_size > 2 * MAX_WORKGROUP_SIZE
+                && data_size > 2 * WORKGROUP_SIZE
               )
         {
             assert(global_size * 2 == data_size);
@@ -114,7 +113,8 @@ public:
                 data_size != result_rows
                 )
         {
-            // assert(is_power_of_2(data_size));
+            assert(WORKGROUP_SIZE % result_rows == 0);
+
             this->kernel_inner.set_args(
                     data,
                     (cl_uint) num_cols,
@@ -133,7 +133,7 @@ public:
     }
 
 private:
-    static constexpr size_t MAX_WORKGROUP_SIZE = 256;
+    static constexpr size_t WORKGROUP_SIZE = 256;
 
     static constexpr const char *PROGRAM_FILE =
         CL_KERNEL_FILE_PATH("reduce_vector_parcol.cl");

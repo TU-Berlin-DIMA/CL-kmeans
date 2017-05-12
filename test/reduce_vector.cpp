@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  * 
  * 
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #include <cl_kernels/reduce_vector_parcol.hpp>
@@ -131,6 +131,29 @@ TEST(ReduceVectorParcol, Random) {
 TEST(ReduceVectorParcol, BigRandom) {
 
     auto const& data = dgen.def_size(4, 2048 * 32);
+    std::vector<uint32_t> test_output;
+    std::vector<uint32_t> verify_output;
+    Measurement::Measurement measurement;
+
+    reduce_vector_run(
+            clenv->context,
+            clenv->queue,
+            data,
+            test_output,
+            measurement
+            );
+    reduce_vector_verify(data, verify_output);
+
+    EXPECT_TRUE(std::equal(
+                test_output.begin(),
+                test_output.end(),
+                verify_output.begin()
+                ));
+}
+
+TEST(ReduceVectorParcol, ManyRows) {
+
+    auto const& data = dgen.def_size(2048, 2048 * 32);
     std::vector<uint32_t> test_output;
     std::vector<uint32_t> verify_output;
     Measurement::Measurement measurement;
