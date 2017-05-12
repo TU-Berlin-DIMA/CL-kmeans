@@ -103,8 +103,6 @@ void lloyd_fused_feature_sum(
     CL_INT const l_feature = get_local_id(0) % block_size;
 
     // Calculate masses offset
-    CL_INT const l_masses_offset =
-        get_local_id(0) * NUM_CLUSTERS;
     CL_INT const g_masses_offset =
         get_global_id(0) * NUM_CLUSTERS;
 
@@ -119,7 +117,7 @@ void lloyd_fused_feature_sum(
 
     // Zero masses in local memory
     for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
-        l_masses[l_masses_offset + c] = 0;
+        l_masses[ccoord2ind(get_local_size(0), get_local_id(0), c)] = 0;
     }
 
     // Main loop over points
@@ -188,11 +186,15 @@ void lloyd_fused_feature_sum(
             // Masses update phase
 #if VEC_LEN > 1
 #define MASS_INC_BASE(NUM)                                               \
-            l_masses[l_masses_offset + label.s ## NUM ] += 1;
+            l_masses[ccoord2ind(                                         \
+                    get_local_size(0),                                   \
+                    get_local_id(0),                                     \
+                    label.s ## NUM                                       \
+                    )] += 1;
 
             REP_STEP(MASS_INC_BASE, VEC_LEN);
 #else
-            l_masses[l_masses_offset + label] += 1;
+            l_masses[ccoord2ind(get_local_size(0), get_local_id(0), label)] += 1;
 #endif
 
         }
@@ -236,17 +238,19 @@ void lloyd_fused_feature_sum(
 
 #if VEC_LEN > 1
 #define CENTROID_UPDATE_BASE(NUM)                                        \
-                l_new_centroids[                                         \
-                    block_offset                                         \
-                        + ccoord2ind(NUM_CLUSTERS, label.s ## NUM, f)    \
-                ] += point.s ## NUM;
+                l_new_centroids[ccoord2ind(                              \
+                        get_local_size(0),                               \
+                        get_local_id(0),                                 \
+                        label.s ## NUM /* + NUM_THREAD_FEATURES + tf */  \
+                        )] += point.s ## NUM;
 
                 REP_STEP(CENTROID_UPDATE_BASE, VEC_LEN);
 #else
-                l_new_centroids[
-                    block_offset
-                        + ccoord2ind(NUM_CLUSTERS, label, f)
-                ] += point;
+                l_new_centroids[ccoord2ind(
+                        get_local_size(0),
+                        get_local_id(0),
+                        label /* + NUM_THREAD_FEATURES * thread_feature */
+                        )] += point;
 #endif
             }
         }
@@ -255,25 +259,30 @@ void lloyd_fused_feature_sum(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    event_t mass_event;
-    async_work_group_copy(
-            &g_masses[
-            NUM_CLUSTERS * get_group_id(0) * get_local_size(0)
-            ],
-            l_masses,
-            NUM_CLUSTERS * get_local_size(0),
-            mass_event
-            );
+    CL_INT tile_offset = NUM_CLUSTERS * NUM_FEATURES
+        * (get_group_id(0) * num_blocks + block);
 
-    event_t centroid_event;
-    async_work_group_copy(
-            &g_new_centroids[
-            NUM_CLUSTERS * NUM_FEATURES * get_group_id(0) * num_blocks
-            ],
-            l_new_centroids,
-            NUM_CLUSTERS * NUM_FEATURES * num_blocks,
-            centroid_event
-            );
-    wait_group_events(1, &mass_event);
-    wait_group_events(1, &centroid_event);
+    for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+        // Write back masses
+        CL_MASS mass = l_masses[ccoord2ind(get_local_size(0), get_local_id(0), c)];
+        g_masses[g_masses_offset + c] = mass;
+
+        // Write back centroids
+        for (
+                CL_INT f = l_feature * NUM_THREAD_FEATURES;
+                f < (l_feature + 1) * NUM_THREAD_FEATURES;
+                ++f
+            )
+        {
+            CL_POINT centroid = l_new_centroids[ccoord2ind(
+                    get_local_size(0),
+                    get_local_id(0),
+                    c /* + NUM_THREAD_FEATURES * thread_feature */
+                    )];
+            g_new_centroids[
+                tile_offset + ccoord2ind(NUM_CLUSTERS, c, f)
+            ] = centroid;
+        }
+    }
+
 }
