@@ -72,6 +72,8 @@ public:
         defines += " -DCL_MASS=";
         defines += boost::compute::type_name<MassT>();
         defines += " -DNUM_THREAD_FEATURES=1";
+        defines += " -DVEC_LEN=";
+        defines += std::to_string(this->config.vector_length);
 
         Program program = Program::create_with_source_file(
                 PROGRAM_FILE,
@@ -129,7 +131,9 @@ public:
                 );
 
         LocalBuffer<PointT> local_points(
-                this->config.local_size[0] * num_features
+                this->config.local_size[0]
+                * this->config.vector_length
+                * num_features
                 );
         LocalBuffer<PointT> local_old_centroids(
                 num_clusters
@@ -144,7 +148,7 @@ public:
                 this->config.local_size[0] * num_clusters
                 );
         LocalBuffer<LabelT> local_labels(
-                this->config.local_size[0]
+                this->config.local_size[0] * this->config.vector_length
                 );
 
         this->kernel.set_args(
