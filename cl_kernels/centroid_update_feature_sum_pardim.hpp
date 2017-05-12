@@ -22,6 +22,7 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <algorithm>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -55,7 +56,6 @@ public:
         assert(Utility::is_power_of_two(config.thread_features));
         assert(config.local_features > 0);
         assert(Utility::is_power_of_two(config.local_features));
-        assert(config.local_size[0] % config.local_features == 0);
 
         this->config = config;
 
@@ -100,6 +100,8 @@ public:
             boost::compute::wait_list const& events
             )
     {
+        size_t const local_features =
+            std::min(this->config.local_features, num_features);
         size_t const num_feature_tiles =
             num_features / this->config.thread_features;
 
@@ -109,7 +111,7 @@ public:
         assert(masses.size() >= num_clusters);
         assert(num_features
                 % (this->config.thread_features
-                    * this->config.local_features)
+                    * local_features)
                 == 0);
 
         datapoint.set_name("CentroidUpdateFeatureSumPardim");
@@ -128,8 +130,8 @@ public:
         }
         else {
             local_size[0] = this->config.local_size[0]
-                / this->config.local_features;
-            local_size[1] = this->config.local_features;
+                / local_features;
+            local_size[1] = local_features;
             local_size[2] = 1;
         }
 
