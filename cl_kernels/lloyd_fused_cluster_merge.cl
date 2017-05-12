@@ -37,12 +37,11 @@ CL_INT ccoord2abc(CL_INT dim, CL_INT row, CL_INT col) {
 __kernel
 void lloyd_fused_cluster_merge(
         __global CL_POINT const *const restrict g_points,
-        __global CL_POINT const *const restrict g_old_centroids,
+        __constant CL_POINT const *const restrict g_old_centroids,
         __global CL_POINT *const restrict g_new_centroids,
         __global CL_MASS *const restrict g_masses,
         __global CL_LABEL *const restrict g_labels,
         __local CL_POINT *const restrict l_points,
-        __local CL_POINT *const restrict l_old_centroids,
         __local CL_POINT *const restrict l_new_centroids,
         __local CL_MASS *const restrict l_masses,
         CL_INT const NUM_FEATURES,
@@ -73,19 +72,6 @@ void lloyd_fused_cluster_merge(
     // Zero masses in local memory
     for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
         l_masses[ccoord2ind(get_local_size(0), get_local_id(0), c)] = 0;
-    }
-
-    // Cache old centroids
-    for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-        for (
-                CL_INT c = get_local_id(0);
-                c < NUM_CLUSTERS;
-                c += get_local_size(0))
-        {
-            l_old_centroids[ccoord2ind(NUM_CLUSTERS, c, f)]
-                = g_old_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
-
-        }
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -124,7 +110,7 @@ void lloyd_fused_cluster_merge(
 
                 // Calculate distance
                 CL_POINT difference
-                    = point - l_old_centroids[
+                    = point - g_old_centroids[
                     ccoord2ind(NUM_CLUSTERS, c, f)
                     ];
                 dist += difference * difference;
