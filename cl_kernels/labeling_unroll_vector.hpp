@@ -48,7 +48,8 @@ public:
     using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
 
     LabelingUnrollVector() :
-        kernel(Utility::log2(MAX_FEATURES))
+        global_stride_kernel(Utility::log2(MAX_FEATURES)),
+        local_stride_kernel(Utility::log2(MAX_FEATURES))
     {}
 
     void prepare(Context context, LabelingConfiguration config) {
@@ -75,24 +76,40 @@ public:
         defines += " -DVEC_LEN="
             + std::to_string(this->config.vector_length);
 
+        std::string ls_defines = " -DLOCAL_STRIDE";
+
         for (uint32_t d = 2; d <= MAX_FEATURES; d = d * 2) {
 
             std::string features =
                 " -DNUM_FEATURES="
                 + std::to_string(d);
 
-            Program program = Program::create_with_source_file(
+            Program gs_program = Program::create_with_source_file(
+                    PROGRAM_FILE,
+                    context);
+            Program ls_program = Program::create_with_source_file(
                     PROGRAM_FILE,
                     context);
 
+            size_t kernel_index = Utility::log2(d) - 1;
+
             try {
-                size_t kernel_index = Utility::log2(d) - 1;
-                program.build(defines + features);
-                this->kernel[kernel_index] =
-                    program.create_kernel(KERNEL_NAME);
+                gs_program.build(defines + features);
+                global_stride_kernel[kernel_index] =
+                    gs_program.create_kernel(KERNEL_NAME);
             }
             catch (std::exception e) {
-                std::cout << program.build_log() << std::endl;
+                std::cout << gs_program.build_log() << std::endl;
+                throw e;
+            }
+
+            try {
+                ls_program.build(defines + features + ls_defines);
+                local_stride_kernel[kernel_index] =
+                    ls_program.create_kernel(KERNEL_NAME);
+            }
+            catch (std::exception e) {
+                std::cout << ls_program.build_log() << std::endl;
                 throw e;
             }
 
@@ -131,8 +148,14 @@ public:
                 queue
                 );
 
+        boost::compute::device device = queue.get_device();
+        auto& kernel = (device.type() == device.cpu)
+            ? this->local_stride_kernel
+            : this->global_stride_kernel
+            ;
         size_t kernel_index = Utility::log2(num_features) - 1;
-        this->kernel[kernel_index].set_args(
+
+        kernel[kernel_index].set_args(
                 points,
                 ro_centroids,
                 labels,
@@ -144,7 +167,7 @@ public:
 
         Event event;
         event = queue.enqueue_nd_range_kernel(
-                this->kernel[kernel_index],
+                kernel[kernel_index],
                 1,
                 work_offset,
                 this->config.global_size,
@@ -160,7 +183,8 @@ private:
     static constexpr const char* KERNEL_NAME = "lloyd_labeling_vp_clcp";
     static constexpr const size_t MAX_FEATURES = 1024;
 
-    std::vector<Kernel> kernel;
+    std::vector<Kernel> global_stride_kernel;
+    std::vector<Kernel> local_stride_kernel;
     LabelingConfiguration config;
 
 };
