@@ -81,6 +81,7 @@ CL_INT ccoord2abc(CL_INT dim, CL_INT row, CL_INT col) {
     return get_local_size(0) * (dim * col + row) + get_local_id(0);
 }
 
+// Note: Define NUM_FEATURES in preprocessor
 __kernel
 void lloyd_fused_cluster_merge(
         __global CL_POINT const *const restrict g_points,
@@ -91,7 +92,6 @@ void lloyd_fused_cluster_merge(
         __local VEC_TYPE(CL_POINT) *const restrict l_points,
         __local CL_POINT *const restrict l_new_centroids,
         __local CL_MASS *const restrict l_masses,
-        CL_INT const NUM_FEATURES,
         CL_INT const NUM_POINTS,
         CL_INT const NUM_CLUSTERS
         )

@@ -18,10 +18,14 @@
 #include "../fused_configuration.hpp"
 #include "../measurement/measurement.hpp"
 #include "../allocator/readonly_allocator.hpp"
+#include "../utility.hpp"
 
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <vector>
+#include <stdexcept>
+#include <iostream>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -42,6 +46,11 @@ public:
     using ReadonlyVector = boost::compute::vector<T, readonly_allocator<T>>;
     template <typename T>
     using LocalBuffer = boost::compute::local_buffer<T>;
+
+    FusedClusterMerge() :
+        global_stride_kernel(Utility::log2(MAX_FEATURES)),
+        local_stride_kernel(Utility::log2(MAX_FEATURES))
+    {}
 
     void prepare(
             Context context,
@@ -82,18 +91,43 @@ public:
         defines += " -DVEC_LEN=";
         defines += std::to_string(this->config.vector_length);
 
-        Program gs_program = Program::create_with_source_file(
-                PROGRAM_FILE,
-                context);
-        gs_program.build(defines);
-        this->global_stride_kernel = gs_program.create_kernel(KERNEL_NAME);
+        for (size_t d = 2; d <= MAX_FEATURES; d = d * 2) {
 
-        defines += " -DLOCAL_STRIDE";
-        Program ls_program = Program::create_with_source_file(
-                PROGRAM_FILE,
-                context);
-        ls_program.build(defines);
-        this->local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
+            std::string features =
+                " -DNUM_FEATURES="
+                + std::to_string(d);
+
+            Program gs_program = Program::create_with_source_file(
+                    PROGRAM_FILE,
+                    context);
+
+            defines += " -DLOCAL_STRIDE";
+            Program ls_program = Program::create_with_source_file(
+                    PROGRAM_FILE,
+                    context);
+
+            size_t kernel_index = Utility::log2(d) - 1;
+
+            try {
+                gs_program.build(defines + features);
+                global_stride_kernel[kernel_index] =
+                    gs_program.create_kernel(KERNEL_NAME);
+            }
+            catch (std::exception e) {
+                std::cerr << gs_program.build_log() << std::endl;
+                throw e;
+            }
+
+            try {
+                ls_program.build(defines + features);
+                local_stride_kernel[kernel_index] =
+                    ls_program.create_kernel(KERNEL_NAME);
+            }
+            catch (std::exception e) {
+                std::cerr << ls_program.build_log() << std::endl;
+                throw e;
+            }
+        }
 
         reduce_centroids.prepare(context);
         reduce_masses.prepare(context);
@@ -117,6 +151,7 @@ public:
         assert(centroids.size() == num_clusters * num_features);
         assert(labels.size() == num_points);
         assert(masses.size() == num_clusters);
+        assert(num_features <= MAX_FEATURES);
 
         datapoint.set_name("FusedClusterMerge");
 
@@ -162,10 +197,11 @@ public:
                 queue
                 );
 
+        size_t kernel_index = Utility::log2(num_features) - 1;
         boost::compute::device device = queue.get_device();
         Kernel& kernel = (device.type() == device.cpu)
-            ? this->local_stride_kernel
-            : this->global_stride_kernel
+            ? local_stride_kernel[kernel_index]
+            : global_stride_kernel[kernel_index]
             ;
 
         kernel.set_args(
@@ -177,7 +213,6 @@ public:
                 local_points,
                 local_new_centroids,
                 local_masses,
-                (cl_uint)num_features,
                 (cl_uint)num_points,
                 (cl_uint)num_clusters);
 
@@ -251,9 +286,10 @@ public:
 private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_fused_cluster_merge.cl");
     static constexpr const char* KERNEL_NAME = "lloyd_fused_cluster_merge";
+    static constexpr const size_t MAX_FEATURES = 1024;
 
-    Kernel global_stride_kernel;
-    Kernel local_stride_kernel;
+    std::vector<Kernel> global_stride_kernel;
+    std::vector<Kernel> local_stride_kernel;
     FusedConfiguration config;
     ReduceVectorParcol<PointT> reduce_centroids;
     ReduceVectorParcol<MassT> reduce_masses;
