@@ -23,6 +23,9 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <vector>
+#include <stdexcept>
+#include <iostream>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -132,6 +135,7 @@ public:
                 this->config.local_size[0]
                 /* * this->config.num_feature_threads */
                 );
+        assert(num_features <= MAX_FEATURES);
 
         datapoint.set_name("FusedFeatureSum");
 
