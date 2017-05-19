@@ -18,6 +18,7 @@
 #include "../fused_configuration.hpp"
 #include "../measurement/measurement.hpp"
 #include "../allocator/readonly_allocator.hpp"
+#include "../utility.hpp"
 
 #include <cassert>
 #include <string>
@@ -42,6 +43,10 @@ public:
     using ReadonlyVector = boost::compute::vector<T, readonly_allocator<T>>;
     template <typename T>
     using LocalBuffer = boost::compute::local_buffer<T>;
+
+    FusedFeatureSum() :
+        kernel(Utility::log2(MAX_FEATURES))
+    {}
 
     void prepare(
             Context context,
@@ -78,13 +83,28 @@ public:
         defines += " -DVEC_LEN=";
         defines += std::to_string(this->config.vector_length);
 
-        Program program = Program::create_with_source_file(
-                PROGRAM_FILE,
-                context);
+        for (size_t d = 2; d <= MAX_FEATURES; d = d * 2) {
 
-        program.build(defines);
+            std::string features =
+                " -DNUM_FEATURES="
+                + std::to_string(d);
 
-        this->kernel = program.create_kernel(KERNEL_NAME);
+            Program program = Program::create_with_source_file(
+                    PROGRAM_FILE,
+                    context);
+
+            size_t kernel_index = Utility::log2(d) - 1;
+
+            try {
+                program.build(defines + features);
+                kernel[kernel_index] =
+                    program.create_kernel(KERNEL_NAME);
+            }
+            catch (std::exception e) {
+                std::cerr << program.build_log() << std::endl;
+                throw e;
+            }
+        }
 
         reduce_centroids.prepare(context);
         reduce_masses.prepare(context);
@@ -138,10 +158,6 @@ public:
                 * this->config.vector_length
                 * num_features
                 );
-        LocalBuffer<PointT> local_old_centroids(
-                num_clusters
-                * num_features
-                );
         LocalBuffer<PointT> local_new_centroids(
                 this->config.local_size[0]
                 // * config.num_thread_features,
@@ -165,7 +181,9 @@ public:
                 queue
                 );
 
-        this->kernel.set_args(
+        size_t kernel_index = Utility::log2(num_features) - 1;
+
+        kernel[kernel_index].set_args(
                 points,
                 ro_centroids,
                 new_centroids,
@@ -175,7 +193,6 @@ public:
                 local_new_centroids,
                 local_masses,
                 local_labels,
-                (cl_uint)num_features,
                 (cl_uint)num_points,
                 (cl_uint)num_clusters);
 
@@ -183,7 +200,7 @@ public:
 
         Event event;
         event = queue.enqueue_nd_range_kernel(
-                this->kernel,
+                kernel[kernel_index],
                 1,
                 work_offset,
                 this->config.global_size,
@@ -255,8 +272,9 @@ public:
 private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_fused_feature_sum.cl");
     static constexpr const char* KERNEL_NAME = "lloyd_fused_feature_sum";
+    static constexpr const size_t MAX_FEATURES = 1024;
 
-    Kernel kernel;
+    std::vector<Kernel> kernel;
     FusedConfiguration config;
     ReduceVectorParcol<PointT> reduce_centroids;
     ReduceVectorParcol<MassT> reduce_masses;

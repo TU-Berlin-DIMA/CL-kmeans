@@ -72,7 +72,8 @@ CL_INT ccoord2ind(CL_INT dim, CL_INT row, CL_INT col) {
     return dim * col + row;
 }
 
-    __kernel
+// Note: Define NUM_FEATURES with preprocessor
+__kernel
 void lloyd_fused_feature_sum(
         __global CL_POINT const *const restrict g_points,
         __constant CL_POINT const *const restrict g_old_centroids,
@@ -83,7 +84,6 @@ void lloyd_fused_feature_sum(
         __local CL_POINT *const restrict l_new_centroids,
         __local CL_MASS *const restrict l_masses,
         __local VEC_TYPE(CL_LABEL) *const restrict l_labels,
-        CL_INT const NUM_FEATURES,
         CL_INT const NUM_POINTS,
         CL_INT const NUM_CLUSTERS
         )
