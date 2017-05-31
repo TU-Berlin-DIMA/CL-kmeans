@@ -116,10 +116,7 @@ public:
                 );
 
         boost::compute::device device = queue.get_device();
-        Kernel& kernel = (
-                device.type() == device.cpu ||
-                device.type() == device.accelerator
-                )
+        Kernel& kernel = (device.type() == device.cpu)
             ? this->local_stride_kernel
             : this->global_stride_kernel
             ;
