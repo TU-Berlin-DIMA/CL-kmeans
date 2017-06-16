@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef CENTROID_UPDATE_CLUSTER_MERGE_HPP
@@ -65,18 +65,41 @@ public:
         defines += " -DVEC_LEN=";
         defines += std::to_string(this->config.vector_length);
 
-        Program gs_program = Program::create_with_source_file(
-                PROGRAM_FILE,
-                context);
-        gs_program.build(defines);
-        this->global_stride_kernel = gs_program.create_kernel(KERNEL_NAME);
+        std::string l_stride_defines = " -DLOCAL_STRIDE";
+        std::string g_mem_defines = " -DGLOBAL_MEM";
 
-        defines += " -DLOCAL_STRIDE";
-        Program ls_program = Program::create_with_source_file(
+        Program g_stride_g_mem_program = Program::create_with_source_file(
                 PROGRAM_FILE,
                 context);
-        ls_program.build(defines);
-        this->local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
+        try {
+            g_stride_g_mem_program.build(defines + g_mem_defines);
+        }
+        catch (std::exception e) {
+            std::cerr << g_stride_g_mem_program.build_log() << std::endl;
+        }
+        g_stride_g_mem_kernel = g_stride_g_mem_program.create_kernel(KERNEL_NAME);
+
+        Program g_stride_l_mem_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        try {
+            g_stride_l_mem_program.build(defines);
+        }
+        catch (std::exception e) {
+            std::cerr << g_stride_l_mem_program.build_log() << std::endl;
+        }
+        g_stride_l_mem_kernel = g_stride_l_mem_program.create_kernel(KERNEL_NAME);
+
+        Program l_stride_g_mem_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        try {
+        l_stride_g_mem_program.build(defines + l_stride_defines + g_mem_defines);
+        }
+        catch (std::exception e) {
+            std::cerr << l_stride_g_mem_program.build_log() << std::endl;
+        }
+        l_stride_g_mem_kernel = l_stride_g_mem_program.create_kernel(KERNEL_NAME);
 
         reduce.prepare(context);
         divide_matrix.prepare(context, divide_matrix.Divide);
@@ -116,22 +139,40 @@ public:
                 );
 
         boost::compute::device device = queue.get_device();
-        Kernel& kernel = (
-                device.type() == device.cpu ||
-                device.type() == device.accelerator
-                )
-            ? this->local_stride_kernel
-            : this->global_stride_kernel
+        bool use_local_stride =
+            device.type() == device.cpu ||
+            device.type() == device.accelerator
+            ;
+        bool use_local_memory =
+            device.type() == device.gpu &&
+            device.local_memory_size() > local_centroids.size()
+            ;
+        Kernel& kernel = (use_local_stride)
+            ? l_stride_g_mem_kernel
+            : (use_local_memory)
+            ? g_stride_l_mem_kernel
+            : g_stride_g_mem_kernel
             ;
 
-        kernel.set_args(
-                points,
-                centroids,
-                labels,
-                local_centroids,
-                (cl_uint)num_features,
-                (cl_uint)num_points,
-                (cl_uint)num_clusters);
+        if (use_local_memory) {
+            kernel.set_args(
+                    points,
+                    centroids,
+                    labels,
+                    local_centroids,
+                    (cl_uint)num_features,
+                    (cl_uint)num_points,
+                    (cl_uint)num_clusters);
+        }
+        else {
+            kernel.set_args(
+                    points,
+                    centroids,
+                    labels,
+                    (cl_uint)num_features,
+                    (cl_uint)num_points,
+                    (cl_uint)num_clusters);
+        }
 
         Event event;
         event = queue.enqueue_1d_range_kernel(
@@ -173,8 +214,9 @@ private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("lloyd_cluster_merge.cl");
     static constexpr const char* KERNEL_NAME = "lloyd_cluster_merge";
 
-    Kernel global_stride_kernel;
-    Kernel local_stride_kernel;
+    Kernel g_stride_g_mem_kernel;
+    Kernel g_stride_l_mem_kernel;
+    Kernel l_stride_g_mem_kernel;
     CentroidUpdateConfiguration config;
     ReduceVectorParcol<PointT> reduce;
     MatrixBinaryOp<PointT, MassT> divide_matrix;
