@@ -9,6 +9,9 @@
 
 // #define LOCAL_STRIDE
 // Default: global stride access
+//
+// #define GLOBAL_MEM
+// Default: local memory cache
 
 #ifndef CL_INT
 #define CL_INT uint
@@ -89,9 +92,11 @@ void lloyd_fused_cluster_merge(
         __global CL_POINT *const restrict g_new_centroids,
         __global CL_MASS *const restrict g_masses,
         __global CL_LABEL *const restrict g_labels,
+#ifndef GLOBAL_MEM
         __local VEC_TYPE(CL_POINT) *const restrict l_points,
         __local CL_POINT *const restrict l_new_centroids,
         __local CL_MASS *const restrict l_masses,
+#endif
         CL_INT const NUM_POINTS,
         CL_INT const NUM_CLUSTERS
         )
@@ -107,6 +112,21 @@ void lloyd_fused_cluster_merge(
     CL_INT const g_masses_offset =
         get_global_id(0) * NUM_CLUSTERS;
 
+#ifdef GLOBAL_MEM
+    // Zero new centroids in global memory
+    for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+        for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
+            g_new_centroids[
+                g_cluster_offset + ccoord2ind(NUM_CLUSTERS, c, f)
+            ] = 0;
+        }
+    }
+
+    // Zero masses in global memory
+    for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+        g_masses[g_masses_offset + c] = 0;
+    }
+#else
     // Zero new centroids in local memory
     for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
@@ -122,6 +142,7 @@ void lloyd_fused_cluster_merge(
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
+#endif
 
     CL_INT p;
 #ifdef LOCAL_STRIDE
@@ -150,6 +171,7 @@ void lloyd_fused_cluster_merge(
         )
 #endif
     {
+#ifndef GLOBAL_MEM
         // Cache current point
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
             // Read point
@@ -161,6 +183,7 @@ void lloyd_fused_cluster_merge(
                 ccoord2ind(get_local_size(0), get_local_id(0), f)
             ] = point;
         }
+#endif
 
         // Labeling phase
         VEC_TYPE(CL_LABEL) label;
@@ -172,10 +195,14 @@ void lloyd_fused_cluster_merge(
 
             for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
                 // Read point
-                VEC_TYPE(CL_POINT) point
-                    = l_points[
-                    ccoord2ind(get_local_size(0), get_local_id(0), f)
+                VEC_TYPE(CL_POINT) point =
+#ifdef GLOBAL_MEM
+                    VLOAD(&g_points[ccoord2ind(NUM_POINTS, p, f)]);
+#else
+                    l_points[
+                        ccoord2ind(get_local_size(0), get_local_id(0), f)
                     ];
+#endif
 
                 // Calculate distance
                 VEC_TYPE(CL_POINT) difference
@@ -195,40 +222,67 @@ void lloyd_fused_cluster_merge(
 
         // Masses update phase
 #if VEC_LEN > 1
+#ifdef GLOBAL_MEM
+#define MASS_INC_BASE(NUM)                                               \
+        g_masses[g_masses_offset + label.s ## NUM ] += 1;
+#else
 #define MASS_INC_BASE(NUM)                                               \
         l_masses[                                                        \
         ccoord2ind(get_local_size(0), get_local_id(0), label.s ## NUM )  \
         ] += 1;
+#endif
 
         REP_STEP(MASS_INC_BASE, VEC_LEN);
 #else
+#ifdef GLOBAL_MEM
+        g_masses[g_masses_offset + label] += 1;
+#else
         l_masses[ccoord2ind(get_local_size(0), get_local_id(0), label)] += 1;
+#endif
 #endif
 
         // Centroids update phase
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
-            VEC_TYPE(CL_POINT) point
-                = l_points[
-                ccoord2ind(get_local_size(0), get_local_id(0), f)
+            VEC_TYPE(CL_POINT) point =
+#ifdef GLOBAL_MEM
+                VLOAD(&g_points[ccoord2ind(NUM_POINTS, p, f)]);
+#else
+                l_points[
+                    ccoord2ind(get_local_size(0), get_local_id(0), f)
                 ];
+#endif
 
 #if VEC_LEN > 1
+#ifdef GLOBAL_MEM
+#define CENTROID_UPDATE_BASE(NUM)                                              \
+            g_new_centroids[                                                   \
+                g_cluster_offset + ccoord2ind(NUM_CLUSTERS, label.s ## NUM, f) \
+            ] += point.s ## NUM;
+#else
 #define CENTROID_UPDATE_BASE(NUM)                               \
             l_new_centroids[                                    \
                 ccoord2abc(NUM_CLUSTERS, label.s ## NUM, f)     \
             ] += point.s ## NUM;
+#endif
 
             REP_STEP(CENTROID_UPDATE_BASE, VEC_LEN);
+#else
+#ifdef GLOBAL_MEM
+            g_new_centroids[
+                g_cluster_offset + ccoord2ind(NUM_CLUSTERS, label, f)
+            ] += point;
 #else
             l_new_centroids[
                 ccoord2abc(NUM_CLUSTERS, label, f)
             ] += point;
+#endif
 #endif
 
         }
 
     }
 
+#ifndef GLOBAL_MEM
     // No barrier necessary, as only writing back private data
 
     for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
@@ -246,4 +300,5 @@ void lloyd_fused_cluster_merge(
             ] = centroid;
         }
     }
+#endif
 }

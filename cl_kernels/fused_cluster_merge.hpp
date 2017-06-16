@@ -48,8 +48,9 @@ public:
     using LocalBuffer = boost::compute::local_buffer<T>;
 
     FusedClusterMerge() :
-        global_stride_kernel(Utility::log2(MAX_FEATURES)),
-        local_stride_kernel(Utility::log2(MAX_FEATURES))
+        g_stride_g_mem_kernel(Utility::log2(MAX_FEATURES)),
+        g_stride_l_mem_kernel(Utility::log2(MAX_FEATURES)),
+        l_stride_g_mem_kernel(Utility::log2(MAX_FEATURES))
     {}
 
     void prepare(
@@ -91,40 +92,56 @@ public:
         defines += " -DVEC_LEN=";
         defines += std::to_string(this->config.vector_length);
 
+        std::string l_stride_defines = " -DLOCAL_STRIDE";
+        std::string g_mem_defines = " -DGLOBAL_MEM";
+
         for (size_t d = 2; d <= MAX_FEATURES; d = d * 2) {
 
             std::string features =
                 " -DNUM_FEATURES="
                 + std::to_string(d);
 
-            Program gs_program = Program::create_with_source_file(
+            Program g_stride_g_mem_program = Program::create_with_source_file(
                     PROGRAM_FILE,
                     context);
 
-            defines += " -DLOCAL_STRIDE";
-            Program ls_program = Program::create_with_source_file(
+            Program g_stride_l_mem_program = Program::create_with_source_file(
+                    PROGRAM_FILE,
+                    context);
+
+            Program l_stride_g_mem_program = Program::create_with_source_file(
                     PROGRAM_FILE,
                     context);
 
             size_t kernel_index = Utility::log2(d) - 1;
 
             try {
-                gs_program.build(defines + features);
-                global_stride_kernel[kernel_index] =
-                    gs_program.create_kernel(KERNEL_NAME);
+                g_stride_g_mem_program.build(defines + features + g_mem_defines);
+                g_stride_g_mem_kernel[kernel_index] =
+                    g_stride_g_mem_program.create_kernel(KERNEL_NAME);
             }
             catch (std::exception e) {
-                std::cerr << gs_program.build_log() << std::endl;
+                std::cerr << g_stride_g_mem_program.build_log() << std::endl;
                 throw e;
             }
 
             try {
-                ls_program.build(defines + features);
-                local_stride_kernel[kernel_index] =
-                    ls_program.create_kernel(KERNEL_NAME);
+                g_stride_l_mem_program.build(defines + features);
+                g_stride_l_mem_kernel[kernel_index] =
+                    g_stride_l_mem_program.create_kernel(KERNEL_NAME);
             }
             catch (std::exception e) {
-                std::cerr << ls_program.build_log() << std::endl;
+                std::cerr << g_stride_l_mem_program.build_log() << std::endl;
+                throw e;
+            }
+
+            try {
+                l_stride_g_mem_program.build(defines + features + l_stride_defines + g_mem_defines);
+                l_stride_g_mem_kernel[kernel_index] =
+                    l_stride_g_mem_program.create_kernel(KERNEL_NAME);
+            }
+            catch (std::exception e) {
+                std::cerr << l_stride_g_mem_program.build_log() << std::endl;
                 throw e;
             }
         }
@@ -199,22 +216,51 @@ public:
 
         size_t kernel_index = Utility::log2(num_features) - 1;
         boost::compute::device device = queue.get_device();
-        Kernel& kernel = (device.type() == device.cpu)
-            ? local_stride_kernel[kernel_index]
-            : global_stride_kernel[kernel_index]
+        bool use_local_stride =
+            device.type() == device.cpu ||
+            device.type() == device.accelerator
+            ;
+        bool use_local_memory =
+            device.type() == device.gpu &&
+            device.local_memory_size() >
+            (
+             local_points.size() +
+             local_new_centroids.size() +
+             local_masses.size()
+            )
+            ;
+        auto& kernel = (use_local_stride)
+            ? l_stride_g_mem_kernel[kernel_index]
+            : (
+                    use_local_memory
+              )
+            ? g_stride_l_mem_kernel[kernel_index]
+            : g_stride_g_mem_kernel[kernel_index]
             ;
 
-        kernel.set_args(
-                points,
-                ro_centroids,
-                new_centroids,
-                new_masses,
-                labels,
-                local_points,
-                local_new_centroids,
-                local_masses,
-                (cl_uint)num_points,
-                (cl_uint)num_clusters);
+        if (use_local_memory) {
+            kernel.set_args(
+                    points,
+                    ro_centroids,
+                    new_centroids,
+                    new_masses,
+                    labels,
+                    local_points,
+                    local_new_centroids,
+                    local_masses,
+                    (cl_uint)num_points,
+                    (cl_uint)num_clusters);
+        }
+        else {
+            kernel.set_args(
+                    points,
+                    ro_centroids,
+                    new_centroids,
+                    new_masses,
+                    labels,
+                    (cl_uint)num_points,
+                    (cl_uint)num_clusters);
+        }
 
         size_t work_offset[3] = {0, 0, 0};
 
@@ -288,8 +334,9 @@ private:
     static constexpr const char* KERNEL_NAME = "lloyd_fused_cluster_merge";
     static constexpr const size_t MAX_FEATURES = 1024;
 
-    std::vector<Kernel> global_stride_kernel;
-    std::vector<Kernel> local_stride_kernel;
+    std::vector<Kernel> g_stride_g_mem_kernel;
+    std::vector<Kernel> g_stride_l_mem_kernel;
+    std::vector<Kernel> l_stride_g_mem_kernel;
     FusedConfiguration config;
     ReduceVectorParcol<PointT> reduce_centroids;
     ReduceVectorParcol<MassT> reduce_masses;
