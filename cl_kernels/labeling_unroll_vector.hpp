@@ -48,8 +48,9 @@ public:
     using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
 
     LabelingUnrollVector() :
-        global_stride_kernel(Utility::log2(MAX_FEATURES)),
-        local_stride_kernel(Utility::log2(MAX_FEATURES))
+        g_stride_g_mem_kernel(Utility::log2(MAX_FEATURES)),
+        g_stride_l_mem_kernel(Utility::log2(MAX_FEATURES)),
+        l_stride_g_mem_kernel(Utility::log2(MAX_FEATURES))
     {}
 
     void prepare(Context context, LabelingConfiguration config) {
@@ -76,7 +77,8 @@ public:
         defines += " -DVEC_LEN="
             + std::to_string(this->config.vector_length);
 
-        std::string ls_defines = " -DLOCAL_STRIDE";
+        std::string l_stride_defines = " -DLOCAL_STRIDE";
+        std::string g_mem_defines = " -DGLOBAL_MEM";
 
         for (uint32_t d = 2; d <= MAX_FEATURES; d = d * 2) {
 
@@ -84,32 +86,47 @@ public:
                 " -DNUM_FEATURES="
                 + std::to_string(d);
 
-            Program gs_program = Program::create_with_source_file(
+            Program g_stride_g_mem_program = Program::create_with_source_file(
                     PROGRAM_FILE,
                     context);
-            Program ls_program = Program::create_with_source_file(
+            Program g_stride_l_mem_program = Program::create_with_source_file(
+                    PROGRAM_FILE,
+                    context);
+            Program l_stride_g_mem_program = Program::create_with_source_file(
                     PROGRAM_FILE,
                     context);
 
             size_t kernel_index = Utility::log2(d) - 1;
 
             try {
-                gs_program.build(defines + features);
-                global_stride_kernel[kernel_index] =
-                    gs_program.create_kernel(KERNEL_NAME);
+                g_stride_g_mem_program.build(defines + features + g_mem_defines);
+                g_stride_g_mem_kernel[kernel_index] =
+                    g_stride_g_mem_program.create_kernel(KERNEL_NAME);
             }
             catch (std::exception e) {
-                std::cout << gs_program.build_log() << std::endl;
+                std::cout << g_stride_g_mem_program.build_log() << std::endl;
                 throw e;
             }
 
             try {
-                ls_program.build(defines + features + ls_defines);
-                local_stride_kernel[kernel_index] =
-                    ls_program.create_kernel(KERNEL_NAME);
+                g_stride_l_mem_program.build(defines + features);
+                g_stride_l_mem_kernel[kernel_index] =
+                    g_stride_l_mem_program.create_kernel(KERNEL_NAME);
             }
             catch (std::exception e) {
-                std::cout << ls_program.build_log() << std::endl;
+                std::cout << g_stride_l_mem_program.build_log() << std::endl;
+                throw e;
+            }
+
+            try {
+                l_stride_g_mem_program.build(
+                        defines + features + l_stride_defines + g_mem_defines
+                        );
+                l_stride_g_mem_kernel[kernel_index] =
+                    l_stride_g_mem_program.create_kernel(KERNEL_NAME);
+            }
+            catch (std::exception e) {
+                std::cout << l_stride_g_mem_program.build_log() << std::endl;
                 throw e;
             }
 
@@ -149,22 +166,41 @@ public:
                 );
 
         boost::compute::device device = queue.get_device();
-        auto& kernel = (
-                device.type() == device.cpu ||
-                device.type() == device.accelerator
-                )
-            ? this->local_stride_kernel
-            : this->global_stride_kernel
+        bool use_local_stride =
+            device.type() == device.cpu ||
+            device.type() == device.accelerator
+            ;
+        bool use_local_memory =
+            device.type() == device.gpu &&
+            device.local_memory_size() > local_points.size()
+            ;
+        auto& kernel = (use_local_stride)
+            ? this->l_stride_g_mem_kernel
+            : (
+                    use_local_memory
+              )
+            ? this->g_stride_l_mem_kernel
+            : this->g_stride_g_mem_kernel
             ;
         size_t kernel_index = Utility::log2(num_features) - 1;
 
-        kernel[kernel_index].set_args(
-                points,
-                ro_centroids,
-                labels,
-                local_points,
-                (cl_uint) num_points,
-                (cl_uint) num_clusters);
+        if (use_local_memory) {
+            kernel[kernel_index].set_args(
+                    points,
+                    ro_centroids,
+                    labels,
+                    local_points,
+                    (cl_uint) num_points,
+                    (cl_uint) num_clusters);
+        }
+        else {
+            kernel[kernel_index].set_args(
+                    points,
+                    ro_centroids,
+                    labels,
+                    (cl_uint) num_points,
+                    (cl_uint) num_clusters);
+        }
 
         size_t work_offset[3] = {0, 0, 0};
 
@@ -186,8 +222,9 @@ private:
     static constexpr const char* KERNEL_NAME = "lloyd_labeling_vp_clcp";
     static constexpr const size_t MAX_FEATURES = 1024;
 
-    std::vector<Kernel> global_stride_kernel;
-    std::vector<Kernel> local_stride_kernel;
+    std::vector<Kernel> g_stride_g_mem_kernel;
+    std::vector<Kernel> g_stride_l_mem_kernel;
+    std::vector<Kernel> l_stride_g_mem_kernel;
     LabelingConfiguration config;
 
 };

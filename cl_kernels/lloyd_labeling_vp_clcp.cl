@@ -9,6 +9,9 @@
 
 // #define LOCAL_STRIDE
 // Default: global stride access
+//
+// #define GLOBAL_MEM
+// Default: local memory cache
 
 #ifndef CL_INT
 #define CL_INT uint
@@ -68,7 +71,9 @@ void lloyd_labeling_vp_clcp(
             __global CL_POINT const *const restrict g_points,
             __constant CL_POINT const *const restrict g_centroids,
             __global CL_LABEL *const restrict g_labels,
+#ifndef GLOBAL_MEM
             __local VEC_TYPE(CL_POINT) *const restrict l_points,
+#endif
             const CL_INT NUM_POINTS,
             const CL_INT NUM_CLUSTERS
        ) {
@@ -101,6 +106,8 @@ void lloyd_labeling_vp_clcp(
 #endif
     {
 
+#ifndef GLOBAL_MEM
+        // Cache points in local memory
         for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
             VEC_TYPE(CL_POINT) point =
                 VLOAD(&g_points[ccoord2ind(NUM_POINTS, p, f)]);
@@ -111,6 +118,7 @@ void lloyd_labeling_vp_clcp(
                     f
                     )] = point;
         }
+#endif
 
         VEC_TYPE(CL_LABEL) min_c;
         VEC_TYPE(CL_POINT) min_dist = CL_POINT_MAX;
@@ -121,11 +129,15 @@ void lloyd_labeling_vp_clcp(
             for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
 
                 VEC_TYPE(CL_POINT) point =
+#ifdef GLOBAL_MEM
+                    VLOAD(&g_points[ccoord2ind(NUM_POINTS, p, f)]);
+#else
                     l_points[ccoord2ind(
                             get_local_size(0),
                             get_local_id(0),
                             f
                             )];
+#endif
 
                 VEC_TYPE(CL_POINT) difference =
                     point - g_centroids[ccoord2ind(NUM_CLUSTERS, c, f)];
