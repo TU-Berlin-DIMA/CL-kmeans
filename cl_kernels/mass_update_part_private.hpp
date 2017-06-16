@@ -57,18 +57,47 @@ public:
         defines += " -DVEC_LEN=";
         defines += std::to_string(this->config.vector_length);
 
-        Program gs_program = Program::create_with_source_file(
-                PROGRAM_FILE,
-                context);
-        gs_program.build(defines);
-        this->global_stride_kernel = gs_program.create_kernel(KERNEL_NAME);
+        std::string l_stride_defines = " -DLOCAL_STRIDE";
+        std::string g_mem_defines = " -DGLOBAL_MEM";
 
-        defines += " -DLOCAL_STRIDE";
-        Program ls_program = Program::create_with_source_file(
+        Program g_stride_g_mem_program = Program::create_with_source_file(
                 PROGRAM_FILE,
                 context);
-        ls_program.build(defines);
-        this->local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
+        try {
+            g_stride_g_mem_program.build(defines + g_mem_defines);
+            g_stride_g_mem_kernel =
+                g_stride_g_mem_program.create_kernel(KERNEL_NAME);
+        }
+        catch (std::exception e) {
+            std::cerr << g_stride_g_mem_program.build_log() << std::endl;
+            throw e;
+        }
+
+        Program g_stride_l_mem_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        try {
+            g_stride_l_mem_program.build(defines);
+            g_stride_l_mem_kernel =
+                g_stride_l_mem_program.create_kernel(KERNEL_NAME);
+        }
+        catch (std::exception e) {
+            std::cerr << g_stride_l_mem_program.build_log() << std::endl;
+            throw e;
+        }
+
+        Program l_stride_g_mem_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        try {
+            l_stride_g_mem_program.build(defines + l_stride_defines + g_mem_defines);
+            l_stride_g_mem_kernel =
+                l_stride_g_mem_program.create_kernel(KERNEL_NAME);
+        }
+        catch (std::exception e) {
+            std::cerr << l_stride_g_mem_program.build_log() << std::endl;
+            throw e;
+        }
 
         reduce.prepare(context);
     }
@@ -100,21 +129,38 @@ public:
                 );
 
         boost::compute::device device = queue.get_device();
-        Kernel& kernel = (
-                device.type() == device.cpu ||
-                device.type() == device.accelerator
-                )
-            ? this->local_stride_kernel
-            : this->global_stride_kernel
+        bool use_local_stride =
+            device.type() == device.cpu ||
+            device.type() == device.accelerator
+            ;
+        bool use_local_memory =
+            device.type() == device.gpu &&
+            device.local_memory_size() > local_masses.size()
+            ;
+        auto& kernel = (use_local_stride)
+            ? l_stride_g_mem_kernel
+            : (use_local_memory)
+            ? g_stride_l_mem_kernel
+            : g_stride_g_mem_kernel
             ;
 
-        kernel.set_args(
-                labels,
-                masses,
-                local_masses,
-                (uint32_t) num_points,
-                (uint32_t) num_clusters
-                );
+        if (use_local_memory) {
+            kernel.set_args(
+                    labels,
+                    masses,
+                    local_masses,
+                    (uint32_t) num_points,
+                    (uint32_t) num_clusters
+                    );
+        }
+        else {
+            kernel.set_args(
+                    labels,
+                    masses,
+                    (uint32_t) num_points,
+                    (uint32_t) num_clusters
+                    );
+             }
 
         Event event;
         event = queue.enqueue_1d_range_kernel(
@@ -143,8 +189,9 @@ private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("histogram_part_private.cl");
     static constexpr const char* KERNEL_NAME = "histogram_part_private";
 
-    Kernel global_stride_kernel;
-    Kernel local_stride_kernel;
+    Kernel g_stride_g_mem_kernel;
+    Kernel g_stride_l_mem_kernel;
+    Kernel l_stride_g_mem_kernel;
     MassUpdateConfiguration config;
     ReduceVectorParcol<MassT> reduce;
 };

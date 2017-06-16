@@ -9,6 +9,9 @@
 
 // #define LOCAL_STRIDE
 // Default: global stride access
+//
+// #define GLOBAL_MEM
+// Default: local memory cache
 
 #ifndef CL_INT
 #define CL_INT uint
@@ -44,7 +47,9 @@ __kernel
 void histogram_part_private(
             __global CL_TYPE_IN const *const restrict g_in,
             __global CL_TYPE_OUT *const restrict g_out,
+#ifndef GLOBAL_MEM
             __local CL_TYPE_OUT *const restrict local_buf,
+#endif
             const CL_INT NUM_ITEMS,
             const CL_INT NUM_BINS
        )
@@ -52,8 +57,13 @@ void histogram_part_private(
     CL_INT const group_bins = get_local_size(0) * NUM_BINS;
     CL_INT const group_offset = get_group_id(0) * group_bins;
 
+    // Zero bins
     for (CL_INT c = 0; c < NUM_BINS; ++c) {
+#ifdef GLOBAL_MEM
+        g_out[group_offset + rcoord2ind(NUM_BINS, get_local_id(0), c)] = 0;
+#else
         local_buf[ccoord2ind(get_local_size(0), get_local_id(0), c)] = 0;
+#endif
     }
 
     CL_INT p;
@@ -84,10 +94,18 @@ void histogram_part_private(
 #endif
     {
 #if VEC_LEN > 1
+#ifdef GLOBAL_MEM
+#define BASE_STEP(NUM)                                                \
+        g_out[                                                        \
+            group_offset +                                            \
+            rcoord2ind(NUM_BINS, get_local_id(0), cluster.s ## NUM )  \
+        ] += 1;
+#else
 #define BASE_STEP(NUM)                                                    \
         local_buf[                                                        \
         ccoord2ind(get_local_size(0), get_local_id(0), cluster.s ## NUM ) \
         ] += 1;
+#endif
 
 #define REP_STEP_2 BASE_STEP(0) BASE_STEP(1)
 #define REP_STEP_4 REP_STEP_2 BASE_STEP(2) BASE_STEP(3)
@@ -102,15 +120,22 @@ void histogram_part_private(
         VEC_TYPE(CL_TYPE_IN) cluster = VLOAD(0, &g_in[p]);
         REP_STEP(VEC_LEN);
 #else
+
         CL_TYPE_IN cluster = g_in[p];
+#ifdef GLOBAL_MEM
+        g_out[group_offset + rcoord2ind(NUM_BINS, get_local_id(0), cluster)] += 1;
+#else
         local_buf[ccoord2ind(get_local_size(0), get_local_id(0), cluster)] += 1;
+#endif
 #endif
     }
 
+#ifndef GLOBAL_MEM
     for (CL_INT c = 0; c < NUM_BINS; ++c) {
         CL_TYPE_OUT cluster =
             local_buf[ccoord2ind(get_local_size(0), get_local_id(0), c)];
         g_out[group_offset + rcoord2ind(NUM_BINS, get_local_id(0), c)] =
             cluster;
     }
+#endif
 }
