@@ -145,7 +145,8 @@ public:
             ;
         bool use_local_memory =
             device.type() == device.gpu &&
-            device.local_memory_size() > local_centroids.size()
+            device.local_memory_size() >
+            local_centroids.size() * sizeof(PointT)
             ;
         Kernel& kernel = (use_local_stride)
             ? l_stride_g_mem_kernel

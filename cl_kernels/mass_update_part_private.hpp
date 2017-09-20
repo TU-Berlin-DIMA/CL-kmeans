@@ -135,7 +135,7 @@ public:
             ;
         bool use_local_memory =
             device.type() == device.gpu &&
-            device.local_memory_size() > local_masses.size()
+            device.local_memory_size() > local_masses.size() * sizeof(MassT)
             ;
         auto& kernel = (use_local_stride)
             ? l_stride_g_mem_kernel
