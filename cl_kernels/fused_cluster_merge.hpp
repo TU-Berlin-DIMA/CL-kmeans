@@ -224,9 +224,9 @@ public:
             device.type() == device.gpu &&
             device.local_memory_size() >
             (
-             local_points.size() +
-             local_new_centroids.size() +
-             local_masses.size()
+             local_points.size() * sizeof(PointT) +
+             local_new_centroids.size() * sizeof(PointT) +
+             local_masses.size() * sizeof(MassT)
             )
             ;
         auto& kernel = (use_local_stride)
