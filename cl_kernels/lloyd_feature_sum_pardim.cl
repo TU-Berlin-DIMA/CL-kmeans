@@ -9,6 +9,9 @@
 
 // #define LOCAL_STRIDE
 // Default: global stride access
+//
+// #define GLOBAL_MEM
+// Default: local memory cache
 
 #ifndef CL_INT
 #define CL_INT ulong
@@ -70,7 +73,9 @@ void lloyd_feature_sum_pardim(
         __global CL_POINT const *const restrict g_points,
         __global CL_POINT *const restrict g_centroids,
         __global CL_LABEL const *const restrict g_labels,
+#ifndef GLOBAL_MEM
         __local CL_POINT *const restrict l_centroids,
+#endif
         CL_INT const NUM_FEATURES,
         CL_INT const NUM_POINTS,
         CL_INT const NUM_CLUSTERS
@@ -84,6 +89,17 @@ void lloyd_feature_sum_pardim(
     CL_INT g_cluster_offset = (num_col_tiles * tile_row)
         * NUM_THREAD_FEATURES * NUM_CLUSTERS;
 
+    // Zero centroids
+#ifdef GLOBAL_MEM
+    for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
+        for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+            g_centroids[
+                g_cluster_offset +
+                    ccoord2ind(NUM_CLUSTERS, c, g_feature_base + f)
+            ] = 0.0;
+        }
+    }
+#else
     for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             l_centroids[
@@ -91,6 +107,7 @@ void lloyd_feature_sum_pardim(
             ] = 0.0;
         }
     }
+#endif
 
     CL_INT r;
 #ifdef LOCAL_STRIDE
@@ -144,12 +161,24 @@ void lloyd_feature_sum_pardim(
                         ccoord2ind(NUM_POINTS, r, g_feature_base + f)
                 ]);
 #if VEC_LEN > 1
+#ifdef GLOBAL_MEM
+#define BASE_STEP(NUM)                                                  \
+            g_centroids[                                                \
+            g_cluster_offset +                                          \
+                ccoord2ind(                                             \
+                        NUM_CLUSTERS,                                   \
+                        label.s ## NUM,                                 \
+                        g_feature_base + f                              \
+                        )                                               \
+            ] += point.s ## NUM;
+#else
 #define BASE_STEP(NUM)                                                   \
             l_centroids[                                                 \
                 ccoord2abc(                                              \
                         NUM_CLUSTERS, label.s ## NUM, f                  \
                         )                                                \
             ] += point.s ## NUM;
+#endif
 
 #define REP_STEP_2 BASE_STEP(0) BASE_STEP(1)
 #define REP_STEP_4 REP_STEP_2 BASE_STEP(2) BASE_STEP(3)
@@ -163,14 +192,22 @@ void lloyd_feature_sum_pardim(
 
             REP_STEP(VEC_LEN);
 #else
+#ifdef GLOBAL_MEM
+            g_centroids[
+                g_cluster_offset +
+                    ccoord2ind(NUM_CLUSTERS, label, g_feature_base + f)
+            ] += point;
+#else
             l_centroids[
                 ccoord2abc(NUM_CLUSTERS, label, f)
             ] += point;
+#endif
 #endif
 
         }
     }
 
+#ifndef GLOBAL_MEM
     for (CL_INT f = 0; f < NUM_THREAD_FEATURES; ++f) {
         for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
             CL_POINT centroid = l_centroids[
@@ -181,4 +218,5 @@ void lloyd_feature_sum_pardim(
             ] = centroid;
         }
     }
+#endif
 }
