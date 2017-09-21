@@ -7,6 +7,12 @@
  * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
+// #define LOCAL_STRIDE
+// Default: global stride access
+//
+// #define GLOBAL_MEM
+// Default: local memory cache
+
 #ifndef CL_INT
 #define CL_INT uint
 #endif
@@ -80,9 +86,11 @@ void lloyd_fused_feature_sum(
         __global CL_POINT *const restrict g_new_centroids,
         __global CL_MASS *const restrict g_masses,
         __global CL_LABEL *const restrict g_labels,
+#ifndef GLOBAL_MEM
         __local VEC_TYPE(CL_POINT) *const restrict l_points,
         __local CL_POINT *const restrict l_new_centroids,
         __local CL_MASS *const restrict l_masses,
+#endif
         __local VEC_TYPE(CL_LABEL) *const restrict l_labels,
         CL_INT const NUM_POINTS,
         CL_INT const NUM_CLUSTERS,
@@ -103,10 +111,30 @@ void lloyd_fused_feature_sum(
     CL_INT const block_offset = NUM_CLUSTERS * NUM_FEATURES * block;
     CL_INT const l_feature = get_local_id(0) % block_size;
 
+    // Calculate tile offset
+    CL_INT const tile_offset = NUM_CLUSTERS * NUM_FEATURES
+        * (get_group_id(0) * num_blocks + block);
+
     // Calculate masses offset
     CL_INT const g_masses_offset =
         get_global_id(0) * NUM_CLUSTERS;
 
+#ifdef GLOBAL_MEM
+    // Zero new centroids in global memory
+    for (
+            CL_INT i = l_feature;
+            i < NUM_FEATURES * NUM_CLUSTERS;
+            i += block_size
+        )
+    {
+        g_new_centroids[tile_offset + i] = 0;
+    }
+
+    // Zero masses in global memory
+    for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+        g_masses[g_masses_offset + c] = 0;
+    }
+#else
     // Zero new centroids in local memory
     for (
             CL_INT i = get_local_id(0);
@@ -120,26 +148,51 @@ void lloyd_fused_feature_sum(
     for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
         l_masses[ccoord2ind(get_local_size(0), get_local_id(0), c)] = 0;
     }
+#endif
 
     // Main loop over points
     //
     // All threads must participate!
     // This is because we must handle thread work item assignment
     // separately for each phase
+#ifdef LOCAL_STRIDE
+    CL_INT iter_stride = VEC_LEN * get_local_size(0);
+    CL_INT iter_block_size =
+        (NUM_POINTS + get_num_groups(0) - 1) / get_num_groups(0);
+    iter_block_size = iter_block_size - iter_block_size % VEC_LEN;
+    CL_INT group_start_offset = get_group_id(0) * iter_block_size;
+    CL_INT real_iter_block_size =
+        (group_start_offset + iter_block_size > NUM_POINTS)
+        ? sub_sat(NUM_POINTS, group_start_offset)
+        : iter_block_size
+        ;
+
+    for (
+            CL_INT group_offset = group_start_offset;
+            group_offset < group_start_offset + real_iter_block_size;
+            group_offset += iter_stride
+        )
+#else
     for (
             CL_INT group_offset = get_group_id(0) * get_local_size(0) * VEC_LEN;
             group_offset < NUM_POINTS - VEC_LEN + 1;
             group_offset += get_global_size(0) * VEC_LEN
         )
+#endif
     {
         CL_INT p = group_offset + get_local_id(0) * VEC_LEN;
 
         // In 1st iteration, wait for zero-ed buffers and old centroids
         // In 2nd iteration, wait for feature sums from previous iteration
+#ifdef GLOBAL_MEM
+        barrier(CLK_GLOBAL_MEM_FENCE);
+#else
         barrier(CLK_LOCAL_MEM_FENCE);
+#endif
 
         if (p < NUM_POINTS - VEC_LEN + 1) {
 
+#ifndef GLOBAL_MEM
             // Cache current point
             for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
                 // Read point
@@ -151,6 +204,7 @@ void lloyd_fused_feature_sum(
                     ccoord2ind(get_local_size(0), get_local_id(0), f)
                 ] = point;
             }
+#endif
 
             // Labeling phase
             VEC_TYPE(CL_LABEL) label;
@@ -162,10 +216,14 @@ void lloyd_fused_feature_sum(
 
                 for (CL_INT f = 0; f < NUM_FEATURES; ++f) {
                     // Read point
-                    VEC_TYPE(CL_POINT) point
-                        = l_points[
+                    VEC_TYPE(CL_POINT) point =
+#ifdef GLOBAL_MEM
+                        VLOAD(&g_points[ccoord2ind(NUM_POINTS, p, f)]);
+#else
+                        l_points[
                         ccoord2ind(get_local_size(0), get_local_id(0), f)
                         ];
+#endif
 
                     // Calculate distance
                     VEC_TYPE(CL_POINT) difference
@@ -186,16 +244,25 @@ void lloyd_fused_feature_sum(
 
             // Masses update phase
 #if VEC_LEN > 1
+#ifdef GLOBAL_MEM
+#define MASS_INC_BASE(NUM)                                               \
+            g_masses[g_masses_offset + label.s ## NUM ] += 1;
+#else
 #define MASS_INC_BASE(NUM)                                               \
             l_masses[ccoord2ind(                                         \
                     get_local_size(0),                                   \
                     get_local_id(0),                                     \
                     label.s ## NUM                                       \
                     )] += 1;
+#endif
 
             REP_STEP(MASS_INC_BASE, VEC_LEN);
 #else
+#ifdef GLOBAL_MEM
+            g_masses[g_masses_offset + label] += 1;
+#else
             l_masses[ccoord2ind(get_local_size(0), get_local_id(0), label)] += 1;
+#endif
 #endif
 
         }
@@ -233,20 +300,37 @@ void lloyd_fused_feature_sum(
                     f += block_size
                 )
             {
-                VEC_TYPE(CL_POINT) point
-                    = l_points[
+                VEC_TYPE(CL_POINT) point =
+#ifdef GLOBAL_MEM
+                    VLOAD(&g_points[ccoord2ind(NUM_POINTS, group_offset + bp, f)]);
+#else
+                    l_points[
                     ccoord2ind(num_local_points, bp, f)
                     ];
+#endif
 
 #if VEC_LEN > 1
+#ifdef GLOBAL_MEM
+#define CENTROID_UPDATE_BASE(NUM)                                        \
+                g_new_centroids[                                         \
+                        tile_offset                                      \
+                        + ccoord2ind(NUM_CLUSTERS, label.s ## NUM, f)    \
+                ] += point.s ## NUM;
+#else
 #define CENTROID_UPDATE_BASE(NUM)                                        \
                 l_new_centroids[ccoord2ind(                              \
                         NUM_FEATURES * num_blocks,                       \
                         NUM_FEATURES * block + f,                        \
                         label.s ## NUM                                   \
                         )] += point.s ## NUM;
+#endif
 
                 REP_STEP(CENTROID_UPDATE_BASE, VEC_LEN);
+#else
+#ifdef GLOBAL_MEM
+                g_new_centroids[
+                    tile_offset + ccoord2ind(NUM_CLUSTERS, label, f)
+                ] += point;
 #else
                 l_new_centroids[ccoord2ind(
                         NUM_FEATURES * num_blocks,
@@ -254,15 +338,14 @@ void lloyd_fused_feature_sum(
                         label
                         )] += point;
 #endif
+#endif
             }
         }
 
     }
 
+#ifndef GLOBAL_MEM
     barrier(CLK_LOCAL_MEM_FENCE);
-
-    CL_INT tile_offset = NUM_CLUSTERS * NUM_FEATURES
-        * (get_group_id(0) * num_blocks + block);
 
     for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
         // Write back masses
@@ -286,5 +369,6 @@ void lloyd_fused_feature_sum(
             ] = centroid;
         }
     }
+#endif
 
 }
