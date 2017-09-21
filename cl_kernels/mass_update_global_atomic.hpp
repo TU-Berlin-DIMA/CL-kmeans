@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef MASS_UPDATE_GLOBAL_ATOMIC_HPP
@@ -18,6 +18,8 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <stdexcept>
+#include <iostream>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -57,13 +59,30 @@ public:
             assert(false);
         }
 
-        Program program = Program::create_with_source_file(
+        Program gs_program = Program::create_with_source_file(
                 PROGRAM_FILE,
                 context);
+        try {
+            gs_program.build(defines);
+            this->global_stride_kernel = gs_program.create_kernel(KERNEL_NAME);
+        }
+        catch (std::exception e) {
+          std::cerr << gs_program.build_log() << std::endl;
+          throw e;
+        }
 
-        program.build(defines);
-
-        this->kernel = program.create_kernel(KERNEL_NAME);
+        defines += " -DLOCAL_STRIDE";
+        Program ls_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        try {
+            ls_program.build(defines);
+            this->local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
+        }
+        catch (std::exception e) {
+          std::cerr << ls_program.build_log() << std::endl;
+          throw e;
+        }
     }
 
     Event operator() (
@@ -86,7 +105,16 @@ public:
                 );
         datapoint.add_event() = future.get_event();
 
-        this->kernel.set_args(
+        boost::compute::device device = queue.get_device();
+        Kernel& kernel = (
+                device.type() == device.cpu ||
+                device.type() == device.accelerator
+                )
+            ? this->local_stride_kernel
+            : this->global_stride_kernel
+            ;
+
+        kernel.set_args(
                 labels,
                 masses,
                 (LabelT) num_points,
@@ -96,7 +124,7 @@ public:
 
         Event event;
         event = queue.enqueue_nd_range_kernel(
-                this->kernel,
+                kernel,
                 1,
                 work_offset,
                 this->config.global_size,
@@ -110,7 +138,8 @@ private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("histogram_global.cl");
     static constexpr const char* KERNEL_NAME = "histogram_global";
 
-    Kernel kernel;
+    Kernel global_stride_kernel;
+    Kernel local_stride_kernel;
     MassUpdateConfiguration config;
 };
 

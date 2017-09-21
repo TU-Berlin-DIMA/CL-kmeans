@@ -20,6 +20,8 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <stdexcept>
+#include <iostream>
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -59,13 +61,30 @@ public:
             assert(false);
         }
 
-        Program program = Program::create_with_source_file(
+        Program gs_program = Program::create_with_source_file(
                 PROGRAM_FILE,
                 context);
+        try {
+            gs_program.build(defines);
+            this->global_stride_kernel = gs_program.create_kernel(KERNEL_NAME);
+        }
+        catch (std::exception e) {
+          std::cerr << gs_program.build_log() << std::endl;
+          throw e;
+        }
 
-        program.build(defines);
-
-        this->kernel = program.create_kernel(KERNEL_NAME);
+        defines += " -DLOCAL_STRIDE";
+        Program ls_program = Program::create_with_source_file(
+                PROGRAM_FILE,
+                context);
+        try {
+            ls_program.build(defines);
+            this->local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
+        }
+        catch (std::exception e) {
+          std::cerr << ls_program.build_log() << std::endl;
+          throw e;
+        }
 
         reduce.prepare(context);
     }
@@ -95,7 +114,16 @@ public:
 
         boost::compute::local_buffer<MassT> local_masses(num_clusters);
 
-        this->kernel.set_args(
+        boost::compute::device device = queue.get_device();
+        Kernel& kernel = (
+                device.type() == device.cpu ||
+                device.type() == device.accelerator
+                )
+            ? this->local_stride_kernel
+            : this->global_stride_kernel
+            ;
+
+        kernel.set_args(
                 labels,
                 masses,
                 local_masses,
@@ -106,7 +134,7 @@ public:
 
         Event event;
         event = queue.enqueue_1d_range_kernel(
-                this->kernel,
+                kernel,
                 work_offset[0],
                 this->config.global_size[0],
                 this->config.local_size[0],
@@ -131,7 +159,8 @@ private:
     static constexpr const char* PROGRAM_FILE = CL_KERNEL_FILE_PATH("histogram_part_local.cl");
     static constexpr const char* KERNEL_NAME = "histogram_part_local";
 
-    Kernel kernel;
+    Kernel global_stride_kernel;
+    Kernel local_stride_kernel;
     MassUpdateConfiguration config;
     Clustering::ReduceVectorParcol<MassT> reduce;
 };
