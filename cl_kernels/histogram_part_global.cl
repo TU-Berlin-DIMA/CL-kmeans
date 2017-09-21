@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  * 
  * 
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
 // #define LOCAL_STRIDE
@@ -36,11 +36,12 @@ void histogram_part_global(
     CL_INT group_offset = get_group_id(0) * NUM_BINS;
 
     for (
-            CL_INT r = get_global_id(0);
-            r < NUM_BINS * get_num_groups(0);
-            r += get_global_size(0)
-            ) {
-        g_out[r] = 0;
+            CL_INT r = get_local_id(0);
+            r < NUM_BINS;
+            r += get_local_size(0)
+        )
+    {
+        g_out[group_offset + r] = 0;
     }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
