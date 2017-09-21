@@ -85,7 +85,8 @@ void lloyd_fused_feature_sum(
         __local CL_MASS *const restrict l_masses,
         __local VEC_TYPE(CL_LABEL) *const restrict l_labels,
         CL_INT const NUM_POINTS,
-        CL_INT const NUM_CLUSTERS
+        CL_INT const NUM_CLUSTERS,
+        CL_INT const NUM_THREAD_FEATURES
         )
 {
 
@@ -227,9 +228,10 @@ void lloyd_fused_feature_sum(
             VEC_TYPE(CL_LABEL) label = l_labels[bp];
 
             for (
-                    CL_INT f = l_feature * NUM_THREAD_FEATURES;
-                    f < (l_feature + 1) * NUM_THREAD_FEATURES;
-                    f += 1)
+                    CL_INT f = l_feature;
+                    f < NUM_FEATURES;
+                    f += block_size
+                )
             {
                 VEC_TYPE(CL_POINT) point
                     = l_points[
@@ -239,17 +241,17 @@ void lloyd_fused_feature_sum(
 #if VEC_LEN > 1
 #define CENTROID_UPDATE_BASE(NUM)                                        \
                 l_new_centroids[ccoord2ind(                              \
-                        get_local_size(0),                               \
-                        get_local_id(0),                                 \
-                        label.s ## NUM /* + NUM_THREAD_FEATURES + tf */  \
+                        NUM_FEATURES * num_blocks,                       \
+                        NUM_FEATURES * block + f,                        \
+                        label.s ## NUM                                   \
                         )] += point.s ## NUM;
 
                 REP_STEP(CENTROID_UPDATE_BASE, VEC_LEN);
 #else
                 l_new_centroids[ccoord2ind(
-                        get_local_size(0),
-                        get_local_id(0),
-                        label /* + NUM_THREAD_FEATURES * thread_feature */
+                        NUM_FEATURES * num_blocks,
+                        NUM_FEATURES * block + f,
+                        label
                         )] += point;
 #endif
             }
@@ -269,15 +271,15 @@ void lloyd_fused_feature_sum(
 
         // Write back centroids
         for (
-                CL_INT f = l_feature * NUM_THREAD_FEATURES;
-                f < (l_feature + 1) * NUM_THREAD_FEATURES;
-                ++f
+                CL_INT f = l_feature;
+                f < NUM_FEATURES;
+                f += block_size
             )
         {
             CL_POINT centroid = l_new_centroids[ccoord2ind(
-                    get_local_size(0),
-                    get_local_id(0),
-                    c /* + NUM_THREAD_FEATURES * thread_feature */
+                    NUM_FEATURES * num_blocks,
+                    NUM_FEATURES * block + f,
+                    c
                     )];
             g_new_centroids[
                 tile_offset + ccoord2ind(NUM_CLUSTERS, c, f)

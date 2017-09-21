@@ -82,7 +82,6 @@ public:
         defines += boost::compute::type_name<LabelT>();
         defines += " -DCL_MASS=";
         defines += boost::compute::type_name<MassT>();
-        defines += " -DNUM_THREAD_FEATURES=1";
         defines += " -DVEC_LEN=";
         defines += std::to_string(this->config.vector_length);
 
@@ -131,18 +130,20 @@ public:
         assert(centroids.size() == num_clusters * num_features);
         assert(labels.size() == num_points);
         assert(masses.size() == num_clusters);
-        assert(num_features <=
-                this->config.local_size[0]
-                /* * this->config.num_feature_threads */
-                );
         assert(num_features <= MAX_FEATURES);
 
         datapoint.set_name("FusedFeatureSum");
 
+        uint32_t const num_thread_features =
+          (this->config.local_size[0] >= num_features)
+          ? 1
+          : num_features / this->config.local_size[0]
+          ;
+
         size_t const min_centroids_size =
             this->config.global_size[0]
             * num_clusters
-            // * config.num_thread_features
+            * num_thread_features
             ;
         Vector<PointT> new_centroids(
                 min_centroids_size,
@@ -164,7 +165,7 @@ public:
                 );
         LocalBuffer<PointT> local_new_centroids(
                 this->config.local_size[0]
-                // * config.num_thread_features,
+                * num_thread_features
                 * num_clusters
                 );
         LocalBuffer<MassT> local_masses(
@@ -198,7 +199,9 @@ public:
                 local_masses,
                 local_labels,
                 (cl_uint)num_points,
-                (cl_uint)num_clusters);
+                (cl_uint)num_clusters,
+                (cl_uint)num_thread_features
+            );
 
         size_t work_offset[3] = {0, 0, 0};
 
@@ -218,8 +221,8 @@ public:
 
         size_t num_tiles =
             this->config.global_size[0]
-             / num_features
-            // * config.num_thread_features
+            * num_thread_features
+            / num_features
             ;
 
         event = reduce_centroids(
