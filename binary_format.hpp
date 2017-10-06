@@ -12,12 +12,6 @@
 
 #include "matrix.hpp"
 
-#include <SystemConfig.h>
-
-#ifdef USE_ALIGNED_ALLOCATOR
-#include <boost/align/aligned_allocator.hpp>
-#endif
-
 namespace Clustering {
 
 class BinaryFormat {
@@ -31,10 +25,5 @@ public:
 extern template int Clustering::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, uint32_t>&);
 extern template int Clustering::BinaryFormat::read(char const*, cle::Matrix<float, std::allocator<float>, size_t>&);
 extern template int Clustering::BinaryFormat::read(char const*, cle::Matrix<double, std::allocator<double>, size_t>&);
-
-#ifdef USE_ALIGNED_ALLOCATOR
-extern template int Clustering::BinaryFormat::read(char const*, cle::Matrix<float, boost::alignment::aligned_allocator<float, 32>, uint32_t>&);
-extern template int Clustering::BinaryFormat::read(char const*, cle::Matrix<double, boost::alignment::aligned_allocator<double, 32>, uint64_t>&);
-#endif
 
 #endif /* BINARY_FORMAT_HPP */
