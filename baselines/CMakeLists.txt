@@ -14,6 +14,17 @@ IF(BLAS_FOUND)
 ENDIF(BLAS_FOUND)
 
 FIND_PACKAGE(Armadillo 6.500)
+
+SET(R_KMEANS_SOURCES
+    kmeans_r.cpp
+    r_stats_kmeans.c
+    ../binary_format.cpp
+    )
+ADD_EXECUTABLE(kmeans_r_float ${R_KMEANS_SOURCES})
+TARGET_COMPILE_DEFINITIONS(kmeans_r_float PRIVATE FLOAT_T=float)
+ADD_EXECUTABLE(kmeans_r_double ${R_KMEANS_SOURCES})
+TARGET_COMPILE_DEFINITIONS(kmeans_r_double PRIVATE FLOAT_T=double)
+
 IF(ARMADILLO_FOUND AND BLAS_FOUND)
     SET(ARMAKMEANS_SOURCES
         kmeans_armadillo.cpp
