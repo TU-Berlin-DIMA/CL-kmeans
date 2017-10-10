@@ -18,12 +18,17 @@
 #include <chrono>
 #include <cstdlib> // atoi
 
+#ifndef FLOAT_T
+#define FLOAT_T double
+#endif
+
+template <typename T>
 class ArmadilloKmeans {
 public:
 
-  void load(cle::Matrix<float, std::allocator<float>, uint32_t, true> const& points)
+  void load(cle::Matrix<T, std::allocator<T>, size_t, true> const& points)
   {
-    arma::Mat<float> new_points(
+    arma::Mat<T> new_points(
             points.data(),
             points.rows(),
             points.cols());
@@ -40,7 +45,7 @@ public:
       )
   {
     // No data copy, reference existing centroids
-    arma::Mat<float> arma_centroids(
+    arma::Mat<T> arma_centroids(
         num_clusters,
         points_.n_cols
         );
@@ -65,7 +70,7 @@ public:
 
 private:
 
-  arma::Mat<float> points_;
+  arma::Mat<T> points_;
 };
 
 int main(int argc, char **argv) {
@@ -75,7 +80,7 @@ int main(int argc, char **argv) {
   uint32_t repititions = 5;
   uint64_t time = 0;
   std::string file_path;
-  ArmadilloKmeans armakmeans;
+  ArmadilloKmeans<FLOAT_T> armakmeans;
 
   if (argc != 4 || (argc == 2 && (std::string(argv[1]) == "--help"))) {
     std::cout
@@ -89,7 +94,7 @@ int main(int argc, char **argv) {
   k = std::atoi(argv[3]);
 
   {
-    cle::Matrix<float, std::allocator<float>, uint32_t> matrix;
+    cle::Matrix<FLOAT_T, std::allocator<FLOAT_T>, size_t> matrix;
     Clustering::BinaryFormat binformat;
 
     binformat.read(file_path.c_str(), matrix);
