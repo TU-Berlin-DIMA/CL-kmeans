@@ -11,9 +11,9 @@ FIND_PACKAGE(GTest 1.6 REQUIRED)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
 
-FUNCTION(add_test_module TEST_NAME TEST_SOURCE)
+FUNCTION(ADD_TEST_MODULE TEST_NAME TEST_SOURCE)
     GET_FILENAME_COMPONENT(TEST_TARGET ${TEST_SOURCE} NAME_WE)
-    ADD_EXECUTABLE(${TEST_TARGET} ${TEST_SOURCE} ../measurement/measurement.cpp ../cluster_generator.cpp)
+    ADD_EXECUTABLE(${TEST_TARGET} ${TEST_SOURCE} ../measurement/measurement.cpp ../cluster_generator.cpp ${ARGN})
     TARGET_LINK_LIBRARIES(${TEST_TARGET}
         ${Boost_LIBRARIES}
         ${GTEST_LIBRARIES}
@@ -26,3 +26,4 @@ ENABLE_TESTING()
 # ADD_TEST_MODULE("histogram" histogram.cpp)
 ADD_TEST_MODULE("reduce_vector" reduce_vector.cpp)
 # ADD_TEST_MODULE("feature_sum" feature_sum.cpp)
+ADD_TEST_MODULE("buffer_cache" buffer_cache.cpp ../simple_buffer_cache.cpp)
