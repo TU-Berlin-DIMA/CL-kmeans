@@ -89,7 +89,7 @@ IF(JPEG_FOUND)
 ENDIF(JPEG_FOUND)
 
 # Create Version.h file with current git revision string
-FIND_PACKAGE(Git)
+# FIND_PACKAGE(Git)
 IF(GIT_EXECUTABLE)
     EXECUTE_PROCESS(
         COMMAND ${GIT_EXECUTABLE} log -1 --format="%H"
@@ -100,6 +100,7 @@ IF(GIT_EXECUTABLE)
     MESSAGE(STATUS "Git revision is ${GIT_REVISION}")
 ELSEIF (DEFINED GIT_REVISION)
     MESSAGE(STATUS "Git revision is ${GIT_REVISION}")
+    SET(GIT_REVISION "\"${GIT_REVISION}\"")
 ELSE ()
     MESSAGE(FATAL_ERROR "GIT_REVISION not specified")
 ENDIF(GIT_EXECUTABLE)
