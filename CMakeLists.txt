@@ -89,7 +89,7 @@ IF(JPEG_FOUND)
 ENDIF(JPEG_FOUND)
 
 # Create Version.h file with current git revision string
-# FIND_PACKAGE(Git)
+FIND_PACKAGE(Git)
 IF(GIT_EXECUTABLE)
     EXECUTE_PROCESS(
         COMMAND ${GIT_EXECUTABLE} log -1 --format="%H"
