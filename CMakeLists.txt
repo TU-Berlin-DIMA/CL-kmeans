@@ -115,6 +115,9 @@ CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/SystemConfig.h.in"
     "${PROJECT_BINARY_DIR}/SystemConfig.h")
 INCLUDE_DIRECTORIES("${PROJECT_BINARY_DIR}")
 
+# Install targets
+INSTALL(TARGETS bench generator picluster DESTINATION bin)
+
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})
 
