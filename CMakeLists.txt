@@ -88,6 +88,7 @@ IF(JPEG_FOUND)
     INCLUDE_DIRECTORIES(${JPEG_INCLUDE_DIR})
     ADD_EXECUTABLE(picluster ${PICLUSTER_SOURCES})
     TARGET_LINK_LIBRARIES(picluster ${OPENCL_LIBRARIES} ${Boost_LIBRARIES} ${JPEG_LIBRARIES})
+    INSTALL(TARGETS picluster DESTINATION bin)
 ENDIF(JPEG_FOUND)
 
 # Create Version.h file with current git revision string
@@ -115,8 +116,8 @@ CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/SystemConfig.h.in"
     "${PROJECT_BINARY_DIR}/SystemConfig.h")
 INCLUDE_DIRECTORIES("${PROJECT_BINARY_DIR}")
 
-# Install targets
-INSTALL(TARGETS bench generator picluster DESTINATION bin)
+# Install default targets
+INSTALL(TARGETS bench generator DESTINATION bin)
 
 # Install OpenCL kernel source files
 INSTALL(DIRECTORY ${CL_KERNELS_SOURCE_PATH} DESTINATION ${CL_KERNELS_INSTALL_PATH})
