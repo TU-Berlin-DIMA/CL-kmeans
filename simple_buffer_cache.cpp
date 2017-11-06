@@ -36,7 +36,7 @@ size_t SimpleBufferCache::pool_size(Device device)
     return dev.pool_size;
 }
 
-int SimpleBufferCache::add_device(Queue queue, Device device, size_t pool_size)
+int SimpleBufferCache::add_device(Context context, Device device, size_t pool_size)
 {
     if (pool_size <= buffer_size_i * DoubleBuffering) {
         return -1;
@@ -45,6 +45,7 @@ int SimpleBufferCache::add_device(Queue queue, Device device, size_t pool_size)
     device_info_i.emplace_back();
     DeviceInfo& info = device_info_i.back();
 
+    info.context = context;
     info.device = device;
     info.pool_size = pool_size;
     info.num_buffers = DoubleBuffering;
@@ -54,7 +55,8 @@ int SimpleBufferCache::add_device(Queue queue, Device device, size_t pool_size)
     info.device_buffer.resize(DoubleBuffering);
     info.host_buffer.resize(DoubleBuffering);
     info.host_ptr.resize(DoubleBuffering, nullptr);
-    auto context = queue.get_context();
+
+    auto queue = Queue(context, device);
 
     for (auto& buf : info.device_buffer) {
         buf = Buffer(context, buffer_size_i);

@@ -31,7 +31,7 @@ public:
         device = boost::compute::system::default_device();
         queue = boost::compute::system::default_queue();
 
-        buffer_cache.add_device(queue, device, pool_size);
+        buffer_cache.add_device(queue.get_context(), device, pool_size);
         object_id = buffer_cache.add_object(data_object.data(), data_object.size() * sizeof(int));
     }
 

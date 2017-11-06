@@ -27,6 +27,7 @@ public:
 
     using Buffer = boost::compute::buffer;
     using BufferList = std::vector<BufferDesc>;
+    using Context = boost::compute::context;
     using Device = boost::compute::device;
     using Event = boost::compute::event;
     using Queue = boost::compute::command_queue;
@@ -63,7 +64,7 @@ public:
      *
      * Returns 1 if successful, negative value if unsuccessful.
      */
-    virtual int add_device(Queue queue, Device device, size_t pool_size) = 0;
+    virtual int add_device(Context context, Device device, size_t pool_size) = 0;
 
     /*
      * Add data object for buffer cache to manage.

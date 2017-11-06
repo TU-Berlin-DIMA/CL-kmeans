@@ -28,6 +28,7 @@ public:
 
     using Buffer = boost::compute::buffer;
     using BufferList = typename BufferCache::BufferList;
+    using Context = boost::compute::context;
     using Device = boost::compute::device;
     using Event = boost::compute::event;
     using Queue = boost::compute::command_queue;
@@ -36,7 +37,7 @@ public:
     SimpleBufferCache(size_t buffer_size);
 
     size_t pool_size(Device device);
-    int add_device(Queue queue, Device device, size_t pool_size);
+    int add_device(Context context, Device device, size_t pool_size);
     uint32_t add_object(void *data_object, size_t length);
     int get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffer, Event& event, WaitList const& wait_list = WaitList());
     int write_and_get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffer, Event& event, WaitList const& wait_list = WaitList());
@@ -51,6 +52,7 @@ private:
     uint32_t static constexpr DoubleBuffering = 2u;
 
     struct DeviceInfo {
+        Context context;
         Device device;
         size_t pool_size;
         size_t num_buffers;
