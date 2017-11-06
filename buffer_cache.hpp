@@ -47,6 +47,8 @@ public:
     BufferCache(size_t buffer_size) :
         buffer_size_i(buffer_size)
     {}
+    virtual ~BufferCache()
+    {}
 
     /*
      * Returns buffer size in bytes.
