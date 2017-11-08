@@ -107,7 +107,7 @@ TEST_F(SimpleBufferCache, WriteAndGetCheckBuffer)
     int ret = 0;
 
     ret = buffer_cache.write_and_get(queue, object_id, &data_object[0], &data_object[buffer_ints], buffers, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
 
     for (auto& bufdesc : buffers) {
         EXPECT_LT(0u, bufdesc.content_length);
@@ -123,9 +123,9 @@ TEST_F(SimpleBufferCache, WriteReadBasic)
     uint32_t *end = &data_object[buffer_ints];
 
     ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
     ret = buffer_cache.read(queue, object_id, begin, end, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
     for (uint32_t i = 0; i < buffer_ints; ++i) {
@@ -138,7 +138,7 @@ TEST_F(SimpleBufferCache, WriteReadBasic)
     }
     EXPECT_EQ(0u, failed_fields);
     ret = buffer_cache.unlock(device, object_id, begin, end);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
 }
 
 TEST_F(SimpleBufferCache, WriteReadDeadBeef)
@@ -153,13 +153,13 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeef)
         obj = 0xDEADBEEFu;
     }
     ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
     event.wait();
     for (auto& obj : data_object) {
         obj = 0xCAFED00Du;
     }
     ret = buffer_cache.read(queue, object_id, begin, end, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
     for (uint32_t i = 0; i < buffer_ints; ++i) {
@@ -172,7 +172,7 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeef)
     }
     EXPECT_EQ(0u, failed_fields);
     ret = buffer_cache.unlock(device, object_id, begin, end);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
 }
 
 TEST_F(SimpleBufferCache, GetReadBasic)
@@ -184,9 +184,9 @@ TEST_F(SimpleBufferCache, GetReadBasic)
     uint32_t *end = &data_object[buffer_ints];
 
     ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
     ret = buffer_cache.read(queue, object_id, begin, end, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
     for (uint32_t i = 0; i < buffer_ints; ++i) {
@@ -199,7 +199,7 @@ TEST_F(SimpleBufferCache, GetReadBasic)
     }
     EXPECT_EQ(0u, failed_fields);
     ret = buffer_cache.unlock(device, object_id, begin, end);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
 }
 
 TEST_F(SimpleBufferCache, GetTwice)
@@ -211,9 +211,17 @@ TEST_F(SimpleBufferCache, GetTwice)
     uint32_t *end = &data_object[buffer_ints];
 
     ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
+
+    // Test without unlocking, should fail
     ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
-    ASSERT_TRUE(ret);
+    ASSERT_GT(0, ret);
+
+    // Unlock, then try to get again
+    ret = buffer_cache.unlock(queue.get_device(), object_id, begin, end);
+    ASSERT_EQ(true, ret);
+    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
+    ASSERT_EQ(true, ret);
 }
 
 TEST_F(SimpleBufferCache, GetReadDeadBeef)
@@ -228,13 +236,13 @@ TEST_F(SimpleBufferCache, GetReadDeadBeef)
         obj = 0xDEADBEEFu;
     }
     ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
     event.wait();
     for (auto& obj : data_object) {
         obj = 0xCAFED00Du;
     }
     ret = buffer_cache.read(queue, object_id, begin, end, event);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
     for (uint32_t i = 0; i < buffer_ints; ++i) {
@@ -247,7 +255,7 @@ TEST_F(SimpleBufferCache, GetReadDeadBeef)
     }
     EXPECT_EQ(0u, failed_fields);
     ret = buffer_cache.unlock(device, object_id, begin, end);
-    ASSERT_TRUE(ret);
+    ASSERT_EQ(true, ret);
 }
 
 int main(int argc, char **argv)
