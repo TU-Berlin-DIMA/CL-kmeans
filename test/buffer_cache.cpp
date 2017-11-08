@@ -55,6 +55,17 @@ public:
     boost::compute::command_queue queue;
 };
 
+TEST_F(SimpleBufferCache, RetrieveObject)
+{
+    void *ret_object_ptr = nullptr;
+    size_t ret_object_size = 0;
+
+    buffer_cache.object(object_id, ret_object_ptr, ret_object_size);
+
+    EXPECT_EQ((void*)&data_object[0], ret_object_ptr);
+    EXPECT_EQ(object_size, ret_object_size);
+}
+
 TEST_F(SimpleBufferCache, BufferPointerConversion)
 {
     uint32_t bid = 0;
