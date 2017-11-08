@@ -24,6 +24,19 @@ ENDFUNCTION()
 
 ENABLE_TESTING()
 # ADD_TEST_MODULE("histogram" histogram.cpp)
-ADD_TEST_MODULE("reduce_vector" reduce_vector.cpp)
+ADD_TEST_MODULE(
+    "reduce_vector"
+    reduce_vector.cpp
+    )
 # ADD_TEST_MODULE("feature_sum" feature_sum.cpp)
-ADD_TEST_MODULE("buffer_cache" buffer_cache.cpp ../simple_buffer_cache.cpp)
+ADD_TEST_MODULE(
+    "buffer_cache"
+    buffer_cache.cpp
+    ../simple_buffer_cache.cpp
+    )
+ADD_TEST_MODULE(
+    "device_scheduler"
+    device_scheduler.cpp
+    ../single_device_scheduler.cpp
+    ../simple_buffer_cache.cpp
+    )
