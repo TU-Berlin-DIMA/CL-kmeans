@@ -218,21 +218,31 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
     size_t size = cend - cbegin;
 
     if (size > buffer_size_i) {
+        std::cerr << "read: multi-buffer read not supported" << std::endl;
         return -1;
     }
 
     auto device_id = find_device_id(queue.get_device());
     if (device_id < 0) {
+        std::cerr << "read: find_device_id error" << std::endl;
         return device_id;
     }
     auto buffer_id = find_buffer_id(device_id, oid, begin);
     if (buffer_id < 0) {
+        std::cerr << "read: find_buffer_id error" << std::endl;
         return buffer_id;
     }
     auto cache_slot = find_cache_slot(device_id, oid, buffer_id);
-    if (cache_slot < 0) {
+    if (cache_slot == -2) {
+        // Case: not in device cache
+        return 1;
+    }
+    else if (cache_slot < 0) {
+        // Case: error getting cache slot
+        std::cerr << "read: find_cache_slot error" << std::endl;
         return cache_slot;
     }
+    // else Case: in device cache, must read back
 
     auto& device_info = device_info_i[device_id];
     void *host_ptr = device_info.host_ptr[cache_slot];
