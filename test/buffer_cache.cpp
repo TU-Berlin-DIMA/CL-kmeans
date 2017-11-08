@@ -114,6 +114,19 @@ TEST_F(SimpleBufferCache, WriteAndGetCheckBuffer)
     }
 }
 
+TEST_F(SimpleBufferCache, ReadNotCached)
+{
+    boost::compute::event event;
+    int ret = 0;
+    uint32_t *begin = &data_object[0];
+    uint32_t *end = &data_object[buffer_ints];
+
+    // flush cache or ensure read segment not in cache
+
+    ret = buffer_cache.read(queue, object_id, begin, end, event);
+    ASSERT_EQ(true, ret);
+}
+
 TEST_F(SimpleBufferCache, WriteReadBasic)
 {
     boost::compute::event event;
