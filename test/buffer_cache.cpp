@@ -16,6 +16,8 @@
 
 #define MAX_PRINT_FAILURES 3
 
+namespace bc = boost::compute;
+
 class SimpleBufferCache : public ::testing::Test {
 public:
 
@@ -269,6 +271,121 @@ TEST_F(SimpleBufferCache, GetReadDeadBeef)
     EXPECT_EQ(0u, failed_fields);
     ret = buffer_cache.unlock(device, object_id, begin, end);
     ASSERT_EQ(true, ret);
+}
+
+TEST_F(SimpleBufferCache, ParallelWrites)
+{
+    constexpr int DUAL_QUEUE = 2;
+    auto context = bc::system::default_context();
+    bc::command_queue dualq[DUAL_QUEUE]
+    {
+        bc::command_queue(context, device),
+        bc::command_queue(context, device)
+    };
+    uint32_t *start_ptr[DUAL_QUEUE], *end_ptr[DUAL_QUEUE];
+    Clustering::BufferCache::BufferList buffers[DUAL_QUEUE];
+    bc::event event[DUAL_QUEUE];
+
+    for (auto& obj : data_object) {
+        obj = 0xDEADBEEFu;
+    }
+
+    for (size_t offset = 0; offset < data_object.size(); offset += DUAL_QUEUE * buffer_ints)
+    {
+        start_ptr[0] = &data_object[offset];
+        start_ptr[1] = &data_object[
+            (offset + buffer_ints > data_object.size())
+                ? data_object.size()
+                : offset + buffer_ints
+        ];
+        end_ptr[0] = start_ptr[1];
+        end_ptr[1] = &data_object[
+            (offset + 2 * buffer_ints > data_object.size())
+                ? data_object.size()
+                : offset + 2 * buffer_ints
+        ];
+
+        ASSERT_EQ(
+                true,
+                buffer_cache.write_and_get(
+                    dualq[0],
+                    object_id,
+                    start_ptr[0],
+                    end_ptr[0],
+                    buffers[0],
+                    event[0]
+                    ));
+
+        if (start_ptr[1] < end_ptr[1]) {
+            ASSERT_EQ(
+                    true,
+                    buffer_cache.write_and_get(
+                        dualq[1],
+                        object_id,
+                        start_ptr[1],
+                        end_ptr[1],
+                        buffers[1],
+                        event[1]
+                        ));
+
+            ASSERT_EQ(
+                    true,
+                    buffer_cache.unlock(
+                        device,
+                        object_id,
+                        start_ptr[1],
+                        end_ptr[1]
+                        ));
+        }
+
+        ASSERT_EQ(
+            true,
+            buffer_cache.unlock(
+                device,
+                object_id,
+                start_ptr[0],
+                end_ptr[0]
+                ));
+    }
+
+    event[0].wait();
+    event[1].wait();
+
+    for (auto& obj : data_object) {
+        obj = 0xCAFED00Du;
+    }
+
+    for (size_t offset = 0; offset < data_object.size(); offset += buffer_ints) {
+        start_ptr[0] = &data_object[offset];
+        end_ptr[0] = &data_object[
+            (offset + buffer_ints > data_object.size())
+                ? data_object.size()
+                : offset + buffer_ints
+        ];
+
+        ASSERT_EQ(
+                true,
+                buffer_cache.read(
+                    dualq[0],
+                    object_id,
+                    start_ptr[0],
+                    end_ptr[0],
+                    event[0]
+                    ));
+    }
+
+    event[0].wait();
+
+    uint32_t failed_fields = 0;
+    for (size_t i = 0; i < data_object.size(); ++i) {
+        if (data_object[i] != 0xDEADBEEFu){
+            ++failed_fields;
+        }
+        if (failed_fields < MAX_PRINT_FAILURES) {
+            EXPECT_EQ(0xDEADBEEFu, data_object[i]) << "Object differs at index " << i;
+        }
+    }
+    EXPECT_EQ(0u, failed_fields);
 }
 
 int main(int argc, char **argv)
