@@ -78,6 +78,12 @@ public:
     virtual uint32_t add_object(void *data_object, size_t length) = 0;
 
     /*
+     * Get pointer to previously added data object.
+     * Does not transfer ownership of object.
+     */
+    virtual void object(uint32_t object_id, void *& data_object, size_t& length) = 0;
+
+    /*
      * Returns a list devices on which the given range is currently in device memory. Default length is one buffer.
      */
     virtual std::vector<Device> where_is(uint32_t /* object_id */, void * /* begin */) { return std::vector<Device>(); };
@@ -90,7 +96,7 @@ public:
      *
      * Returns 1 if successful, negative value if unsuccessful.
      */
-    virtual int get(Queue queue, uint32_t object_id, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list) = 0;
+    virtual int get(Queue queue, uint32_t object_id, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list = WaitList()) = 0;
 
     /*
      * Asynchronously write buffer at offset from host to device and get locked buffer at location of pointer.
@@ -98,14 +104,14 @@ public:
      *
      * Returns 1 if successful, negative value if unsucessful.
      */
-    virtual int write_and_get(Queue queue, uint32_t object_id, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list) = 0;
+    virtual int write_and_get(Queue queue, uint32_t object_id, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list = WaitList()) = 0;
 
     /*
      * Asynchronously read buffer at location of pointer from device to host.
      *
      * Returns 1 if successful, negative value if unsuccessful.
      */
-    virtual int read(Queue queue, uint32_t object_id, void *begin, void *end, Event& event, WaitList const& wait_list) = 0;
+    virtual int read(Queue queue, uint32_t object_id, void *begin, void *end, Event& event, WaitList const& wait_list = WaitList()) = 0;
 
     /*
      * Asynchronously write buffer at location of pointer from src device to dst device and get locked buffer at offset.
@@ -113,7 +119,7 @@ public:
      *
      * Returns 1 if successful, negative value if unsuccessful.
      */
-    virtual int sync_and_get(Queue dst, Queue src, uint32_t object_id, void *begin, void *end, Event& event, WaitList const& wait_list) = 0;
+    virtual int sync_and_get(Queue dst, Queue src, uint32_t object_id, void *begin, void *end, Event& event, WaitList const& wait_list = WaitList()) = 0;
 
     /*
      * Locking prevents eviction of buffer at location of pointer on device. Necessary during kernel execution.

@@ -39,6 +39,7 @@ public:
     size_t pool_size(Device device);
     int add_device(Context context, Device device, size_t pool_size);
     uint32_t add_object(void *data_object, size_t length);
+    void object(uint32_t object_id, void *& data_object, size_t& length);
     int get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffer, Event& event, WaitList const& wait_list = WaitList());
     int write_and_get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffer, Event& event, WaitList const& wait_list = WaitList());
     int read(Queue queue, uint32_t oid, void *begin, void *end, Event& event, WaitList const& wait_list = WaitList());
@@ -55,8 +56,8 @@ private:
         Context context;
         Device device;
         size_t pool_size;
-        size_t num_buffers;
-        std::vector<int> buffer_lock;
+        size_t num_slots;
+        std::vector<int> slot_lock;
         std::vector<int64_t> cached_object_id;
         std::vector<int64_t> cached_buffer_id;
         std::vector<Buffer> device_buffer;
@@ -72,7 +73,7 @@ private:
     std::vector<DeviceInfo> device_info_i;
     std::vector<ObjectInfo> object_info_i;
 
-    int try_lock(uint32_t device_id, uint32_t oid, void *begin, void *end);
+    int try_lock(uint32_t device_id, uint32_t cache_slot);
     int64_t find_device_id(Device device);
     int64_t find_buffer_id(uint32_t device_id, uint32_t oid, void *ptr);
     int64_t find_cache_slot(uint32_t device_id, uint32_t oid, uint32_t buffer_id);

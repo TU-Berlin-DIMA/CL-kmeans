@@ -11,6 +11,9 @@
 
 #include <cstdint>
 #include <cstring>
+#include <iostream>
+
+#define VERBOSE false
 
 using namespace Clustering;
 
@@ -48,8 +51,8 @@ int SimpleBufferCache::add_device(Context context, Device device, size_t pool_si
     info.context = context;
     info.device = device;
     info.pool_size = pool_size;
-    info.num_buffers = DoubleBuffering;
-    info.buffer_lock.resize(DoubleBuffering, 0);
+    info.num_slots = DoubleBuffering;
+    info.slot_lock.resize(DoubleBuffering, 0);
     info.cached_object_id.resize(DoubleBuffering, -1);
     info.cached_buffer_id.resize(DoubleBuffering, -1);
     info.device_buffer.resize(DoubleBuffering);
@@ -91,22 +94,43 @@ uint32_t SimpleBufferCache::add_object(void *data_object, size_t size)
     return oid;
 }
 
+void SimpleBufferCache::object(uint32_t oid, void *& data_object, size_t& length)
+{
+    if (oid == 0 or oid >= object_info_i.size()) {
+        data_object = nullptr;
+        length = 0;
+        return;
+    }
+
+    ObjectInfo& obj = object_info_i[oid];
+    data_object = obj.ptr;
+    length = obj.size;
+}
+
 int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list)
 {
     char *cbegin = (char*) begin, *cend = (char*) end;
     size_t size = cend - cbegin;
 
+
     if (size > buffer_size_i) {
+        std::cerr << "get: ranges > buffer_size not supported" << std::endl;
         return -1;
     }
 
     auto device_id = find_device_id(queue.get_device());
     if (device_id < 0) {
+        std::cerr << "get: bad device" << std::endl;
         return device_id;
     }
     auto buffer_id = find_buffer_id(device_id, oid, begin);
     if (buffer_id < 0) {
+        std::cerr << "get: bad begin ptr" << std::endl;
         return buffer_id;
+    }
+
+    if (VERBOSE) {
+        std::cerr << "get: OID " << oid << " BID " << buffer_id << " DID " << device_id << std::endl;
     }
 
     auto cache_slot = find_cache_slot(device_id, oid, buffer_id);
@@ -116,12 +140,16 @@ int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, Bu
     }
     else if (cache_slot < 0) {
         // Case: other error
+        std::cerr << "get: find_cache_slot error" << std::endl;
         return cache_slot;
     }
 
     // Case: in cache
+    if(try_lock(device_id, cache_slot) < 0) {
+        std::cerr << "get: try_lock error" << std::endl;
+        return -1;
+    }
     auto& device_info = device_info_i[device_id];
-    device_info.buffer_lock[cache_slot] = 1;
     buffers.push_back({device_info.device_buffer[cache_slot], size});
 
     return 1;
@@ -133,27 +161,32 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     size_t size = cend - cbegin;
 
     if (size > buffer_size_i) {
+        std::cerr << "write_and_get: ranges > buffer_size not supported" << std::endl;
         return -1;
     }
 
     auto device_id = find_device_id(queue.get_device());
     if (device_id < 0) {
+        std::cerr << "write_and_get: bad device" << std::endl;
         return -1;
     }
     auto buffer_id = find_buffer_id(device_id, oid, begin);
     if (buffer_id < 0) {
+        std::cerr << "write_and_get: bad begin ptr" << std::endl;
         return -1;
     }
     auto cache_slot = assign_cache_slot(device_id, oid, buffer_id);
     if (cache_slot < 0) {
+        std::cerr << "write_and_get: no free cache slot" << std::endl;
         return -1;
     }
     auto& device_info = device_info_i[device_id];
     void *host_ptr = device_info.host_ptr[cache_slot];
     auto& device_buffer = device_info.device_buffer[cache_slot];
 
-    auto locked = try_lock(device_id, oid, begin, end);
+    auto locked = try_lock(device_id, cache_slot);
     if (locked != 1) {
+        std::cerr << "write_and_get: cannot lock cache slot" << std::endl;
         return -1;
     }
 
@@ -221,15 +254,19 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
     return 1;
 }
 
-int SimpleBufferCache::try_lock(uint32_t device_id, uint32_t oid, void *begin, void * /* end */)
+int SimpleBufferCache::try_lock(uint32_t device_id, uint32_t cache_slot)
 {
     DeviceInfo& dev = device_info_i[device_id];
-    int64_t buf_id = find_buffer_id(device_id, oid, begin);
-    if (buf_id < 0) {
+    if (cache_slot >= dev.num_slots) {
+        std::cerr << "try_lock: invalid cache slot " << cache_slot << std::endl;
         return -1;
     }
 
-    auto& lock = dev.buffer_lock[buf_id];
+    if (VERBOSE) {
+        std::cerr << "try_lock: DID " << device_id << " SlotID " << cache_slot << std::endl;
+    }
+
+    auto& lock = dev.slot_lock[cache_slot];
     if (not lock) {
         lock = 1;
         return 1;
@@ -241,8 +278,6 @@ int SimpleBufferCache::try_lock(uint32_t device_id, uint32_t oid, void *begin, v
 
 int SimpleBufferCache::unlock(Device device, uint32_t oid, void *begin, void * /* end */)
 {
-    // TODO: support unlocking multiple buffers
-
     int64_t dev_id = find_device_id(device);
     if (dev_id < 0) {
         return -1;
@@ -252,9 +287,17 @@ int SimpleBufferCache::unlock(Device device, uint32_t oid, void *begin, void * /
     if (buf_id < 0) {
         return -1;
     }
-    dev.buffer_lock[buf_id] = 0;
+    int64_t slot_id = find_cache_slot(dev_id, oid, buf_id);
+    if (slot_id < 0) {
+        std::cerr << "unlock: find_cache_slot error" << std::endl;
+        return -1;
+    }
 
-    // TODO: Delete buffer from device
+    if (VERBOSE) {
+        std::cerr << "unlock: OID " << oid << " BID " << buf_id << " DID " << dev_id << " SlotID " << slot_id << std::endl;
+    }
+
+    dev.slot_lock[slot_id] = 0;
 
     return 1;
 }
@@ -291,13 +334,16 @@ int64_t SimpleBufferCache::find_device_id(Device device)
 int64_t SimpleBufferCache::find_buffer_id(uint32_t device_id, uint32_t oid, void *ptr)
 {
     if (device_id >= device_info_i.size()) {
+        std::cerr << "find_buffer_id: invalid DID " << device_id << std::endl;
         return -1;
     }
-    if (oid >= object_info_i.size()) {
+    if (oid == 0 or oid >= object_info_i.size()) {
+        std::cerr << "find_buffer_id: invalid OID " << oid << std::endl;
         return -1;
     }
     ObjectInfo& oinfo = object_info_i[oid];
     if (not ptr or ptr < oinfo.ptr or ptr >= &((char*)oinfo.ptr)[oinfo.size]) {
+        std::cerr << "find_buffer_id: invalid pointer " << ptr << std::endl;
         return -1;
     }
 
@@ -309,13 +355,16 @@ int64_t SimpleBufferCache::find_buffer_id(uint32_t device_id, uint32_t oid, void
 int64_t SimpleBufferCache::find_cache_slot(uint32_t device_id, uint32_t oid, uint32_t buffer_id)
 {
     if (device_id >= device_info_i.size()) {
+        std::cerr << "find_cache_slot: invalid DID " << device_id << std::endl;
         return -1;
     }
-    if (oid >= object_info_i.size()) {
+    if (oid == 0 or oid >= object_info_i.size()) {
+        std::cerr << "find_cache_slot: invalid OID " << oid << std::endl;
         return -1;
     }
     auto& device_info = device_info_i[device_id];
-    if (buffer_id >= device_info.num_buffers) {
+    if (buffer_id >= (object_info_i[oid].size + buffer_size_i - 1) / buffer_size_i) {
+        std::cerr << "find_cache_slot: invalid BID " << buffer_id << std::endl;
         return -1;
     }
 
