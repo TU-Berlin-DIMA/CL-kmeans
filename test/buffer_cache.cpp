@@ -34,7 +34,7 @@ public:
         queue = boost::compute::system::default_queue();
 
         buffer_cache.add_device(queue.get_context(), device, pool_size);
-        object_id = buffer_cache.add_object(data_object.data(), data_object.size() * sizeof(int));
+        object_id = buffer_cache.add_object(data_object.data(), data_object.size() * sizeof(int), Clustering::ObjectMode::Mutable);
     }
 
     void SetUp()
@@ -152,8 +152,9 @@ TEST_F(SimpleBufferCache, WriteReadBasic)
         }
     }
     EXPECT_EQ(0u, failed_fields);
-    ret = buffer_cache.unlock(device, object_id, begin, end);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event);
     ASSERT_EQ(true, ret);
+    event.wait();
 }
 
 TEST_F(SimpleBufferCache, WriteReadDeadBeef)
@@ -186,8 +187,9 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeef)
         }
     }
     EXPECT_EQ(0u, failed_fields);
-    ret = buffer_cache.unlock(device, object_id, begin, end);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event);
     ASSERT_EQ(true, ret);
+    event.wait();
 }
 
 TEST_F(SimpleBufferCache, GetReadBasic)
@@ -213,8 +215,9 @@ TEST_F(SimpleBufferCache, GetReadBasic)
         }
     }
     EXPECT_EQ(0u, failed_fields);
-    ret = buffer_cache.unlock(device, object_id, begin, end);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event);
     ASSERT_EQ(true, ret);
+    event.wait();
 }
 
 TEST_F(SimpleBufferCache, GetTwice)
@@ -233,10 +236,11 @@ TEST_F(SimpleBufferCache, GetTwice)
     ASSERT_GT(0, ret);
 
     // Unlock, then try to get again
-    ret = buffer_cache.unlock(queue.get_device(), object_id, begin, end);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event);
     ASSERT_EQ(true, ret);
     ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
     ASSERT_EQ(true, ret);
+    event.wait();
 }
 
 TEST_F(SimpleBufferCache, GetReadDeadBeef)
@@ -269,8 +273,9 @@ TEST_F(SimpleBufferCache, GetReadDeadBeef)
         }
     }
     EXPECT_EQ(0u, failed_fields);
-    ret = buffer_cache.unlock(device, object_id, begin, end);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event);
     ASSERT_EQ(true, ret);
+    event.wait();
 }
 
 TEST_F(SimpleBufferCache, ParallelWrites)
@@ -328,32 +333,40 @@ TEST_F(SimpleBufferCache, ParallelWrites)
                         event[1]
                         ));
 
+            event[1].wait();
+            for (auto iter = start_ptr[1]; iter < end_ptr[1]; ++iter) {
+                *iter = 0xCAFED00Du;
+            }
+
             ASSERT_EQ(
                     true,
                     buffer_cache.unlock(
-                        device,
+                        dualq[1],
                         object_id,
-                        start_ptr[1],
-                        end_ptr[1]
+                        buffers[1],
+                        event[1]
                         ));
+            event[1].wait();
+        }
+
+        event[0].wait();
+        for (auto iter = start_ptr[0]; iter < end_ptr[0]; ++iter) {
+            *iter = 0xCAFED00Du;
         }
 
         ASSERT_EQ(
             true,
             buffer_cache.unlock(
-                device,
+                dualq[0],
                 object_id,
-                start_ptr[0],
-                end_ptr[0]
+                buffers[0],
+                event[0]
                 ));
+        event[0].wait();
     }
 
     event[0].wait();
     event[1].wait();
-
-    for (auto& obj : data_object) {
-        obj = 0xCAFED00Du;
-    }
 
     for (size_t offset = 0; offset < data_object.size(); offset += buffer_ints) {
         start_ptr[0] = &data_object[offset];

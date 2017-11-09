@@ -20,6 +20,12 @@
 #include <boost/compute/utility/wait_list.hpp>
 
 namespace Clustering {
+
+enum class ObjectMode {
+    Mutable,
+    Immutable
+};
+
 class BufferCache {
 public:
 
@@ -37,6 +43,7 @@ public:
     public:
         Buffer buffer;
         size_t content_length;
+        int64_t buffer_id; /* internal data */
     };
 
     /*
@@ -75,7 +82,7 @@ public:
      *
      * Returns new object id (oid).
      */
-    virtual uint32_t add_object(void *data_object, size_t length) = 0;
+    virtual uint32_t add_object(void *data_object, size_t length, ObjectMode mode = ObjectMode::Immutable) = 0;
 
     /*
      * Get pointer to previously added data object.
@@ -124,7 +131,7 @@ public:
     /*
      * Locking prevents eviction of buffer at location of pointer on device. Necessary during kernel execution.
      */
-    virtual int unlock(Device device, uint32_t object_id, void *begin, void *end) = 0;
+    virtual int unlock(Queue queue, uint32_t object_id, BufferList const& buffers, Event& event, WaitList const& wait_list = WaitList()) = 0;
 
     /*
      * Convert between pointer into object and buffer.

@@ -88,14 +88,18 @@ int sds::enqueue(
                 0,
                 bdesc.buffer
                 );
+
+        events.emplace_back();
+        Event& unlock_event = events.back();
         buffer_cache_i->unlock(
-                queue.get_device(),
+                queue,
                 object_id,
-                object_ptr + offset,
-                object_ptr + end_offset
+                buffers,
+                unlock_event
                 );
 
-        next_queue = next_queue % device_info_i.qpair.size();
+        // TODO: dual-queue scheduling
+        // next_queue = next_queue % device_info_i.qpair.size();
         buffers.clear();
     }
 

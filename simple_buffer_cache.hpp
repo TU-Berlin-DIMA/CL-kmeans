@@ -36,15 +36,17 @@ public:
 
     SimpleBufferCache(size_t buffer_size);
 
+    // TODO: return multiple OpenCL events in read / write / etc
+
     size_t pool_size(Device device);
     int add_device(Context context, Device device, size_t pool_size);
-    uint32_t add_object(void *data_object, size_t length);
+    uint32_t add_object(void *data_object, size_t length, ObjectMode mode = ObjectMode::Immutable);
     void object(uint32_t object_id, void *& data_object, size_t& length);
     int get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffer, Event& event, WaitList const& wait_list = WaitList());
     int write_and_get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffer, Event& event, WaitList const& wait_list = WaitList());
     int read(Queue queue, uint32_t oid, void *begin, void *end, Event& event, WaitList const& wait_list = WaitList());
     int sync_and_get(Queue, Queue, uint32_t, void*, void*, Event&, WaitList const&) { return -1; /* not supported */ };
-    int unlock(Device device, uint32_t oid, void *begin, void *end);
+    int unlock(Queue queue, uint32_t oid, BufferList const& buffers, Event& event, WaitList const& wait_list = WaitList());
     void* buffer2pointer(uint32_t oid, uint32_t buffer_id);
     uint32_t pointer2buffer(uint32_t oid, void *ptr);
 
@@ -68,11 +70,13 @@ private:
     struct ObjectInfo {
         void* ptr;
         size_t size;
+        ObjectMode mode;
     };
 
     std::vector<DeviceInfo> device_info_i;
     std::vector<ObjectInfo> object_info_i;
 
+    int evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list);
     int try_lock(uint32_t device_id, uint32_t cache_slot);
     int64_t find_device_id(Device device);
     int64_t find_buffer_id(uint32_t device_id, uint32_t oid, void *ptr);

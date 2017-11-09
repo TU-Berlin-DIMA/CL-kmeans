@@ -83,13 +83,14 @@ int SimpleBufferCache::add_device(Context context, Device device, size_t pool_si
     return 1;
 }
 
-uint32_t SimpleBufferCache::add_object(void *data_object, size_t size)
+uint32_t SimpleBufferCache::add_object(void *data_object, size_t size, ObjectMode mode)
 {
     uint32_t oid = object_info_i.size();
     object_info_i.emplace_back();
     ObjectInfo& obj = object_info_i[oid];
     obj.ptr = data_object;
     obj.size = size;
+    obj.mode = mode;
 
     return oid;
 }
@@ -150,7 +151,8 @@ int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, Bu
         return -1;
     }
     auto& device_info = device_info_i[device_id];
-    buffers.push_back({device_info.device_buffer[cache_slot], size});
+    buffers.clear();
+    buffers.push_back({device_info.device_buffer[cache_slot], size, buffer_id});
 
     return 1;
 }
@@ -186,7 +188,12 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
 
     auto locked = try_lock(device_id, cache_slot);
     if (locked != 1) {
-        std::cerr << "write_and_get: cannot lock cache slot" << std::endl;
+        std::cerr << "write_and_get: cannot lock cache slot " << cache_slot << std::endl;
+        return -1;
+    }
+
+    if (evict_cache_slot(queue, device_id, cache_slot, event, wait_list) < 0) {
+        std::cerr << "write_and_get: cannot evict cache slot " << cache_slot << std::endl;
         return -1;
     }
 
@@ -204,7 +211,8 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
             host_ptr
             );
 
-    buffers.push_back({device_buffer, size});
+    buffers.clear();
+    buffers.push_back({device_buffer, size, buffer_id});
 
     device_info.cached_object_id[cache_slot] = oid;
     device_info.cached_buffer_id[cache_slot] = buffer_id;
@@ -231,6 +239,10 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
     if (buffer_id < 0) {
         std::cerr << "read: find_buffer_id error" << std::endl;
         return buffer_id;
+    }
+    if (object_info_i[oid].mode == ObjectMode::Immutable) {
+        // Assume object didn't change, don't need to do anything
+        return 1;
     }
     auto cache_slot = find_cache_slot(device_id, oid, buffer_id);
     if (cache_slot == -2) {
@@ -259,7 +271,49 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
     read_event.wait();
     std::memcpy(begin, host_ptr, size);
 
-    event = read_event;
+    // TODO: make asynchronous and set event = read_event instead of calling wait()
+    // event = read_event;
+
+    return 1;
+}
+
+int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list)
+{
+    DeviceInfo& devinfo = device_info_i[device_id];
+    int64_t& object_id = devinfo.cached_object_id[cache_slot];
+    int64_t& buffer_id = devinfo.cached_buffer_id[cache_slot];
+    ObjectMode mode = object_info_i[object_id].mode;
+
+    if (object_id == -1 and buffer_id == -1) {
+        // Case: cache slot is empty
+        return 1;
+    }
+    else if (mode == ObjectMode::Immutable) {
+        // Case: object is immutable, can trivially be evicted
+        object_id = -1;
+        buffer_id = -1;
+
+        return 1;
+    }
+    // Case: object is mutable and presumed dirty, must write back to evict
+    // TODO: store begin pointer and size of buffer in cache_slot
+    void *begin_ptr = buffer2pointer(object_id, buffer_id);
+
+    int ret = read(
+            queue,
+            object_id,
+            begin_ptr,
+            ((char*)begin_ptr) + buffer_size_i,
+            event,
+            wait_list
+        );
+    if (ret < 0) {
+        std::cerr << "evict_cache_slot: write-back error" << std::endl;
+        return -1;
+    }
+
+    object_id = -1;
+    buffer_id = -1;
 
     return 1;
 }
@@ -286,14 +340,23 @@ int SimpleBufferCache::try_lock(uint32_t device_id, uint32_t cache_slot)
     }
 }
 
-int SimpleBufferCache::unlock(Device device, uint32_t oid, void *begin, void * /* end */)
+int SimpleBufferCache::unlock(Queue queue, uint32_t oid, BufferList const& buffers, Event&, WaitList const&)
 {
+    Device device = queue.get_device();
     int64_t dev_id = find_device_id(device);
     if (dev_id < 0) {
         return -1;
     }
     DeviceInfo& dev = device_info_i[dev_id];
-    int64_t buf_id = find_buffer_id(dev_id, oid, begin);
+    if (buffers.empty()) {
+        std::cerr << "unlock: buffers list is empty" << std::endl;
+        return -1;
+    }
+    else if (buffers.size() > 1) {
+        std::cerr << "unlock: multiple buffers not supported" << std::endl;
+        return -1;
+    }
+    int64_t buf_id = buffers.front().buffer_id;
     if (buf_id < 0) {
         return -1;
     }
