@@ -54,13 +54,13 @@ namespace Clustering {
         } device_info_i;
 
         struct Runnable {
-            virtual uint32_t register_buffers(BufferCache& buffer_cache) = 0;
+            virtual int64_t register_buffers(BufferCache& buffer_cache) = 0;
             virtual int run(Queue queue, BufferCache& buffer_cache, uint32_t index) = 0;
             virtual int finish() = 0;
         };
 
         struct UnaryRunnable : public Runnable {
-            uint32_t register_buffers(BufferCache& buffer_cache);
+            int64_t register_buffers(BufferCache& buffer_cache);
             int run(Queue queue, BufferCache& buffer_cache, uint32_t index);
             int finish();
             FunUnary kernel_function;
@@ -71,9 +71,14 @@ namespace Clustering {
         };
 
         struct BinaryRunnable : public Runnable {
-            uint32_t register_buffers(BufferCache& buffer_cache);
+            int64_t register_buffers(BufferCache& buffer_cache);
             int run(Queue queue, BufferCache& buffer_cache, uint32_t index);
             int finish();
+            FunBinary kernel_function;
+            uint32_t fst_object_id;
+            uint32_t snd_object_id;
+            std::deque<Event> events;
+            std::promise<std::deque<Event>> events_promise;
         };
 
         std::shared_ptr<BufferCache> buffer_cache_i;

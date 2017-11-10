@@ -49,6 +49,16 @@ __kernel void inc(__global int * const restrict buffer, uint size)
 }
 )ENDSTR";
 
+constexpr char copy_source[] =
+R"ENDSTR(
+__kernel void copy(__global int * const restrict dst, __global int * const restrict src, uint size)
+{
+    for (uint i = get_global_id(0); i < size; i += get_global_size(0)) {
+        dst[i] = src[i];
+    }
+}
+)ENDSTR";
+
 class DeviceSchedulerEnvironment : public ::testing::Environment
 {
 public:
@@ -100,6 +110,30 @@ public:
                     LOCAL_SIZE
                     );
         };
+
+        bc::program copy_program = bc::program::build_with_source(
+                copy_source,
+                queue.get_context()
+                );
+
+        copy_f = [copy_program](
+                bc::command_queue queue,
+                size_t cl_offset,
+                size_t dst_size,
+                size_t src_size,
+                bc::buffer dst,
+                bc::buffer src
+                )
+        {
+            bc::kernel kernel = copy_program.create_kernel("copy");
+            kernel.set_args(dst, src, (cl_uint) (dst_size / sizeof(cl_int)));
+            return queue.enqueue_1d_range_kernel(
+                    kernel,
+                    cl_offset / sizeof(cl_int),
+                    GLOBAL_SIZE,
+                    LOCAL_SIZE
+                    );
+        };
     }
 
     void TearDown()
@@ -109,6 +143,7 @@ public:
     boost::compute::command_queue queue;
     Clustering::DeviceScheduler::FunUnary zero_f;
     Clustering::DeviceScheduler::FunUnary increment_f;
+    Clustering::DeviceScheduler::FunBinary copy_f;
 } *dsenv = nullptr;
 
 class SingleDeviceScheduler : public ::testing::Test {
@@ -117,38 +152,59 @@ public:
         buffer_size(BUFFER_SIZE),
         buffer_ints(BUFFER_SIZE / sizeof(int)),
         pool_size(POOL_SIZE),
-        object_size(OBJECT_SIZE),
-        object_id(0),
-        data_object(OBJECT_SIZE / sizeof(int), 0),
-        buffer_cache(std::make_shared<decltype(buffer_cache)::element_type>(BUFFER_SIZE))
+        fst_object_size(OBJECT_SIZE),
+        snd_object_size(OBJECT_SIZE),
+        fst_object_id(0),
+        snd_object_id(0),
+        fst_data_object(OBJECT_SIZE / sizeof(int), 0),
+        snd_data_object(OBJECT_SIZE / sizeof(int), 0)
     {
-        buffer_cache->add_device(dsenv->queue.get_context(), dsenv->device, pool_size);
-        object_id = buffer_cache->add_object(
-                data_object.data(),
-                data_object.size() * sizeof(int),
+    }
+
+    void SetUp()
+    {
+        buffer_cache = std::make_shared<Clustering::SimpleBufferCache>(BUFFER_SIZE);
+
+        buffer_cache->add_device(
+                dsenv->queue.get_context(),
+                dsenv->device, pool_size
+                );
+        fst_object_id = buffer_cache->add_object(
+                fst_data_object.data(),
+                fst_data_object.size() * sizeof(int),
+                Clustering::ObjectMode::Mutable
+                );
+        snd_object_id = buffer_cache->add_object(
+                snd_data_object.data(),
+                snd_data_object.size() * sizeof(int),
                 Clustering::ObjectMode::Mutable
                 );
 
         scheduler.add_buffer_cache(buffer_cache);
         scheduler.add_device(dsenv->queue.get_context(), dsenv->device);
-    }
 
-    void SetUp()
-    {
-        int i = 0;
-        for (auto& obj : data_object) {
+        size_t i = 0;
+        for (auto& obj : fst_data_object) {
+            obj = i;
+            ++i;
+        }
+
+        i = 0;
+        for (auto& obj : snd_data_object) {
             obj = i;
             ++i;
         }
     }
 
     void TearDown()
-    {}
+    {
+        buffer_cache.reset();
+    }
 
-    size_t const buffer_size, buffer_ints, pool_size, object_size;
-    uint32_t object_id;
-    std::vector<uint32_t> data_object;
-    std::shared_ptr<Clustering::SimpleBufferCache> buffer_cache;
+    size_t const buffer_size, buffer_ints, pool_size, fst_object_size, snd_object_size;
+    uint32_t fst_object_id, snd_object_id;
+    std::vector<uint32_t> fst_data_object, snd_data_object;
+    std::shared_ptr<Clustering::BufferCache> buffer_cache;
     Clustering::SingleDeviceScheduler scheduler;
 };
 
@@ -157,7 +213,7 @@ TEST_F(SingleDeviceScheduler, EnqueueUnaryKernel)
     int ret = 0;
     std::future<std::deque<bc::event>> fevents;
 
-    ret = scheduler.enqueue(dsenv->zero_f, object_id, fevents);
+    ret = scheduler.enqueue(dsenv->zero_f, fst_object_id, fevents);
     ASSERT_EQ(true, ret);
     ASSERT_TRUE(fevents.valid());
 
@@ -177,26 +233,26 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
     int ret = 0;
     std::future<std::deque<bc::event>> zero_fevents, inc_fevents;
 
-    ret = scheduler.enqueue(dsenv->zero_f, object_id, zero_fevents);
+    ret = scheduler.enqueue(dsenv->zero_f, fst_object_id, zero_fevents);
     ASSERT_EQ(true, ret);
 
-    ret = scheduler.enqueue(dsenv->increment_f, object_id, inc_fevents);
+    ret = scheduler.enqueue(dsenv->increment_f, fst_object_id, inc_fevents);
     ASSERT_EQ(true, ret);
 
     ret = scheduler.run();
     ASSERT_EQ(true, ret);
 
     bc::event read_event;
-    for (size_t offset = 0; offset < data_object.size(); offset += buffer_ints) {
-        size_t num_ints = (offset + buffer_ints > data_object.size())
-            ? data_object.size() - offset
+    for (size_t offset = 0; offset < fst_data_object.size(); offset += buffer_ints) {
+        size_t num_ints = (offset + buffer_ints > fst_data_object.size())
+            ? fst_data_object.size() - offset
             : buffer_ints
             ;
         ret = buffer_cache->read(
                 dsenv->queue,
-                object_id,
-                &data_object[offset],
-                &data_object[offset + num_ints],
+                fst_object_id,
+                &fst_data_object[offset],
+                &fst_data_object[offset + num_ints],
                 read_event
                 );
         ASSERT_EQ(true, ret);
@@ -205,11 +261,55 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
 
     size_t failed_fields = 0;
     for (size_t i = 0; i < buffer_ints; ++i) {
-        if (data_object[i] != 1u) {
+        if (fst_data_object[i] != 1u) {
             ++failed_fields;
         }
         if (failed_fields <= MAX_PRINT_FAILURES) {
-            EXPECT_EQ(1u, data_object[i]) << "Object differs at index " << i;
+            EXPECT_EQ(1u, fst_data_object[i]) << "Object differs at index " << i;
+        }
+    }
+    EXPECT_EQ(0ul, failed_fields);
+}
+
+TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
+{
+    int ret = 0;
+    std::future<std::deque<bc::event>> copy_fevents;
+
+    for (auto& obj : fst_data_object) {
+        obj = 0x0EADBEEF;
+    }
+
+    ret = scheduler.enqueue(dsenv->copy_f, fst_object_id, snd_object_id, copy_fevents);
+    ASSERT_EQ(true, ret);
+
+    ret = scheduler.run();
+    ASSERT_EQ(true, ret);
+
+    bc::event read_event;
+    for (size_t offset = 0; offset < fst_data_object.size(); offset += buffer_ints) {
+        size_t num_ints = (offset + buffer_ints > fst_data_object.size())
+            ? fst_data_object.size() - offset
+            : buffer_ints
+            ;
+        ret = buffer_cache->read(
+                dsenv->queue,
+                fst_object_id,
+                &fst_data_object[offset],
+                &fst_data_object[offset + num_ints],
+                read_event
+                );
+        ASSERT_EQ(true, ret);
+    }
+    dsenv->queue.finish();
+
+    size_t failed_fields = 0;
+    for (size_t i = 0; i < buffer_ints; ++i) {
+        if (fst_data_object[i] != i) {
+            ++failed_fields;
+        }
+        if (failed_fields <= MAX_PRINT_FAILURES) {
+            EXPECT_EQ(i, fst_data_object[i]) << "Object differs at index " << i;
         }
     }
     EXPECT_EQ(0ul, failed_fields);
