@@ -27,7 +27,7 @@ ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 OPTION(MATRIX_BOUNDSCHECK "Enable matrix bounds checking" OFF)
 
 SET(CMAKE_C_FLAGS "-std=c11 -O3 -ffp-contract=fast -march=native -Wall -Wextra -DUNIX")
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -ffp-contract=fast -march=native -Wall -Wextra -DUNIX")
+SET(CMAKE_CXX_FLAGS "-std=c++14 -O3 -ffp-contract=fast -march=native -Wall -Wextra -DUNIX")
 SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 
