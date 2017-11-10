@@ -161,8 +161,8 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
     events.emplace_back();
     events.back() = kernel_function(
             queue,
-            bdesc.content_length,
             0,
+            bdesc.content_length,
             bdesc.buffer
             );
 

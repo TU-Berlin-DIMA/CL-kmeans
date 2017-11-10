@@ -39,8 +39,8 @@ namespace Clustering {
          *
          * The parameters are:
          * 1. Boost::Compute CommandQueue
-         * 2. Buffer size in bytes
-         * 3. Buffer offset(s) in bytes
+         * 2. OpenCL offset in bytes
+         * 3. Buffer size(s) in bytes
          * 4. Boost::Compute Buffer(s)
          *
          * The function shall return a Boost::Compute Event.

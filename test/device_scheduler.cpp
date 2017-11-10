@@ -64,8 +64,8 @@ public:
 
         zero_f = [zero_program](
                 bc::command_queue queue,
+                size_t cl_offset,
                 size_t size,
-                size_t offset,
                 bc::buffer buffer
                 )
         {
@@ -73,7 +73,7 @@ public:
             kernel.set_args(buffer, (cl_uint) (size / sizeof(cl_int)));
             return queue.enqueue_1d_range_kernel(
                     kernel,
-                    offset / sizeof(cl_int),
+                    cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
                     LOCAL_SIZE
                     );
@@ -86,8 +86,8 @@ public:
 
         increment_f = [inc_program](
                 bc::command_queue queue,
+                size_t cl_offset,
                 size_t size,
-                size_t offset,
                 bc::buffer buffer
                 )
         {
@@ -95,7 +95,7 @@ public:
             kernel.set_args(buffer, (cl_uint) (size / sizeof(cl_int)));
             return queue.enqueue_1d_range_kernel(
                     kernel,
-                    offset / sizeof(cl_int),
+                    cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
                     LOCAL_SIZE
                     );
