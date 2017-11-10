@@ -70,15 +70,20 @@ int sds::run()
 {
     uint32_t num_buffers = 0;
     for (auto& runnable : run_queue_i) {
+        auto n = runnable->register_buffers(*buffer_cache_i);
+
         if (num_buffers == 0) {
-            num_buffers = runnable->register_buffers(*buffer_cache_i);
+            num_buffers = n;
+        }
+        else if (n == 0) {
+            // barrier -> skip
+        }
+        else if (n != num_buffers) {
+            std::cerr << "[Run] number of requested iterations differs" << std::endl;
+            return -1;
         }
         else {
-            auto n = runnable->register_buffers(*buffer_cache_i);
-            if (n != num_buffers) {
-                std::cerr << "[Run] number of requested iterations differs" << std::endl;
-                return -1;
-            }
+            // n == num_buffers -> ok
         }
     }
 
