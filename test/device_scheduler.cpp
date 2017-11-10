@@ -19,6 +19,7 @@
 #include <gtest/gtest.h>
 #include <boost/compute/core.hpp>
 
+constexpr size_t MAX_PRINT_FAILURES = 3;
 constexpr std::chrono::milliseconds WAIT_DURATION(900);
 constexpr size_t BUFFER_SIZE = 16ul << 20;  //  16 MB
 constexpr size_t POOL_SIZE = 128ul << 20;   // 128 MB
@@ -32,7 +33,7 @@ constexpr char zero_source[] =
 R"ENDSTR(
 __kernel void zero(__global int * const restrict buffer, uint size)
 {
-    for (uint i = 0; i < size; ++i) {
+    for (uint i = get_global_id(0); i < size; i += get_global_size(0)) {
         buffer[i] = 0;
     }
 }
@@ -42,7 +43,7 @@ constexpr char increment_source[] =
 R"ENDSTR(
 __kernel void inc(__global int * const restrict buffer, uint size)
 {
-    for (uint i = 0; i < size; ++i) {
+    for (uint i = get_global_id(0); i < size; i += get_global_size(0)) {
         buffer[i] = buffer[i] + 1;
     }
 }
@@ -124,7 +125,8 @@ public:
         buffer_cache->add_device(dsenv->queue.get_context(), dsenv->device, pool_size);
         object_id = buffer_cache->add_object(
                 data_object.data(),
-                data_object.size() * sizeof(int)
+                data_object.size() * sizeof(int),
+                Clustering::ObjectMode::Mutable
                 );
 
         scheduler.add_buffer_cache(buffer_cache);
@@ -179,7 +181,6 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
     ASSERT_EQ(true, ret);
 
     bc::event read_event;
-    bool are_all_one = true;
     for (size_t offset = 0; offset < data_object.size(); offset += buffer_ints) {
         size_t num_ints = (offset + buffer_ints > data_object.size())
             ? data_object.size() - offset
@@ -194,12 +195,18 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
                 );
         ASSERT_EQ(true, ret);
     }
-    read_event.wait();
+    dsenv->queue.finish();
 
-    for (auto const& x : data_object) {
-        are_all_one = are_all_one and (x == 1);
+    size_t failed_fields = 0;
+    for (size_t i = 0; i < buffer_ints; ++i) {
+        if (data_object[i] != 1u) {
+            ++failed_fields;
+        }
+        if (failed_fields <= MAX_PRINT_FAILURES) {
+            EXPECT_EQ(1u, data_object[i]) << "Object differs at index " << i;
+        }
     }
-    EXPECT_TRUE(are_all_one);
+    EXPECT_EQ(0ul, failed_fields);
 }
 
 int main(int argc, char **argv)
