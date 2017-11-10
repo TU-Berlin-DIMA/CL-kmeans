@@ -41,6 +41,8 @@ namespace Clustering {
         int add_buffer_cache(std::shared_ptr<BufferCache> buffer_cache);
         int add_device(Context context, Device device);
 
+        int run();
+
         int enqueue(FunUnary kernel_function, uint32_t object_id, std::future<std::deque<Event>>& kernel_events);
         int enqueue(FunBinary function, uint32_t fst_object_id, uint32_t snd_object_id, std::future<std::deque<Event>>& kernel_events);
         int enqueue_barrier();
@@ -51,7 +53,31 @@ namespace Clustering {
             std::array<Queue, 2> qpair;
         } device_info_i;
 
+        struct Runnable {
+            virtual uint32_t register_buffers(BufferCache& buffer_cache) = 0;
+            virtual int run(Queue queue, BufferCache& buffer_cache, uint32_t index) = 0;
+            virtual int finish() = 0;
+        };
+
+        struct UnaryRunnable : public Runnable {
+            uint32_t register_buffers(BufferCache& buffer_cache);
+            int run(Queue queue, BufferCache& buffer_cache, uint32_t index);
+            int finish();
+            FunUnary kernel_function;
+            uint32_t object_id;
+            std::deque<Event> events;
+            std::promise<std::deque<Event>> events_promise;
+
+        };
+
+        struct BinaryRunnable : public Runnable {
+            uint32_t register_buffers(BufferCache& buffer_cache);
+            int run(Queue queue, BufferCache& buffer_cache, uint32_t index);
+            int finish();
+        };
+
         std::shared_ptr<BufferCache> buffer_cache_i;
+        std::deque<std::unique_ptr<Runnable>> run_queue_i;
     };
 } // namespace Clustering
 

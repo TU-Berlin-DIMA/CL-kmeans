@@ -161,6 +161,9 @@ TEST_F(SingleDeviceScheduler, EnqueueUnaryKernel)
     ASSERT_EQ(true, ret);
     ASSERT_TRUE(fevents.valid());
 
+    ret = scheduler.run();
+    ASSERT_EQ(true, ret);
+
     auto status = fevents.wait_for(WAIT_DURATION);
     fevents.wait();
     ASSERT_EQ(std::future_status::ready, status);
@@ -178,6 +181,9 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
     ASSERT_EQ(true, ret);
 
     ret = scheduler.enqueue(dsenv->increment_f, object_id, inc_fevents);
+    ASSERT_EQ(true, ret);
+
+    ret = scheduler.run();
     ASSERT_EQ(true, ret);
 
     bc::event read_event;

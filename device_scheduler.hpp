@@ -56,6 +56,8 @@ namespace Clustering {
 
         virtual int add_device(Context context, Device device) = 0;
 
+        virtual int run() = 0;
+
         virtual int enqueue(FunUnary kernel_function, uint32_t object_id, std::future<std::deque<Event>>& kernel_events) = 0;
         virtual int enqueue(FunBinary function, uint32_t fst_object_id, uint32_t snd_object_id, std::future<std::deque<Event>>& kernel_events) = 0;
         virtual int enqueue_barrier() = 0;

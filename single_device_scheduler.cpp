@@ -39,71 +39,14 @@ int sds::enqueue(
         std::future<std::deque<Event>>& kernel_events
         )
 {
-    int ret = 0;
 
-    std::promise<std::deque<Event>> promise;
-    kernel_events = promise.get_future();
-    std::deque<Event> events;
+    auto runnable = std::make_unique<UnaryRunnable>();
+    runnable->kernel_function = kernel_function;
+    runnable->object_id = object_id;
 
-    void *object_vptr = nullptr;
-    char *object_ptr = nullptr;
-    size_t object_size = 0;
-    buffer_cache_i->object(object_id, object_vptr, object_size);
-    object_ptr = (char*) object_vptr;
+    kernel_events = runnable->events_promise.get_future();
 
-    size_t buffer_size = buffer_cache_i->buffer_size();
-
-    BufferCache::BufferList buffers;
-    uint32_t next_queue = 0;
-    for (size_t offset = 0; offset < object_size; offset += buffer_size) {
-
-        Queue& queue = device_info_i.qpair[next_queue];
-        size_t end_offset = (offset + buffer_size < object_size)
-            ? offset + buffer_size
-            : object_size
-            ;
-
-        if (VERBOSE) {
-            std::cout << "objectptr: " << (uint64_t)object_ptr << " offset " << offset << " endoffset " << end_offset << std::endl;
-        }
-
-        events.emplace_back();
-        Event& transfer_event = events.back();
-        ret = buffer_cache_i->get(
-                queue,
-                object_id,
-                object_ptr + offset,
-                object_ptr + end_offset,
-                buffers,
-                transfer_event
-                );
-        if (ret < 0) {
-            return -1;
-        }
-        auto& bdesc = buffers.front();
-        events.emplace_back();
-        events.back() = kernel_function(
-                queue,
-                bdesc.content_length,
-                0,
-                bdesc.buffer
-                );
-
-        events.emplace_back();
-        Event& unlock_event = events.back();
-        buffer_cache_i->unlock(
-                queue,
-                object_id,
-                buffers,
-                unlock_event
-                );
-
-        // TODO: dual-queue scheduling
-        // next_queue = next_queue % device_info_i.qpair.size();
-        buffers.clear();
-    }
-
-    promise.set_value(std::move(events));
+    run_queue_i.push_back(std::move(runnable));
 
     return 1;
 }
@@ -115,10 +58,151 @@ int sds::enqueue(
         std::future<std::deque<Event>>& kernel_events
         )
 {
-    return 0;
+    return -1;
 }
 
 int sds::enqueue_barrier()
 {
-    return 0;
+    return -1;
+}
+
+int sds::run()
+{
+    uint32_t num_buffers = 0;
+    for (auto& runnable : run_queue_i) {
+        if (num_buffers == 0) {
+            num_buffers = runnable->register_buffers(*buffer_cache_i);
+        }
+        else {
+            auto n = runnable->register_buffers(*buffer_cache_i);
+            if (n != num_buffers) {
+                std::cerr << "[Run] number of requested iterations differs" << std::endl;
+                return -1;
+            }
+        }
+    }
+
+    uint32_t current_queue = 0;
+    for (uint32_t current_index = 0u; current_index < num_buffers; ++current_index) {
+
+        Queue& queue = device_info_i.qpair[current_queue];
+
+        for (auto& runnable : run_queue_i) {
+            auto ret = runnable->run(queue, *buffer_cache_i, current_index);
+            if (ret < 0) {
+                return -1;
+            }
+        }
+
+    //     // TODO: dual-queue scheduling
+        // current_queue = (current_queue + 1) % device_info_i.qpair.size();
+    }
+
+    for (auto& runnable : run_queue_i) {
+        auto ret = runnable->finish();
+        if (ret < 0) {
+            return -1;
+        }
+    }
+
+    for (auto& queue : device_info_i.qpair) {
+        queue.finish();
+    }
+
+    run_queue_i.clear();
+
+    return 1;
+}
+
+int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t index)
+{
+    int ret = 0;
+
+    void *object_vptr = nullptr;
+    char *object_ptr = nullptr;
+    size_t object_size = 0;
+    buffer_cache.object(object_id, object_vptr, object_size);
+    object_ptr = (char*) object_vptr;
+
+    size_t buffer_size = buffer_cache.buffer_size();
+
+    BufferCache::BufferList buffers;
+    size_t offset = buffer_size * index;
+
+    size_t end_offset = (offset + buffer_size < object_size)
+        ? offset + buffer_size
+        : object_size
+        ;
+
+    if (VERBOSE) {
+        std::cout << "[UnaryRunnable::run] objectptr: " << (uint64_t)object_ptr << " offset " << offset << " endoffset " << end_offset << std::endl;
+    }
+
+    events.emplace_back();
+    Event& transfer_event = events.back();
+
+    ret = buffer_cache.get(
+            queue,
+            object_id,
+            object_ptr + offset,
+            object_ptr + end_offset,
+            buffers,
+            transfer_event
+            );
+    if (ret < 0) {
+        return -1;
+    }
+    auto& bdesc = buffers.front();
+    events.emplace_back();
+    events.back() = kernel_function(
+            queue,
+            bdesc.content_length,
+            0,
+            bdesc.buffer
+            );
+
+    events.emplace_back();
+    Event& unlock_event = events.back();
+    buffer_cache.unlock(
+            queue,
+            object_id,
+            buffers,
+            unlock_event
+            );
+
+    return 1;
+}
+
+uint32_t sds::UnaryRunnable::register_buffers(BufferCache& buffer_cache)
+{
+    auto buffer_size = buffer_cache.buffer_size();
+    size_t object_size = 0;
+    {
+        void *ptr = nullptr;
+        buffer_cache.object(object_id, ptr, object_size);
+    }
+
+    return (object_size + buffer_size - 1) / buffer_size;
+}
+
+int sds::UnaryRunnable::finish()
+{
+    events_promise.set_value(std::move(events));
+
+    return 1;
+}
+
+uint32_t sds::BinaryRunnable::register_buffers(BufferCache& buffer_cache)
+{
+    return -1;
+}
+
+int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t index)
+{
+    return -1;
+}
+
+int sds::BinaryRunnable::finish()
+{
+    return -1;
 }
