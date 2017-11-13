@@ -26,6 +26,7 @@
 #include <boost/compute/container/vector.hpp>
 #include <boost/compute/memory/local_buffer.hpp>
 #include <boost/compute/allocator/pinned_allocator.hpp>
+#include <boost/compute/algorithm/copy.hpp>
 
 namespace Clustering {
 
@@ -92,27 +93,64 @@ public:
             Vector<MassT>& masses,
             Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events
-            ) {
+            )
+    {
+        return (*this)(
+                queue,
+                num_features,
+                num_points,
+                num_clusters,
+                points.begin(),
+                points.end(),
+                centroids.begin(),
+                centroids.end(),
+                labels.begin(),
+                labels.end(),
+                masses.begin(),
+                masses.end(),
+                datapoint,
+                events
+                );
+    }
 
-        assert(points.size() == num_points * num_features);
-        assert(labels.size() == num_points);
-        assert(centroids.size() >= num_clusters * num_features);
-        assert(masses.size() >= num_clusters);
+    Event operator() (
+            boost::compute::command_queue queue,
+            size_t num_features,
+            size_t num_points,
+            size_t num_clusters,
+            boost::compute::buffer_iterator<PointT> points_begin,
+            boost::compute::buffer_iterator<PointT> points_end,
+            boost::compute::buffer_iterator<PointT> centroids_begin,
+            boost::compute::buffer_iterator<PointT> centroids_end,
+            boost::compute::buffer_iterator<LabelT> labels_begin,
+            boost::compute::buffer_iterator<LabelT> labels_end,
+            boost::compute::buffer_iterator<MassT> masses_begin,
+            boost::compute::buffer_iterator<MassT> masses_end,
+            Measurement::DataPoint& datapoint,
+            boost::compute::wait_list const& events
+            )
+    {
+
         assert(num_features <= this->config.global_size[0]);
+        assert(points_end - points_begin == (long) (num_points * num_features));
+        assert(centroids_end - centroids_begin == (long) (num_clusters * num_features));
+        assert(labels_end - labels_begin == (long) num_points);
+        assert(masses_end - masses_begin == (long) num_clusters);
+        assert(points_begin.get_index() == 0u);
+        assert(centroids_begin.get_index() == 0u);
+        assert(labels_begin.get_index() == 0u);
+        assert(masses_begin.get_index() == 0u);
 
         datapoint.set_name("CentroidUpdateFeatureSum");
 
         size_t min_centroids_size =
             num_clusters * this->config.global_size[0];
-
-        if (centroids.size() < min_centroids_size) {
-            centroids.resize(min_centroids_size);
-        }
+        Vector<PointT> tmp_centroids(min_centroids_size, queue.get_context());
 
         this->kernel.set_args(
-                points,
-                centroids,
-                labels,
+                points_begin.get_buffer(),
+                tmp_centroids,
+                labels_begin.get_buffer(),
                 (cl_uint)num_features,
                 (cl_uint)num_points,
                 (cl_uint)num_clusters);
@@ -138,10 +176,20 @@ public:
                 queue,
                 num_point_blocks,
                 num_clusters * num_features,
-                centroids,
+                tmp_centroids,
                 datapoint.create_child(),
                 wait_list
                 );
+
+        wait_list.insert(event);
+
+        boost::compute::future<void> copy_future =
+            copy_async(
+                tmp_centroids.begin(),
+                tmp_centroids.begin() + num_clusters * num_features,
+                centroids_begin,
+                queue);
+        event = copy_future.get_event();
 
         wait_list.insert(event);
 
@@ -149,8 +197,10 @@ public:
                 queue,
                 num_features,
                 num_clusters,
-                centroids,
-                masses,
+                centroids_begin,
+                centroids_end,
+                masses_begin,
+                masses_end,
                 datapoint.create_child(),
                 wait_list
                 );

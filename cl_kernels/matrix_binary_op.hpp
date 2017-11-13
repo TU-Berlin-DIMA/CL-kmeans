@@ -69,15 +69,15 @@ public:
             boost::compute::command_queue /* queue */,
             size_t /* num_cols */,
             size_t /* num_rows */,
-            Vector<T1>& /* matrix */,
+            boost::compute::buffer_iterator<T1> /* matrix_begin */,
+            boost::compute::buffer_iterator<T1> /* matrix_end */,
             T2 /* scalar */,
             Measurement::DataPoint& /* datapoint */,
             boost::compute::wait_list const& /* events */
             )
     {
         assert(false /* Not implemented! */);
-        // assert(matrix.size() == num_cols * num_rows);
-        // assert(vector.size() == num_cols);
+        // assert(matrix_end - matrix_begin == num_cols * num_rows);
     }
 
     /*
@@ -87,20 +87,24 @@ public:
             boost::compute::command_queue queue,
             size_t num_cols,
             size_t num_rows,
-            Vector<T1>& matrix,
-            Vector<T2>& vector,
+            boost::compute::buffer_iterator<T1> matrix_begin,
+            boost::compute::buffer_iterator<T1> matrix_end,
+            boost::compute::buffer_iterator<T2> vector_begin,
+            boost::compute::buffer_iterator<T2> vector_end,
             Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events
             )
     {
-        assert(matrix.size() >= num_cols * num_rows);
-        assert(vector.size() >= num_rows);
+        assert(matrix_end - matrix_begin == (long) (num_cols * num_rows));
+        assert(vector_end - vector_begin == (long) num_rows);
+        assert(matrix_begin.get_index() == 0u);
+        assert(vector_begin.get_index() == 0u);
 
         datapoint.set_name("MatrixBinaryOpRow");
 
         this->row_kernel.set_args(
-                matrix,
-                vector,
+                matrix_begin.get_buffer(),
+                vector_begin.get_buffer(),
                 (cl_uint)num_cols,
                 (cl_uint)num_rows);
 
@@ -128,15 +132,17 @@ public:
             boost::compute::command_queue /* queue */,
             size_t /* num_cols */,
             size_t /* num_rows */,
-            Vector<T1>& /* matrix */,
-            Vector<T2>& /*vector */,
+            boost::compute::buffer_iterator<T1> /* matrix_begin */,
+            boost::compute::buffer_iterator<T1> /* matrix_end */,
+            boost::compute::buffer_iterator<T2> /* vector_begin */,
+            boost::compute::buffer_iterator<T2> /* vector_end */,
             Measurement::DataPoint& /* datapoint */,
-            boost::compute::wait_list const& /* events */
+            boost::compute::wait_list const& /* wait_list */
             )
     {
         assert(false /* Not implemented! */);
-        // assert(matrix.size() == num_cols * num_rows);
-        // assert(vector.size() == num_cols);
+        // assert(matrix_end - matrix_begin == num_cols * num_rows);
+        // assert(vector_end - vector_begin == num_cols);
     }
 
 private:

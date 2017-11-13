@@ -142,9 +142,48 @@ public:
             Vector<PointT>& centroids,
             PinnedVector<LabelT>& labels,
             Measurement::DataPoint& datapoint,
-            boost::compute::wait_list const& events) {
+            boost::compute::wait_list const& events
+            )
+    {
+        return (*this)(
+                queue,
+                num_features,
+                num_points,
+                num_clusters,
+                points.begin(),
+                points.end(),
+                centroids.begin(),
+                centroids.end(),
+                labels.begin(),
+                labels.end(),
+                datapoint,
+                events
+                );
+    }
+
+    Event operator() (
+            boost::compute::command_queue queue,
+            size_t num_features,
+            size_t num_points,
+            size_t num_clusters,
+            boost::compute::buffer_iterator<PointT> points_begin,
+            boost::compute::buffer_iterator<PointT> points_end,
+            boost::compute::buffer_iterator<PointT> centroids_begin,
+            boost::compute::buffer_iterator<PointT> centroids_end,
+            boost::compute::buffer_iterator<LabelT> labels_begin,
+            boost::compute::buffer_iterator<LabelT> labels_end,
+            Measurement::DataPoint& datapoint,
+            boost::compute::wait_list const& events
+            )
+    {
 
         assert(num_features <= MAX_FEATURES);
+        assert(points_end - points_begin == (long) (num_points * num_features));
+        assert(centroids_end - centroids_begin == (long) (num_clusters * num_features));
+        assert(labels_end - labels_begin == (long) num_points);
+        assert(points_begin.get_index() == 0u);
+        assert(centroids_begin.get_index() == 0u);
+        assert(labels_begin.get_index() == 0u);
 
         datapoint.set_name("LabelingUnrollVector");
 
@@ -159,8 +198,8 @@ public:
                 queue.get_context()
                 );
         boost::compute::copy(
-                centroids.begin(),
-                centroids.begin() + num_clusters * num_features,
+                centroids_begin,
+                centroids_begin + num_clusters * num_features,
                 ro_centroids.begin(),
                 queue
                 );
@@ -187,18 +226,18 @@ public:
 
         if (use_local_memory) {
             kernel[kernel_index].set_args(
-                    points,
+                    points_begin.get_buffer(),
                     ro_centroids,
-                    labels,
+                    labels_begin.get_buffer(),
                     local_points,
                     (cl_uint) num_points,
                     (cl_uint) num_clusters);
         }
         else {
             kernel[kernel_index].set_args(
-                    points,
+                    points_begin.get_buffer(),
                     ro_centroids,
-                    labels,
+                    labels_begin.get_buffer(),
                     (cl_uint) num_points,
                     (cl_uint) num_clusters);
         }

@@ -30,6 +30,7 @@
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
 #include <boost/compute/memory/local_buffer.hpp>
+#include <boost/compute/algorithm/copy.hpp>
 
 namespace Clustering {
 
@@ -164,11 +165,50 @@ public:
             boost::compute::wait_list const& events
             )
     {
-        assert(points.size() == num_points * num_features);
-        assert(centroids.size() == num_clusters * num_features);
-        assert(labels.size() == num_points);
-        assert(masses.size() == num_clusters);
+        return (*this)(
+                queue,
+                num_features,
+                num_points,
+                num_clusters,
+                points.begin(),
+                points.end(),
+                centroids.begin(),
+                centroids.end(),
+                labels.begin(),
+                labels.end(),
+                masses.begin(),
+                masses.end(),
+                datapoint,
+                events
+                );
+    }
+
+    Event operator() (
+            boost::compute::command_queue queue,
+            size_t num_features,
+            size_t num_points,
+            size_t num_clusters,
+            boost::compute::buffer_iterator<PointT> points_begin,
+            boost::compute::buffer_iterator<PointT> points_end,
+            boost::compute::buffer_iterator<PointT> centroids_begin,
+            boost::compute::buffer_iterator<PointT> centroids_end,
+            boost::compute::buffer_iterator<LabelT> labels_begin,
+            boost::compute::buffer_iterator<LabelT> labels_end,
+            boost::compute::buffer_iterator<MassT> masses_begin,
+            boost::compute::buffer_iterator<MassT> masses_end,
+            Measurement::DataPoint& datapoint,
+            boost::compute::wait_list const& events
+            )
+    {
         assert(num_features <= MAX_FEATURES);
+        assert(points_end - points_begin == (long) (num_points * num_features));
+        assert(centroids_end - centroids_begin == (long) (num_clusters * num_features));
+        assert(labels_end - labels_begin == (long) num_points);
+        assert(masses_end - masses_begin == (long) num_clusters);
+        assert(points_begin.get_index() == 0u);
+        assert(centroids_begin.get_index() == 0u);
+        assert(labels_begin.get_index() == 0u);
+        assert(masses_begin.get_index() == 0u);
 
         datapoint.set_name("FusedClusterMerge");
 
@@ -207,9 +247,9 @@ public:
                 num_clusters * num_features,
                 queue.get_context()
                 );
-        boost::compute::copy(
-                centroids.begin(),
-                centroids.begin() + num_clusters * num_features,
+        boost::compute::copy_async(
+                centroids_begin,
+                centroids_end,
                 ro_centroids.begin(),
                 queue
                 );
@@ -240,11 +280,11 @@ public:
 
         if (use_local_memory) {
             kernel.set_args(
-                    points,
+                    points_begin.get_buffer(),
                     ro_centroids,
                     new_centroids,
                     new_masses,
-                    labels,
+                    labels_begin.get_buffer(),
                     local_points,
                     local_new_centroids,
                     local_masses,
@@ -253,11 +293,11 @@ public:
         }
         else {
             kernel.set_args(
-                    points,
+                    points_begin.get_buffer(),
                     ro_centroids,
                     new_centroids,
                     new_masses,
-                    labels,
+                    labels_begin.get_buffer(),
                     (cl_uint)num_points,
                     (cl_uint)num_clusters);
         }
@@ -291,7 +331,7 @@ public:
                 new_centroids.begin(),
                 new_centroids.begin()
                 + num_features * num_clusters,
-                centroids.begin(),
+                centroids_begin,
                 queue
                 );
 
@@ -309,7 +349,7 @@ public:
         boost::compute::copy_async(
                 new_masses.begin(),
                 new_masses.begin() + num_clusters,
-                masses.begin(),
+                masses_begin,
                 queue
                 );
 
@@ -319,8 +359,10 @@ public:
                 queue,
                 num_features,
                 num_clusters,
-                centroids,
-                masses,
+                centroids_begin,
+                centroids_end,
+                masses_begin,
+                masses_end,
                 datapoint.create_child(),
                 wait_list
                 );

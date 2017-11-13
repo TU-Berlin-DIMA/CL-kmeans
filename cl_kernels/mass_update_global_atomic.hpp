@@ -92,14 +92,44 @@ public:
             PinnedVector<LabelT>& labels,
             Vector<MassT>& masses,
             Measurement::DataPoint& datapoint,
-            boost::compute::wait_list const& events
-            ) {
+            boost::compute::wait_list const& wait_list
+            )
+    {
+        return (*this)(
+                queue,
+                num_points,
+                num_clusters,
+                labels.begin(),
+                labels.end(),
+                masses.begin(),
+                masses.end(),
+                datapoint,
+                wait_list
+                );
+    }
+
+    Event operator() (
+            boost::compute::command_queue queue,
+            size_t num_points,
+            size_t num_clusters,
+            boost::compute::buffer_iterator<LabelT> labels_begin,
+            boost::compute::buffer_iterator<LabelT> labels_end,
+            boost::compute::buffer_iterator<MassT> masses_begin,
+            boost::compute::buffer_iterator<MassT> masses_end,
+            Measurement::DataPoint& datapoint,
+            boost::compute::wait_list const& wait_list
+            )
+    {
+        assert(labels_end - labels_begin == (long) num_points);
+        assert(masses_end - masses_begin == (long) num_clusters);
+        assert(labels_begin.get_index() == 0u);
+        assert(masses_begin.get_index() == 0u);
 
         datapoint.set_name("MassUpdateGlobalAtomic");
 
         Future future = boost::compute::fill_async(
-                masses.begin(),
-                masses.end(),
+                masses_begin,
+                masses_end,
                 0,
                 queue
                 );
@@ -115,8 +145,8 @@ public:
             ;
 
         kernel.set_args(
-                labels,
-                masses,
+                labels_begin.get_buffer(),
+                masses_begin.get_buffer(),
                 (LabelT) num_points,
                 (LabelT) num_clusters);
 
@@ -129,7 +159,7 @@ public:
                 work_offset,
                 this->config.global_size,
                 this->config.local_size,
-                events);
+                wait_list);
         datapoint.add_event() = event;
         return event;
     }

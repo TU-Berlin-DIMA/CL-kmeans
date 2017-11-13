@@ -27,6 +27,7 @@
 #include <boost/compute/container/vector.hpp>
 #include <boost/compute/memory/local_buffer.hpp>
 #include <boost/compute/allocator/pinned_allocator.hpp>
+#include <boost/compute/algorithm/copy.hpp>
 
 namespace Clustering {
 
@@ -96,10 +97,38 @@ public:
             PinnedVector<LabelT>& labels,
             Vector<MassT>& masses,
             Measurement::DataPoint& datapoint,
-            boost::compute::wait_list const& events
+            boost::compute::wait_list const& wait_list
             )
     {
-        assert(labels.size() == num_points);
+        return (*this)(
+                queue,
+                num_points,
+                num_clusters,
+                labels.begin(),
+                labels.end(),
+                masses.begin(),
+                masses.end(),
+                datapoint,
+                wait_list
+                );
+    }
+
+    Event operator() (
+            boost::compute::command_queue queue,
+            size_t num_points,
+            size_t num_clusters,
+            boost::compute::buffer_iterator<LabelT> labels_begin,
+            boost::compute::buffer_iterator<LabelT> labels_end,
+            boost::compute::buffer_iterator<MassT> masses_begin,
+            boost::compute::buffer_iterator<MassT> masses_end,
+            Measurement::DataPoint& datapoint,
+            boost::compute::wait_list const& wait_list
+            )
+    {
+        assert(labels_end - labels_begin == (long) num_points);
+        assert(masses_end - masses_begin == (long) num_clusters);
+        assert(labels_begin.get_index() == 0u);
+        assert(masses_begin.get_index() == 0u);
 
         datapoint.set_name("MassUpdatePartLocal");
 
@@ -107,10 +136,7 @@ public:
             this->config.global_size[0] / this->config.local_size[0];
 
         size_t const buffer_size = num_clusters * num_work_groups;
-
-        if (masses.size() < buffer_size) {
-            masses.resize(buffer_size);
-        }
+        Vector<MassT> tmp_masses(buffer_size, queue.get_context());
 
         boost::compute::local_buffer<MassT> local_masses(num_clusters);
 
@@ -124,8 +150,8 @@ public:
             ;
 
         kernel.set_args(
-                labels,
-                masses,
+                labels_begin.get_buffer(),
+                tmp_masses,
                 local_masses,
                 (uint32_t) num_points,
                 (uint32_t) num_clusters);
@@ -138,19 +164,27 @@ public:
                 work_offset[0],
                 this->config.global_size[0],
                 this->config.local_size[0],
-                events);
+                wait_list);
         datapoint.add_event() = event;
 
-        boost::compute::wait_list wait_list;
-        wait_list.insert(event);
+        boost::compute::wait_list wait_list_i;
+        wait_list_i.insert(event);
 
         event = reduce(
                 queue,
                 num_work_groups,
                 num_clusters,
-                masses,
+                tmp_masses,
                 datapoint.create_child(),
-                wait_list);
+                wait_list_i);
+
+        boost::compute::future<void> copy_future =
+            copy_async(
+                tmp_masses.begin(),
+                tmp_masses.begin() + num_clusters,
+                masses_begin,
+                queue);
+        event = copy_future.get_event();
 
         return event;
     }
