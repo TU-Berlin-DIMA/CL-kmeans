@@ -129,13 +129,13 @@ TEST_F(SimpleBufferCache, WriteReadBasic)
     event.wait();
 }
 
-TEST_F(SimpleBufferCache, WriteReadDeadBeef)
+TEST_F(SimpleBufferCache, WriteReadDeadBeefAligned)
 {
     boost::compute::event event;
     Clustering::BufferCache::BufferList buffers;
     int ret = 0;
-    uint32_t *begin = &data_object[0];
-    uint32_t *end = &data_object[buffer_ints];
+    uint32_t *begin = &data_object[buffer_ints];
+    uint32_t *end = &data_object[2 * buffer_ints];
 
     for (auto& obj : data_object) {
         obj = 0xDEADBEEFu;
@@ -150,15 +150,60 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeef)
     ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
-    for (uint32_t i = 0; i < buffer_ints; ++i) {
-        if (data_object[i] != 0xDEADBEEFu){
+    for (auto iter = begin; iter != end; ++iter) {
+        if (*iter != 0xDEADBEEFu){
             ++failed_fields;
         }
         if (failed_fields < MAX_PRINT_FAILURES) {
-            EXPECT_EQ(0xDEADBEEFu, data_object[i]) << "Object differs at index " << i;
+            EXPECT_EQ(0xDEADBEEFu, *iter) << "Object differs at index " << iter - begin;
         }
     }
     EXPECT_EQ(0u, failed_fields);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event);
+    ASSERT_EQ(true, ret);
+    event.wait();
+}
+
+TEST_F(SimpleBufferCache, WriteReadDeadBeefNonAligned)
+{
+    boost::compute::event event;
+    Clustering::BufferCache::BufferList buffers;
+    int ret = 0;
+    const uint32_t offset = buffer_ints / 2;
+    const uint32_t length = buffer_ints - 4;
+    uint32_t *begin = &data_object[offset];
+    uint32_t *end = &data_object[offset + length];
+    auto canary_before = begin - 1u;
+    auto canary_after = end;
+
+    for (auto& obj : data_object) {
+        obj = 0xDEADBEEFu;
+    }
+    *canary_before = 0x13371337u;
+    *canary_after = 0x13371337u;
+
+    ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event);
+    ASSERT_EQ(true, ret);
+    EXPECT_EQ(length * sizeof(decltype(data_object)::value_type), buffers.front().content_length);
+    event.wait();
+    for (auto iter = begin; iter != end; ++iter) {
+        *iter = 0xCAFED00Du;
+    }
+    ret = buffer_cache.read(queue, object_id, begin, end, event);
+    ASSERT_EQ(true, ret);
+    event.wait();
+    uint32_t failed_fields = 0;
+    for (auto iter = begin; iter != end; ++iter) {
+        if (*iter != 0xDEADBEEFu){
+            ++failed_fields;
+        }
+        if (failed_fields < MAX_PRINT_FAILURES) {
+            EXPECT_EQ(0xDEADBEEFu, *iter) << "Object differs at index " << iter - begin;
+        }
+    }
+    EXPECT_EQ(0u, failed_fields);
+    EXPECT_EQ(0x13371337u, *canary_before);
+    EXPECT_EQ(0x13371337u, *canary_after);
     ret = buffer_cache.unlock(queue, object_id, buffers, event);
     ASSERT_EQ(true, ret);
     event.wait();
