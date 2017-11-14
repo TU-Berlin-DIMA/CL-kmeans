@@ -36,6 +36,7 @@ int sds::add_device(Context context, Device device)
 int sds::enqueue(
         FunUnary kernel_function,
         uint32_t object_id,
+        size_t step,
         std::future<std::deque<Event>>& kernel_events
         )
 {
@@ -55,6 +56,8 @@ int sds::enqueue(
         FunBinary kernel_function,
         uint32_t fst_object_id,
         uint32_t snd_object_id,
+        size_t fst_step,
+        size_t snd_step,
         std::future<std::deque<Event>>& kernel_events
         )
 {

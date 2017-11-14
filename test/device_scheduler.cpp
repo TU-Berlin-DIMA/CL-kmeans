@@ -120,7 +120,7 @@ public:
                 bc::command_queue queue,
                 size_t cl_offset,
                 size_t dst_size,
-                size_t src_size,
+                size_t /* src_size */,
                 bc::buffer dst,
                 bc::buffer src
                 )
@@ -213,7 +213,7 @@ TEST_F(SingleDeviceScheduler, EnqueueUnaryKernel)
     int ret = 0;
     std::future<std::deque<bc::event>> fevents;
 
-    ret = scheduler.enqueue(dsenv->zero_f, fst_object_id, fevents);
+    ret = scheduler.enqueue(dsenv->zero_f, fst_object_id, buffer_size, fevents);
     ASSERT_EQ(true, ret);
     ASSERT_TRUE(fevents.valid());
 
@@ -233,10 +233,10 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
     int ret = 0;
     std::future<std::deque<bc::event>> zero_fevents, inc_fevents;
 
-    ret = scheduler.enqueue(dsenv->zero_f, fst_object_id, zero_fevents);
+    ret = scheduler.enqueue(dsenv->zero_f, fst_object_id, buffer_size, zero_fevents);
     ASSERT_EQ(true, ret);
 
-    ret = scheduler.enqueue(dsenv->increment_f, fst_object_id, inc_fevents);
+    ret = scheduler.enqueue(dsenv->increment_f, fst_object_id, buffer_size, inc_fevents);
     ASSERT_EQ(true, ret);
 
     ret = scheduler.run();
@@ -280,7 +280,7 @@ TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
         obj = 0x0EADBEEF;
     }
 
-    ret = scheduler.enqueue(dsenv->copy_f, fst_object_id, snd_object_id, copy_fevents);
+    ret = scheduler.enqueue(dsenv->copy_f, fst_object_id, snd_object_id, buffer_size, buffer_size, copy_fevents);
     ASSERT_EQ(true, ret);
 
     ret = scheduler.run();
