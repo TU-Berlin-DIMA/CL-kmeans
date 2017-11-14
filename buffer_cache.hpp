@@ -133,15 +133,6 @@ public:
      */
     virtual int unlock(Queue queue, uint32_t object_id, BufferList const& buffers, Event& event, WaitList const& wait_list = WaitList()) = 0;
 
-    /*
-     * Convert between pointer into object and buffer.
-     *
-     * buffer2pointer returns pointer at beginning of buffer.
-     * pointer2buffer returns ID of buffer at location of pointer.
-     */
-    virtual void* buffer2pointer(uint32_t object_id, uint32_t buffer_id) = 0;
-    virtual uint32_t pointer2buffer(uint32_t object_id, void *ptr) = 0;
-
 protected:
 
     size_t buffer_size_i;

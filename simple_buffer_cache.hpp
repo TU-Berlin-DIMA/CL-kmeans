@@ -47,8 +47,6 @@ public:
     int read(Queue queue, uint32_t oid, void *begin, void *end, Event& event, WaitList const& wait_list = WaitList());
     int sync_and_get(Queue, Queue, uint32_t, void*, void*, Event&, WaitList const&) { return -1; /* not supported */ };
     int unlock(Queue queue, uint32_t oid, BufferList const& buffers, Event& event, WaitList const& wait_list = WaitList());
-    void* buffer2pointer(uint32_t oid, uint32_t buffer_id);
-    uint32_t pointer2buffer(uint32_t oid, void *ptr);
 
 private:
 
@@ -76,6 +74,8 @@ private:
     std::vector<DeviceInfo> device_info_i;
     std::vector<ObjectInfo> object_info_i;
 
+    void* buffer2pointer(uint32_t oid, uint32_t buffer_id);
+    uint32_t pointer2buffer(uint32_t oid, void *ptr);
     int evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list);
     int try_lock(uint32_t device_id, uint32_t cache_slot);
     int64_t find_device_id(Device device);

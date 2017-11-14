@@ -68,34 +68,6 @@ TEST_F(SimpleBufferCache, RetrieveObject)
     EXPECT_EQ(object_size, ret_object_size);
 }
 
-TEST_F(SimpleBufferCache, BufferPointerConversion)
-{
-    uint32_t bid = 0;
-    uint32_t bid_ret = 0;
-    void *offset = nullptr;
-    void *offset_ret = nullptr;
-
-    bid = 0;
-    offset_ret = buffer_cache.buffer2pointer(object_id, bid);
-    EXPECT_EQ((void*)data_object.data(), offset_ret);
-
-    offset = data_object.data();
-    bid_ret = buffer_cache.pointer2buffer(object_id, offset);
-    EXPECT_EQ(0u, bid_ret);
-
-    bid = 5;
-    offset_ret = buffer_cache.buffer2pointer(object_id, bid);
-    EXPECT_EQ((void*) &data_object[bid * buffer_size / sizeof(int)], offset_ret);
-
-    offset = &data_object[bid * buffer_size / sizeof(int)];
-    bid_ret = buffer_cache.pointer2buffer(object_id, offset);
-    EXPECT_EQ(bid, bid_ret);
-
-    offset = &data_object[bid * buffer_size / sizeof(int) - 1];
-    bid_ret = buffer_cache.pointer2buffer(object_id, offset);
-    EXPECT_EQ(bid - 1, bid_ret);
-}
-
 TEST_F(SimpleBufferCache, GetSize)
 {
     EXPECT_EQ(buffer_cache.buffer_size(), buffer_size);
