@@ -48,16 +48,18 @@ int SimpleBufferCache::add_device(Context context, Device device, size_t pool_si
     device_info_i.emplace_back();
     DeviceInfo& info = device_info_i.back();
 
+    size_t num_cache_slots = pool_size / buffer_size_i;
+
     info.context = context;
     info.device = device;
     info.pool_size = pool_size;
-    info.num_slots = DoubleBuffering;
-    info.slot_lock.resize(DoubleBuffering, 0);
-    info.cached_object_id.resize(DoubleBuffering, -1);
-    info.cached_buffer_id.resize(DoubleBuffering, -1);
-    info.device_buffer.resize(DoubleBuffering);
-    info.host_buffer.resize(DoubleBuffering);
-    info.host_ptr.resize(DoubleBuffering, nullptr);
+    info.num_slots = num_cache_slots;
+    info.slot_lock.resize(num_cache_slots, 0);
+    info.cached_object_id.resize(num_cache_slots, -1);
+    info.cached_buffer_id.resize(num_cache_slots, -1);
+    info.device_buffer.resize(num_cache_slots);
+    info.host_buffer.resize(num_cache_slots);
+    info.host_ptr.resize(num_cache_slots, nullptr);
 
     auto queue = Queue(context, device);
 
@@ -460,5 +462,5 @@ int64_t SimpleBufferCache::assign_cache_slot(uint32_t device_id, uint32_t oid, u
         return -1;
     }
 
-    return bid % DoubleBuffering;
+    return (oid - 1) * DoubleBuffering + bid % DoubleBuffering;
 }
