@@ -60,6 +60,8 @@ private:
         std::vector<int> slot_lock;
         std::vector<int64_t> cached_object_id;
         std::vector<int64_t> cached_buffer_id;
+        std::vector<void*> cached_ptr;
+        std::vector<size_t> cached_content_length;
         std::vector<Buffer> device_buffer;
         std::vector<Buffer> host_buffer;
         std::vector<void*> host_ptr;
@@ -74,8 +76,6 @@ private:
     std::vector<DeviceInfo> device_info_i;
     std::vector<ObjectInfo> object_info_i;
 
-    void* buffer2pointer(uint32_t oid, uint32_t buffer_id);
-    uint32_t pointer2buffer(uint32_t oid, void *ptr);
     int evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list);
     int try_lock(uint32_t device_id, uint32_t cache_slot);
     int64_t find_device_id(Device device);

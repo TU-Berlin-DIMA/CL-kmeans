@@ -57,6 +57,8 @@ int SimpleBufferCache::add_device(Context context, Device device, size_t pool_si
     info.slot_lock.resize(num_cache_slots, 0);
     info.cached_object_id.resize(num_cache_slots, -1);
     info.cached_buffer_id.resize(num_cache_slots, -1);
+    info.cached_ptr.resize(num_cache_slots, nullptr);
+    info.cached_content_length.resize(num_cache_slots, 0);
     info.device_buffer.resize(num_cache_slots);
     info.host_buffer.resize(num_cache_slots);
     info.host_ptr.resize(num_cache_slots, nullptr);
@@ -218,6 +220,8 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
 
     device_info.cached_object_id[cache_slot] = oid;
     device_info.cached_buffer_id[cache_slot] = buffer_id;
+    device_info.cached_ptr[cache_slot] = begin;
+    device_info.cached_content_length[cache_slot] = size;
 
     return 1;
 }
@@ -262,6 +266,15 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
     void *host_ptr = device_info.host_ptr[cache_slot];
     auto& device_buffer = device_info.device_buffer[cache_slot];
 
+    if (VERBOSE) {
+        std::cerr << "read: OID " << oid << " BID " << buffer_id << " destination " << begin << " length " << size << " DID " << device_id << std::endl;
+    }
+
+    if (device_info.cached_content_length[cache_slot] > size) {
+        std::cerr << "read: cannot read more than length of cached content " << std::endl;
+        return -1;
+    }
+
     Event read_event;
     read_event = queue.enqueue_read_buffer_async(
             device_buffer,
@@ -284,6 +297,8 @@ int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_
     DeviceInfo& devinfo = device_info_i[device_id];
     int64_t& object_id = devinfo.cached_object_id[cache_slot];
     int64_t& buffer_id = devinfo.cached_buffer_id[cache_slot];
+    void*& cached_ptr = devinfo.cached_ptr[cache_slot];
+    size_t& content_length = devinfo.cached_content_length[cache_slot];
     ObjectMode mode = object_info_i[object_id].mode;
 
     if (object_id == -1 and buffer_id == -1) {
@@ -294,18 +309,17 @@ int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_
         // Case: object is immutable, can trivially be evicted
         object_id = -1;
         buffer_id = -1;
+        cached_ptr = nullptr;
+        content_length = 0;
 
         return 1;
     }
     // Case: object is mutable and presumed dirty, must write back to evict
-    // TODO: store begin pointer and size of buffer in cache_slot
-    void *begin_ptr = buffer2pointer(object_id, buffer_id);
-
     int ret = read(
             queue,
             object_id,
-            begin_ptr,
-            ((char*)begin_ptr) + buffer_size_i,
+            cached_ptr,
+            ((char*)cached_ptr) + content_length,
             event,
             wait_list
         );
@@ -316,6 +330,8 @@ int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_
 
     object_id = -1;
     buffer_id = -1;
+    cached_ptr = nullptr;
+    content_length = 0;
 
     return 1;
 }
@@ -375,24 +391,6 @@ int SimpleBufferCache::unlock(Queue queue, uint32_t oid, BufferList const& buffe
     dev.slot_lock[slot_id] = 0;
 
     return 1;
-}
-
-void* SimpleBufferCache::buffer2pointer(uint32_t oid, uint32_t buffer_id)
-{
-    if (oid >= object_info_i.size()) {
-        return nullptr;
-    }
-
-    return ((char*)object_info_i[oid].ptr) + buffer_id;
-}
-
-uint32_t SimpleBufferCache::pointer2buffer(uint32_t oid, void *ptr)
-{
-    if (oid >= object_info_i.size()) {
-        return 0;
-    }
-
-    return ((char*)ptr - (char*)object_info_i[oid].ptr);
 }
 
 int64_t SimpleBufferCache::find_device_id(Device device)
