@@ -59,6 +59,16 @@ __kernel void copy(__global int * const restrict dst, __global int * const restr
 }
 )ENDSTR";
 
+constexpr char reduce_source[] =
+R"ENDSTR(
+__kernel void reduce(__global int * const restrict dst, __global int * const restrict src, uint src_size)
+{
+    for (uint i = get_global_id(0); i < src_size / 2; i += get_global_size(0)) {
+        dst[i] = src[i] + src[src_size / 2 + i];
+    }
+}
+)ENDSTR";
+
 class DeviceSchedulerEnvironment : public ::testing::Environment
 {
 public:
@@ -134,6 +144,32 @@ public:
                     LOCAL_SIZE
                     );
         };
+
+        bc::program reduce_program = bc::program::build_with_source(
+                reduce_source,
+                queue.get_context()
+                );
+
+        reduce_f = [reduce_program](
+                bc::command_queue queue,
+                size_t cl_offset,
+                size_t dst_size,
+                size_t src_size,
+                bc::buffer dst,
+                bc::buffer src
+                )
+        {
+            assert(dst_size * 2 >= src_size);
+
+            bc::kernel kernel = reduce_program.create_kernel("reduce");
+            kernel.set_args(dst, src, (cl_uint) (src_size / sizeof(cl_int)));
+            return queue.enqueue_1d_range_kernel(
+                    kernel,
+                    cl_offset / sizeof(cl_int),
+                    GLOBAL_SIZE,
+                    LOCAL_SIZE
+                    );
+        };
     }
 
     void TearDown()
@@ -144,6 +180,7 @@ public:
     Clustering::DeviceScheduler::FunUnary zero_f;
     Clustering::DeviceScheduler::FunUnary increment_f;
     Clustering::DeviceScheduler::FunBinary copy_f;
+    Clustering::DeviceScheduler::FunBinary reduce_f;
 } *dsenv = nullptr;
 
 class SingleDeviceScheduler : public ::testing::Test {
@@ -310,6 +347,46 @@ TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
         }
         if (failed_fields <= MAX_PRINT_FAILURES) {
             EXPECT_EQ(i, fst_data_object[i]) << "Object differs at index " << i;
+        }
+    }
+    EXPECT_EQ(0ul, failed_fields);
+}
+
+TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
+{
+    int ret = 0;
+    std::future<std::deque<bc::event>> reduce_fevents;
+
+    ret = scheduler.enqueue(dsenv->reduce_f, fst_object_id, snd_object_id, buffer_size / 2, buffer_size, reduce_fevents);
+    ASSERT_EQ(true, ret);
+
+    ret = scheduler.run();
+    ASSERT_EQ(true, ret);
+
+    bc::event read_event;
+    for (size_t offset = 0; offset < fst_data_object.size() / 2; offset += buffer_ints / 2) {
+        size_t num_ints = (offset + buffer_ints / 2 > fst_data_object.size())
+            ? fst_data_object.size() / 2 - offset
+            : buffer_ints / 2
+            ;
+        ret = buffer_cache->read(
+                dsenv->queue,
+                fst_object_id,
+                &fst_data_object[offset],
+                &fst_data_object[offset + num_ints],
+                read_event
+                );
+        ASSERT_EQ(true, ret);
+    }
+    dsenv->queue.finish();
+
+    size_t failed_fields = 0;
+    for (size_t i = 0; i < fst_data_object.size() / 2; ++i) {
+        if (fst_data_object[i] != 2 * i + fst_data_object.size() / 2) {
+            ++failed_fields;
+        }
+        if (failed_fields <= MAX_PRINT_FAILURES) {
+            EXPECT_EQ(2 * i + fst_data_object.size() / 2, fst_data_object[i]) << "Object differs at index " << i;
         }
     }
     EXPECT_EQ(0ul, failed_fields);
