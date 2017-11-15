@@ -383,7 +383,7 @@ void* SimpleBufferCache::buffer2pointer(uint32_t oid, uint32_t buffer_id)
         return nullptr;
     }
 
-    return ((char*)object_info_i[oid].ptr) + buffer_size_i * buffer_id;
+    return ((char*)object_info_i[oid].ptr) + buffer_id;
 }
 
 uint32_t SimpleBufferCache::pointer2buffer(uint32_t oid, void *ptr)
@@ -392,7 +392,7 @@ uint32_t SimpleBufferCache::pointer2buffer(uint32_t oid, void *ptr)
         return 0;
     }
 
-    return ((char*)ptr - (char*)object_info_i[oid].ptr) / buffer_size_i;
+    return ((char*)ptr - (char*)object_info_i[oid].ptr);
 }
 
 int64_t SimpleBufferCache::find_device_id(Device device)
@@ -422,7 +422,7 @@ int64_t SimpleBufferCache::find_buffer_id(uint32_t device_id, uint32_t oid, void
         return -1;
     }
 
-    size_t bid = ((char*)ptr - (char*)object_info_i[oid].ptr) / buffer_size_i;
+    size_t bid = ((char*)ptr - (char*)oinfo.ptr);
 
     return bid;
 }
@@ -438,7 +438,7 @@ int64_t SimpleBufferCache::find_cache_slot(uint32_t device_id, uint32_t oid, uin
         return -1;
     }
     auto& device_info = device_info_i[device_id];
-    if (buffer_id >= (object_info_i[oid].size + buffer_size_i - 1) / buffer_size_i) {
+    if (buffer_id >= (object_info_i[oid].size + buffer_size_i - 1)) {
         std::cerr << "find_cache_slot: invalid BID " << buffer_id << std::endl;
         return -1;
     }
@@ -462,5 +462,14 @@ int64_t SimpleBufferCache::assign_cache_slot(uint32_t device_id, uint32_t oid, u
         return -1;
     }
 
-    return (oid - 1) * DoubleBuffering + bid % DoubleBuffering;
+    auto& dev = device_info_i[device_id];
+    uint32_t base_slot = (oid - 1) * DoubleBuffering;
+    uint32_t slot = (dev.slot_lock[base_slot] == false) ? base_slot : base_slot + 1;
+
+    if (dev.slot_lock[slot] == true) {
+        std::cerr << "assign_cache_slot: cannot find free cache slot" << std::endl;
+        return -1;
+    }
+
+    return slot;
 }
