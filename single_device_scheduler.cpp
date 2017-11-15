@@ -44,6 +44,7 @@ int sds::enqueue(
     auto runnable = std::make_unique<UnaryRunnable>();
     runnable->kernel_function = kernel_function;
     runnable->object_id = object_id;
+    runnable->step = step;
 
     kernel_events = runnable->events_promise.get_future();
 
@@ -65,6 +66,8 @@ int sds::enqueue(
     runnable->kernel_function = kernel_function;
     runnable->fst_object_id = fst_object_id;
     runnable->snd_object_id = snd_object_id;
+    runnable->fst_step = fst_step;
+    runnable->snd_step = snd_step;
 
     kernel_events = runnable->events_promise.get_future();
 
@@ -145,13 +148,11 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
     buffer_cache.object(object_id, object_vptr, object_size);
     object_ptr = (char*) object_vptr;
 
-    size_t buffer_size = buffer_cache.buffer_size();
-
     BufferCache::BufferList buffers;
-    size_t offset = buffer_size * index;
+    size_t offset = step * index;
 
-    size_t end_offset = (offset + buffer_size < object_size)
-        ? offset + buffer_size
+    size_t end_offset = (offset + step < object_size)
+        ? offset + step
         : object_size
         ;
 
@@ -199,14 +200,13 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
 
 int64_t sds::UnaryRunnable::register_buffers(BufferCache& buffer_cache)
 {
-    auto buffer_size = buffer_cache.buffer_size();
     size_t object_size = 0;
     {
         void *ptr = nullptr;
         buffer_cache.object(object_id, ptr, object_size);
     }
 
-    return (object_size + buffer_size - 1) / buffer_size;
+    return (object_size + step - 1) / step;
 }
 
 int sds::UnaryRunnable::finish()
@@ -218,7 +218,6 @@ int sds::UnaryRunnable::finish()
 
 int64_t sds::BinaryRunnable::register_buffers(BufferCache& buffer_cache)
 {
-    auto buffer_size = buffer_cache.buffer_size();
     size_t fst_object_size = 0, snd_object_size = 0;
     {
         void *ptr = nullptr;
@@ -226,8 +225,8 @@ int64_t sds::BinaryRunnable::register_buffers(BufferCache& buffer_cache)
         buffer_cache.object(snd_object_id, ptr, snd_object_size);
     }
 
-    auto fst_num = (fst_object_size + buffer_size - 1) / buffer_size;
-    auto snd_num = (snd_object_size + buffer_size - 1) / buffer_size;
+    auto fst_num = (fst_object_size + fst_step - 1) / fst_step;
+    auto snd_num = (snd_object_size + snd_step - 1) / snd_step;
 
     return (fst_num == snd_num) ? fst_num : -1;
 }
@@ -244,18 +243,21 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
     fst_object_ptr = (char*) fst_object_vptr;
     snd_object_ptr = (char*) snd_object_vptr;
 
-    auto buffer_size = buffer_cache.buffer_size();
-
     BufferCache::BufferList fst_buffers, snd_buffers;
-    auto offset = buffer_size * index;
+    auto fst_offset = fst_step * index;
+    auto snd_offset = snd_step * index;
 
-    auto end_offset = (offset + buffer_size < fst_object_size)
-        ? offset + buffer_size
+    auto fst_end_offset = (fst_offset + fst_step < fst_object_size)
+        ? fst_offset + fst_step
         : fst_object_size
+        ;
+    auto snd_end_offset = (snd_offset + snd_step < snd_object_size)
+        ? snd_offset + snd_step
+        : snd_object_size
         ;
 
     if (VERBOSE) {
-        std::cout << "[BinaryRunnable::run] fst_object_id: " << fst_object_id << " snd_object_id " << snd_object_id << " offset " << offset << " endoffset " << end_offset << std::endl;
+        std::cout << "[BinaryRunnable::run] fst_object_id: " << fst_object_id << " snd_object_id " << snd_object_id << " fst_offset " << fst_offset << " fst_step " << fst_end_offset - fst_offset << " snd_offset " << snd_offset << " snd_step " << snd_end_offset - snd_offset << std::endl;
     }
 
     events.emplace_back();
@@ -263,8 +265,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
     ret = buffer_cache.get(
             queue,
             fst_object_id,
-            fst_object_ptr + offset,
-            fst_object_ptr + end_offset,
+            fst_object_ptr + fst_offset,
+            fst_object_ptr + fst_end_offset,
             fst_buffers,
             fst_transfer_event
             );
@@ -277,8 +279,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
     ret = buffer_cache.get(
             queue,
             snd_object_id,
-            snd_object_ptr + offset,
-            snd_object_ptr + end_offset,
+            snd_object_ptr + snd_offset,
+            snd_object_ptr + snd_end_offset,
             snd_buffers,
             snd_transfer_event
             );

@@ -341,7 +341,7 @@ TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
     dsenv->queue.finish();
 
     size_t failed_fields = 0;
-    for (size_t i = 0; i < buffer_ints; ++i) {
+    for (size_t i = 0; i < fst_data_object.size(); ++i) {
         if (fst_data_object[i] != i) {
             ++failed_fields;
         }
@@ -355,25 +355,32 @@ TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
 TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
 {
     int ret = 0;
-    std::future<std::deque<bc::event>> reduce_fevents;
+    std::future<std::deque<bc::event>> copy_fevents;
 
-    ret = scheduler.enqueue(dsenv->reduce_f, fst_object_id, snd_object_id, buffer_size / 2, buffer_size, reduce_fevents);
+    decltype(snd_data_object) dst_object(snd_data_object.size() / 2);
+    auto dst_object_id = buffer_cache->add_object(
+            dst_object.data(),
+            dst_object.size() * sizeof(decltype(dst_object)::value_type),
+            Clustering::ObjectMode::Mutable
+            );
+
+    ret = scheduler.enqueue(dsenv->copy_f, dst_object_id, snd_object_id, buffer_size / 2, buffer_size, copy_fevents);
     ASSERT_EQ(true, ret);
 
     ret = scheduler.run();
     ASSERT_EQ(true, ret);
 
     bc::event read_event;
-    for (size_t offset = 0; offset < fst_data_object.size() / 2; offset += buffer_ints / 2) {
-        size_t num_ints = (offset + buffer_ints / 2 > fst_data_object.size())
-            ? fst_data_object.size() / 2 - offset
+    for (size_t offset = 0; offset < dst_object.size(); offset += buffer_ints / 2) {
+        size_t num_ints = (offset + buffer_ints / 2 > dst_object.size())
+            ? dst_object.size() - offset
             : buffer_ints / 2
             ;
         ret = buffer_cache->read(
                 dsenv->queue,
-                fst_object_id,
-                &fst_data_object[offset],
-                &fst_data_object[offset + num_ints],
+                dst_object_id,
+                &dst_object[offset],
+                &dst_object[offset + num_ints],
                 read_event
                 );
         ASSERT_EQ(true, ret);
@@ -381,12 +388,14 @@ TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
     dsenv->queue.finish();
 
     size_t failed_fields = 0;
-    for (size_t i = 0; i < fst_data_object.size() / 2; ++i) {
-        if (fst_data_object[i] != 2 * i + fst_data_object.size() / 2) {
-            ++failed_fields;
-        }
-        if (failed_fields <= MAX_PRINT_FAILURES) {
-            EXPECT_EQ(2 * i + fst_data_object.size() / 2, fst_data_object[i]) << "Object differs at index " << i;
+    for (size_t i = 0; i < dst_object.size(); i += buffer_ints / 2) {
+        for (size_t j = 0; j < buffer_ints / 2; ++j) {
+            if (dst_object[i + j] != i * 2 + j) {
+                ++failed_fields;
+            }
+            if (failed_fields <= MAX_PRINT_FAILURES) {
+                EXPECT_EQ(i * 2 + j , dst_object[i + j]) << "Object differs at index " << i;
+            }
         }
     }
     EXPECT_EQ(0ul, failed_fields);

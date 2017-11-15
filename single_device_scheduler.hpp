@@ -77,6 +77,7 @@ namespace Clustering {
             int finish();
             FunUnary kernel_function;
             uint32_t object_id;
+            size_t step;
             std::deque<Event> events;
             std::promise<std::deque<Event>> events_promise;
 
@@ -89,6 +90,8 @@ namespace Clustering {
             FunBinary kernel_function;
             uint32_t fst_object_id;
             uint32_t snd_object_id;
+            size_t fst_step;
+            size_t snd_step;
             std::deque<Event> events;
             std::promise<std::deque<Event>> events_promise;
         };
