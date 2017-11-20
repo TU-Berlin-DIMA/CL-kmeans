@@ -19,6 +19,20 @@ using namespace Clustering;
 
 using sds = SingleDeviceScheduler;
 
+sds::SingleDeviceScheduler()
+    :
+        DeviceScheduler()
+{
+}
+
+sds::SingleDeviceScheduler(SingleDeviceScheduler const& other)
+    :
+        DeviceScheduler(other),
+        buffer_cache_i(other.buffer_cache_i),
+        run_queue_i()
+{
+}
+
 int sds::add_buffer_cache(std::shared_ptr<BufferCache> buffer_cache)
 {
     buffer_cache_i = buffer_cache;

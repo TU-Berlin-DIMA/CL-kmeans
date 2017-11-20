@@ -38,6 +38,9 @@ namespace Clustering {
         using FunBinary = typename DeviceScheduler::FunBinary;
         using Queue = boost::compute::command_queue;
 
+        SingleDeviceScheduler();
+        SingleDeviceScheduler(SingleDeviceScheduler const& other);
+
         int add_buffer_cache(std::shared_ptr<BufferCache> buffer_cache);
         int add_device(Context context, Device device);
 
