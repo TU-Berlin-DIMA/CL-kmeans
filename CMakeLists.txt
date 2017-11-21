@@ -55,6 +55,8 @@ SET(BENCH_SOURCES
     binary_format.cpp
     clustering_benchmark.cpp
     configuration_parser.cpp
+    simple_buffer_cache.cpp
+    single_device_scheduler.cpp
     kmeans_common.cpp
     kmeans_initializer.cpp
     kmeans_naive.cpp

@@ -13,6 +13,7 @@
 #include "matrix.hpp"
 
 #include "kmeans_three_stage.hpp"
+#include "kmeans_three_stage_buffered.hpp"
 #include "kmeans_single_stage.hpp"
 #include "kmeans_naive.hpp"
 #include "kmeans_initializer.hpp"
@@ -226,7 +227,11 @@ public:
         uint64_t verify_res = 0;
         typename decltype(bm)::ClClusteringFunction kmeans;
 
-        if (km_config.pipeline == "three_stage") {
+        if (
+                km_config.pipeline == "three_stage"
+                or km_config.pipeline == "three_stage_buffered"
+           )
+        {
             auto ll_config =
                 config.get_labeling_configuration();
             auto mu_config =
@@ -310,22 +315,42 @@ public:
                     << std::endl;
             }
 
-            Clustering::KmeansThreeStage<
-                PointT,
-                LabelT,
-                MassT,
-                ColMajor> threestage;
+            if (km_config.pipeline == "three_stage") {
+                Clustering::KmeansThreeStage<
+                    PointT,
+                    LabelT,
+                    MassT,
+                    ColMajor> threestage;
 
-            threestage.set_labeling_queue(ll_queue);
-            threestage.set_mass_update_queue(mu_queue);
-            threestage.set_centroid_update_queue(cu_queue);
-            threestage.set_labeling_context(ll_context);
-            threestage.set_mass_update_context(mu_context);
-            threestage.set_centroid_update_context(cu_context);
-            threestage.set_labeler(ll_config);
-            threestage.set_mass_updater(mu_config);
-            threestage.set_centroid_updater(cu_config);
-            kmeans = threestage;
+                threestage.set_labeling_queue(ll_queue);
+                threestage.set_mass_update_queue(mu_queue);
+                threestage.set_centroid_update_queue(cu_queue);
+                threestage.set_labeling_context(ll_context);
+                threestage.set_mass_update_context(mu_context);
+                threestage.set_centroid_update_context(cu_context);
+                threestage.set_labeler(ll_config);
+                threestage.set_mass_updater(mu_config);
+                threestage.set_centroid_updater(cu_config);
+                kmeans = threestage;
+            }
+            else if (km_config.pipeline == "three_stage_buffered") {
+                Clustering::KmeansThreeStageBuffered<
+                    PointT,
+                    LabelT,
+                    MassT,
+                    ColMajor> threestagebuffered;
+
+                threestagebuffered.set_labeling_queue(ll_queue);
+                threestagebuffered.set_mass_update_queue(mu_queue);
+                threestagebuffered.set_centroid_update_queue(cu_queue);
+                threestagebuffered.set_labeling_context(ll_context);
+                threestagebuffered.set_mass_update_context(mu_context);
+                threestagebuffered.set_centroid_update_context(cu_context);
+                threestagebuffered.set_labeler(ll_config);
+                threestagebuffered.set_mass_updater(mu_config);
+                threestagebuffered.set_centroid_updater(cu_config);
+                kmeans = threestagebuffered;
+            }
         }
         else if (km_config.pipeline == "single_stage") {
             auto fu_config =
