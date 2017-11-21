@@ -121,9 +121,12 @@ public:
                     this->num_features,
                     this->num_points,
                     this->num_clusters,
-                    buffer_map.get_points(BufferMap::ll),
-                    buffer_map.get_centroids(BufferMap::ll),
-                    buffer_map.get_labels(BufferMap::ll),
+                    buffer_map.get_points(BufferMap::ll).begin(),
+                    buffer_map.get_points(BufferMap::ll).end(),
+                    buffer_map.get_centroids(BufferMap::ll).begin(),
+                    buffer_map.get_centroids(BufferMap::ll).end(),
+                    buffer_map.get_labels(BufferMap::ll).begin(),
+                    buffer_map.get_labels(BufferMap::ll).end(),
                     this->measurement->add_datapoint(iterations),
                     ll_wait_list);
 
@@ -141,8 +144,10 @@ public:
                         this->q_mass_update,
                         this->num_points,
                         this->num_clusters,
-                        buffer_map.get_labels(BufferMap::mu),
-                        buffer_map.get_masses(BufferMap::mu),
+                        buffer_map.get_labels(BufferMap::mu).begin(),
+                        buffer_map.get_labels(BufferMap::mu).end(),
+                        buffer_map.get_masses(BufferMap::mu).begin(),
+                        buffer_map.get_masses(BufferMap::mu).end(),
                         this->measurement->add_datapoint(iterations),
                         mu_wait_list);
                 // TODO
@@ -160,10 +165,14 @@ public:
                         this->num_features,
                         this->num_points,
                         this->num_clusters,
-                        buffer_map.get_points(BufferMap::cu),
-                        buffer_map.get_centroids(BufferMap::cu),
-                        buffer_map.get_labels(BufferMap::cu),
-                        buffer_map.get_masses(BufferMap::cu),
+                        buffer_map.get_points(BufferMap::cu).begin(),
+                        buffer_map.get_points(BufferMap::cu).end(),
+                        buffer_map.get_centroids(BufferMap::cu).begin(),
+                        buffer_map.get_centroids(BufferMap::cu).end(),
+                        buffer_map.get_labels(BufferMap::cu).begin(),
+                        buffer_map.get_labels(BufferMap::cu).end(),
+                        buffer_map.get_masses(BufferMap::cu).begin(),
+                        buffer_map.get_masses(BufferMap::cu).end(),
                         this->measurement->add_datapoint(iterations),
                         cu_wait_list);
                 // TODO

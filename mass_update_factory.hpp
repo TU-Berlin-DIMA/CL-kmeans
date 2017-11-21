@@ -24,27 +24,24 @@
 #include <stdexcept>
 
 #include <boost/compute/core.hpp>
-#include <boost/compute/container/vector.hpp>
-#include <boost/compute/allocator/pinned_allocator.hpp>
+#include <boost/compute/iterator/buffer_iterator.hpp>
 
 namespace Clustering {
 template <typename LabelT, typename MassT>
 class MassUpdateFactory {
 public:
     template <typename T>
-    using Vector = boost::compute::vector<T>;
-    template <typename T>
-    using PinnedAllocator = boost::compute::pinned_allocator<T>;
-    template <typename T>
-    using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
+    using BufferIterator = boost::compute::buffer_iterator<T>;
 
     using MassUpdateFunction = std::function<
         boost::compute::event(
                 boost::compute::command_queue queue,
                 size_t num_points,
                 size_t num_clusters,
-                PinnedVector<LabelT>& labels,
-                Vector<MassT>& masses,
+                BufferIterator<LabelT> labels_begin,
+                BufferIterator<LabelT> labels_end,
+                BufferIterator<MassT> masses_begin,
+                BufferIterator<MassT> masses_end,
                 Measurement::DataPoint& datapoint,
                 boost::compute::wait_list const& events
                 )
