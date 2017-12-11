@@ -200,6 +200,7 @@ public:
 
     void SetUp()
     {
+        scheduler = std::make_shared<Clustering::SingleDeviceScheduler>();
         buffer_cache = std::make_shared<Clustering::SimpleBufferCache>(BUFFER_SIZE);
 
         buffer_cache->add_device(
@@ -217,8 +218,8 @@ public:
                 Clustering::ObjectMode::Mutable
                 );
 
-        scheduler.add_buffer_cache(buffer_cache);
-        scheduler.add_device(dsenv->queue.get_context(), dsenv->device);
+        scheduler->add_buffer_cache(buffer_cache);
+        scheduler->add_device(dsenv->queue.get_context(), dsenv->device);
 
         size_t i = 0;
         for (auto& obj : fst_data_object) {
@@ -235,6 +236,7 @@ public:
 
     void TearDown()
     {
+        scheduler.reset();
         buffer_cache.reset();
     }
 
@@ -242,7 +244,7 @@ public:
     uint32_t fst_object_id, snd_object_id;
     std::vector<uint32_t> fst_data_object, snd_data_object;
     std::shared_ptr<Clustering::BufferCache> buffer_cache;
-    Clustering::SingleDeviceScheduler scheduler;
+    std::shared_ptr<Clustering::DeviceScheduler> scheduler;
 };
 
 TEST_F(SingleDeviceScheduler, EnqueueUnaryKernel)
@@ -250,11 +252,11 @@ TEST_F(SingleDeviceScheduler, EnqueueUnaryKernel)
     int ret = 0;
     std::future<std::deque<bc::event>> fevents;
 
-    ret = scheduler.enqueue(dsenv->zero_f, fst_object_id, buffer_size, fevents);
+    ret = scheduler->enqueue(dsenv->zero_f, fst_object_id, buffer_size, fevents);
     ASSERT_EQ(true, ret);
     ASSERT_TRUE(fevents.valid());
 
-    ret = scheduler.run();
+    ret = scheduler->run();
     ASSERT_EQ(true, ret);
 
     auto status = fevents.wait_for(WAIT_DURATION);
@@ -270,13 +272,13 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
     int ret = 0;
     std::future<std::deque<bc::event>> zero_fevents, inc_fevents;
 
-    ret = scheduler.enqueue(dsenv->zero_f, fst_object_id, buffer_size, zero_fevents);
+    ret = scheduler->enqueue(dsenv->zero_f, fst_object_id, buffer_size, zero_fevents);
     ASSERT_EQ(true, ret);
 
-    ret = scheduler.enqueue(dsenv->increment_f, fst_object_id, buffer_size, inc_fevents);
+    ret = scheduler->enqueue(dsenv->increment_f, fst_object_id, buffer_size, inc_fevents);
     ASSERT_EQ(true, ret);
 
-    ret = scheduler.run();
+    ret = scheduler->run();
     ASSERT_EQ(true, ret);
 
     bc::event read_event;
@@ -317,10 +319,10 @@ TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
         obj = 0x0EADBEEF;
     }
 
-    ret = scheduler.enqueue(dsenv->copy_f, fst_object_id, snd_object_id, buffer_size, buffer_size, copy_fevents);
+    ret = scheduler->enqueue(dsenv->copy_f, fst_object_id, snd_object_id, buffer_size, buffer_size, copy_fevents);
     ASSERT_EQ(true, ret);
 
-    ret = scheduler.run();
+    ret = scheduler->run();
     ASSERT_EQ(true, ret);
 
     bc::event read_event;
@@ -364,10 +366,10 @@ TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
             Clustering::ObjectMode::Mutable
             );
 
-    ret = scheduler.enqueue(dsenv->copy_f, dst_object_id, snd_object_id, buffer_size / 2, buffer_size, copy_fevents);
+    ret = scheduler->enqueue(dsenv->copy_f, dst_object_id, snd_object_id, buffer_size / 2, buffer_size, copy_fevents);
     ASSERT_EQ(true, ret);
 
-    ret = scheduler.run();
+    ret = scheduler->run();
     ASSERT_EQ(true, ret);
 
     bc::event read_event;
