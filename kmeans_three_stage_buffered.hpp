@@ -216,7 +216,7 @@ public:
                     scheduler.enqueue(
                         mass_update_lambda,
                         labels_handle,
-                        buffer_size,
+                        buffer_size / this->num_features,
                         mu_future
                         ));
 
