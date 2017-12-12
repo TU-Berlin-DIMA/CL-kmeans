@@ -47,12 +47,12 @@ public:
                 this->num_clusters * this->num_features,
                 this->queue.get_context()
                 );
-        boost::compute::fill(
+        boost::compute::event centroids_event = boost::compute::copy_async(
+                this->host_centroids->begin(),
+                this->host_centroids->begin()
+                + this->num_features * this->num_clusters,
                 device_centroids.begin(),
-                device_centroids.end(),
-                0,
-                this->queue
-                );
+                this->queue).get_event();
         device_masses = decltype(device_masses)(
                 this->num_clusters,
                 this->queue.get_context()
@@ -109,8 +109,8 @@ public:
                 f_labeling = this->f_labeling,
                 num_features = this->num_features,
                 num_clusters = this->num_clusters,
-                device_centroids = this->device_centroids,
-                measurement = this->measurement,
+                &device_centroids = this->device_centroids,
+                &measurement = this->measurement,
                 iterations
             ]
             (
@@ -175,8 +175,8 @@ public:
             auto mass_update_lambda = [
                 f_mass_update = this->f_mass_update,
                 num_clusters = this->num_clusters,
-                device_masses = this->device_masses,
-                measurement = this->measurement,
+                &device_masses = this->device_masses,
+                &measurement = this->measurement,
                 iterations
             ]
             (
@@ -224,9 +224,9 @@ public:
                 f_centroid_update = this->f_centroid_update,
                 num_features = this->num_features,
                 num_clusters = this->num_clusters,
-                device_centroids = this->device_centroids,
-                device_masses = this->device_masses,
-                measurement = this->measurement,
+                &device_centroids = this->device_centroids,
+                &device_masses = this->device_masses,
+                &measurement = this->measurement,
                 iterations
             ]
             (
@@ -290,6 +290,7 @@ public:
                         cu_future
                         ));
 
+            assert(true == scheduler.run());
             ++iterations;
         }
 
@@ -302,19 +303,45 @@ public:
             .set_name("TotalTime")
             .add_value() = total_time;
 
-        boost::compute::copy(
-                device_centroids.begin(),
-                device_centroids.begin() + this->num_features * this->num_clusters,
+        boost::compute::event centroids_copy_event = boost::compute::copy_async(
+                this->device_centroids.begin(),
+                this->device_centroids.begin() + this->num_features * this->num_clusters,
                 this->host_centroids->begin(),
                 this->queue
-                );
+                ).get_event();
+        centroids_copy_event.wait();
 
-        boost::compute::copy(
-                device_masses.begin(),
-                device_masses.begin() + this->num_clusters,
+        boost::compute::event masses_copy_event = boost::compute::copy_async(
+                this->device_masses.begin(),
+                this->device_masses.begin() + this->num_clusters,
                 this->host_masses->begin(),
                 this->queue
-                );
+                ).get_event();
+        masses_copy_event.wait();
+
+        {
+            char *begin, *iter, *end;
+            for (
+                    begin = (char*) this->host_labels->data(),
+                    end = begin + this->host_labels->size() * sizeof(LabelT),
+                    iter = begin;
+                    iter < end;
+                    iter += this->buffer_size
+                )
+            {
+                boost::compute::event labels_read_event;
+                size_t real_buffer_size = this->host_labels->size() * sizeof(LabelT); // buffer_size; // TODO
+                assert(true ==
+                        buffer_cache->read(
+                            this->queue,
+                            labels_handle,
+                            iter,
+                            iter + real_buffer_size,
+                            labels_read_event
+                            ));
+            }
+        }
+
     }
 
     void set_labeler(LabelingConfiguration config) {
