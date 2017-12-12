@@ -330,13 +330,17 @@ public:
                 )
             {
                 boost::compute::event labels_read_event;
-                size_t real_buffer_size = this->host_labels->size() * sizeof(LabelT); // buffer_size; // TODO
+                auto iter_step = (iter + this->buffer_size > end)
+                    ? end
+                    : iter + this->buffer_size
+                    ;
+
                 assert(true ==
                         buffer_cache->read(
                             this->queue,
                             labels_handle,
                             iter,
-                            iter + real_buffer_size,
+                            iter_step,
                             labels_read_event
                             ));
             }
