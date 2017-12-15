@@ -23,7 +23,6 @@
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
-#include <boost/compute/algorithm/fill.hpp>
 #include <boost/compute/allocator/pinned_allocator.hpp>
 
 namespace Clustering {
@@ -126,14 +125,6 @@ public:
         assert(masses_begin.get_index() == 0u);
 
         datapoint.set_name("MassUpdateGlobalAtomic");
-
-        Future future = boost::compute::fill_async(
-                masses_begin,
-                masses_end,
-                0,
-                queue
-                );
-        datapoint.add_event() = future.get_event();
 
         boost::compute::device device = queue.get_device();
         Kernel& kernel = (

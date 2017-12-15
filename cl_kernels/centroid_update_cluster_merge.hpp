@@ -103,7 +103,7 @@ public:
         l_stride_g_mem_kernel = l_stride_g_mem_program.create_kernel(KERNEL_NAME);
 
         reduce.prepare(context);
-        divide_matrix.prepare(context, divide_matrix.Divide);
+        matrix_add.prepare(context, matrix_add.Add);
     }
 
     Event operator() (
@@ -236,24 +236,16 @@ public:
                 wait_list
                 );
 
-        boost::compute::future<void> copy_future =
-            copy_async(
-                tmp_centroids.begin(),
-                tmp_centroids.begin() + num_clusters * num_features,
-                centroids_begin,
-                queue);
-        event = copy_future.get_event();
-
         wait_list.insert(event);
 
-        event = divide_matrix.row(
+        event = matrix_add.matrix(
                 queue,
                 num_features,
                 num_clusters,
                 centroids_begin,
                 centroids_end,
-                masses_begin,
-                masses_end,
+                tmp_centroids.begin(),
+                tmp_centroids.begin() + num_clusters * num_features,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -271,7 +263,7 @@ private:
     Kernel l_stride_g_mem_kernel;
     CentroidUpdateConfiguration config;
     ReduceVectorParcol<PointT> reduce;
-    MatrixBinaryOp<PointT, MassT> divide_matrix;
+    MatrixBinaryOp<PointT, PointT> matrix_add;
 };
 
 }

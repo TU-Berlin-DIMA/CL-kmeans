@@ -79,7 +79,7 @@ public:
         this->kernel = program.create_kernel(KERNEL_NAME);
 
         reduce_centroids.prepare(context);
-        divide_matrix.prepare(context, divide_matrix.Divide);
+        matrix_add.prepare(context, matrix_add.Add);
     }
 
     Event operator() (
@@ -183,24 +183,14 @@ public:
 
         wait_list.insert(event);
 
-        boost::compute::future<void> copy_future =
-            copy_async(
-                tmp_centroids.begin(),
-                tmp_centroids.begin() + num_clusters * num_features,
-                centroids_begin,
-                queue);
-        event = copy_future.get_event();
-
-        wait_list.insert(event);
-
-        event = divide_matrix.row(
+        event = matrix_add.matrix(
                 queue,
                 num_features,
                 num_clusters,
                 centroids_begin,
                 centroids_end,
-                masses_begin,
-                masses_end,
+                tmp_centroids.begin(),
+                tmp_centroids.begin() + num_clusters * num_features,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -216,7 +206,7 @@ private:
     Kernel kernel;
     CentroidUpdateConfiguration config;
     ReduceVectorParcol<PointT> reduce_centroids;
-    MatrixBinaryOp<PointT, MassT> divide_matrix;
+    MatrixBinaryOp<PointT, PointT> matrix_add;
 };
 
 }
