@@ -53,6 +53,7 @@ SET(BENCH_NAME "bench")
 SET(BENCH_SOURCES
     bench.cpp
     binary_format.cpp
+    buffer_helper.cpp
     clustering_benchmark.cpp
     configuration_parser.cpp
     simple_buffer_cache.cpp

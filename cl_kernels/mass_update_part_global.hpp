@@ -16,6 +16,7 @@
 #include "../measurement/measurement.hpp"
 
 #include "reduce_vector_parcol.hpp"
+#include "matrix_binary_op.hpp"
 
 #include <cassert>
 #include <string>
@@ -73,6 +74,7 @@ public:
         this->local_stride_kernel = ls_program.create_kernel(KERNEL_NAME);
 
         reduce.prepare(context);
+        matrix_add.prepare(context, decltype(matrix_add)::Add);
     }
 
     Event operator() (
@@ -162,13 +164,18 @@ public:
                 wait_list_i
                 );
 
-        boost::compute::future<void> copy_future =
-            copy_async(
+        wait_list_i.insert(event);
+        event = matrix_add.matrix(
+                queue,
+                1,
+                num_clusters,
+                masses_begin,
+                masses_end,
                 tmp_masses.begin(),
                 tmp_masses.begin() + num_clusters,
-                masses_begin,
-                queue);
-        event = copy_future.get_event();
+                datapoint.create_child(),
+                wait_list_i
+                );
 
         return event;
     }
@@ -181,6 +188,7 @@ private:
     Kernel local_stride_kernel;
     MassUpdateConfiguration config;
     ReduceVectorParcol<MassT> reduce;
+    MatrixBinaryOp<MassT, MassT> matrix_add;
 };
 }
 

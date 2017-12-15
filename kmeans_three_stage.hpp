@@ -14,6 +14,7 @@
 #include "labeling_factory.hpp"
 #include "mass_update_factory.hpp"
 #include "centroid_update_factory.hpp"
+#include "cl_kernels/matrix_binary_op.hpp"
 
 #include "measurement/measurement.hpp"
 #include "timer.hpp"
@@ -28,6 +29,7 @@
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
 #include <boost/compute/algorithm/copy.hpp>
+#include <boost/compute/algorithm/fill.hpp>
 #include <boost/compute/async/wait.hpp>
 #include <boost/compute/allocator/pinned_allocator.hpp>
 
@@ -90,6 +92,11 @@ public:
         buffer_map.set_labels_buffer();
         buffer_map.set_masses_buffer();
 
+        this->matrix_divide.prepare(
+                this->q_centroid_update.get_context(),
+                matrix_divide.Divide
+                );
+
         // If centroids initializer function is callable, then call
         if (this->centroids_initializer) {
             this->centroids_initializer(
@@ -131,6 +138,24 @@ public:
                     ll_wait_list);
 
             if (/* not converged */ true) {
+
+                boost::compute::event fill_masses_event =
+                    boost::compute::fill_async(
+                            buffer_map.get_masses(BufferMap::mu).begin(),
+                            buffer_map.get_masses(BufferMap::mu).end(),
+                            0,
+                            this->q_mass_update
+                            )
+                    .get_event();
+                boost::compute::event fill_centroids_event =
+                    boost::compute::fill_async(
+                            buffer_map.get_centroids(BufferMap::cu).begin(),
+                            buffer_map.get_centroids(BufferMap::cu).end(),
+                            0,
+                            this->q_centroid_update
+                            )
+                    .get_event();
+
                 // execute mass update
                 sync_labels_event = buffer_map.sync_labels(
                         this->measurement->add_datapoint(iterations),
@@ -178,6 +203,19 @@ public:
                 // TODO
                 // sync_centroids_wait_list.insert(
                 //         cu_event);
+
+                boost::compute::wait_list division_wait_list;
+                matrix_divide.row(
+                        this->q_centroid_update,
+                        this->num_features,
+                        this->num_clusters,
+                        buffer_map.get_centroids(BufferMap::cu).begin(),
+                        buffer_map.get_centroids(BufferMap::cu).end(),
+                        buffer_map.get_masses(BufferMap::cu).begin(),
+                        buffer_map.get_masses(BufferMap::cu).end(),
+                        this->measurement->add_datapoint(iterations),
+                        division_wait_list
+                        );
             }
 
             ++iterations;
@@ -286,6 +324,7 @@ private:
     LabelingFunction f_labeling;
     MassUpdateFunction f_mass_update;
     CentroidUpdateFunction f_centroid_update;
+    MatrixBinaryOp<PointT, MassT> matrix_divide;
 
     boost::compute::context context_labeling;
     boost::compute::context context_mass_update;
