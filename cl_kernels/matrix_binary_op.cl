@@ -47,3 +47,19 @@ void matrix_col_vector(
         )
 {
 }
+
+__kernel
+void matrix_matrix(
+        __global CL_TYPE_1 *const restrict fst_matrix,
+        __global CL_TYPE_2 *const restrict snd_matrix,
+        CL_INT const NUM_COLS,
+        CL_INT const NUM_ROWS
+        )
+{
+    CL_INT m_ind = get_global_id(0);
+
+    CL_TYPE_2 snd = snd_matrix[m_ind];
+    CL_TYPE_1 fst = fst_matrix[m_ind];
+    CL_TYPE_1 res = fst BINARY_OP snd;
+    fst_matrix[m_ind] = res;
+}

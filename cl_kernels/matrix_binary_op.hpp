@@ -60,6 +60,7 @@ public:
         this->scalar_kernel = program.create_kernel(SCALAR_KERNEL_NAME);
         this->row_kernel = program.create_kernel(ROW_KERNEL_NAME);
         this->col_kernel = program.create_kernel(COL_KERNEL_NAME);
+        this->matrix_kernel = program.create_kernel(MATRIX_KERNEL_NAME);
     }
 
     /*
@@ -145,6 +146,47 @@ public:
         // assert(vector_end - vector_begin == num_cols);
     }
 
+    Event matrix(
+            boost::compute::command_queue queue,
+            size_t num_cols,
+            size_t num_rows,
+            boost::compute::buffer_iterator<T1> fst_matrix_begin,
+            boost::compute::buffer_iterator<T1> fst_matrix_end,
+            boost::compute::buffer_iterator<T2> snd_matrix_begin,
+            boost::compute::buffer_iterator<T2> snd_matrix_end,
+            Measurement::DataPoint& datapoint,
+            boost::compute::wait_list const& wait_list
+            )
+    {
+        assert(fst_matrix_end - fst_matrix_begin == (long) (num_cols * num_rows));
+        assert(snd_matrix_end - snd_matrix_begin == (long) (num_cols * num_rows));
+        assert(fst_matrix_begin.get_index() == 0u);
+        assert(snd_matrix_begin.get_index() == 0u);
+
+        datapoint.set_name("MatrixBinaryOpMatrix");
+
+        this->matrix_kernel.set_args(
+                fst_matrix_begin.get_buffer(),
+                snd_matrix_begin.get_buffer(),
+                (cl_uint)num_cols,
+                (cl_uint)num_rows);
+
+        size_t work_offset = 0;
+        size_t global_size = num_rows * num_cols;
+
+        Event event;
+        event = queue.enqueue_1d_range_kernel(
+                this->matrix_kernel,
+                work_offset,
+                global_size,
+                0,
+                wait_list);
+
+        datapoint.add_event() = event;
+
+        return event;
+    }
+
 private:
     static std::string op_to_str(BinaryOp op) {
         switch(op) {
@@ -165,10 +207,12 @@ private:
     static constexpr const char* SCALAR_KERNEL_NAME = "matrix_scalar";
     static constexpr const char* ROW_KERNEL_NAME = "matrix_row_vector";
     static constexpr const char* COL_KERNEL_NAME = "matrix_col_vector";
+    static constexpr const char* MATRIX_KERNEL_NAME = "matrix_matrix";
 
     Kernel scalar_kernel;
     Kernel col_kernel;
     Kernel row_kernel;
+    Kernel matrix_kernel;
 };
 }
 
