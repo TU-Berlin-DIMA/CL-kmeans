@@ -20,7 +20,7 @@
 #include <stdexcept>
 
 #include <boost/compute/core.hpp>
-#include <boost/compute/container/vector.hpp>
+#include <boost/compute/iterator/buffer_iterator.hpp>
 
 namespace Clustering {
 
@@ -29,7 +29,7 @@ class FusedFactory {
 public:
 
     template <typename T>
-    using Vector = boost::compute::vector<T>;
+    using BufferIterator = boost::compute::buffer_iterator<T>;
 
     using FusedFunction = std::function<
         boost::compute::event(
@@ -37,10 +37,16 @@ public:
                 size_t num_features,
                 size_t num_points,
                 size_t num_clusters,
-                Vector<PointT>& points,
-                Vector<PointT>& centroids,
-                Vector<LabelT>& labels,
-                Vector<MassT>& masses,
+                BufferIterator<PointT> points_begin,
+                BufferIterator<PointT> points_end,
+                BufferIterator<PointT> old_centroids_begin,
+                BufferIterator<PointT> old_centroids_end,
+                BufferIterator<PointT> new_centroids_begin,
+                BufferIterator<PointT> new_centroids_end,
+                BufferIterator<LabelT> labels_begin,
+                BufferIterator<LabelT> labels_end,
+                BufferIterator<MassT> masses_begin,
+                BufferIterator<MassT> masses_end,
                 Measurement::DataPoint& datapoint,
                 boost::compute::wait_list const& events
                 )

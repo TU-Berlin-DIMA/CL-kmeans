@@ -66,8 +66,14 @@ public:
         buffer_manager.set_centroids_buffer(
                 this->host_centroids,
                 this->measurement->add_datapoint());
+        buffer_manager.set_new_centroids_buffer();
         buffer_manager.set_labels_buffer();
         buffer_manager.set_masses_buffer();
+
+        this->matrix_divide.prepare(
+                this->queue.get_context(),
+                matrix_divide.Divide
+                );
 
         // If centroids initializer function is callable, then call
         if (this->centroids_initializer) {
@@ -88,18 +94,58 @@ public:
                 iteration < this->max_iterations;
                 ++iteration)
         {
+            boost::compute::event fill_masses_event =
+                boost::compute::fill_async(
+                        buffer_manager.get_masses().begin(),
+                        buffer_manager.get_masses().end(),
+                        0,
+                        this->queue
+                        )
+                .get_event();
+            boost::compute::event fill_centroids_event =
+                boost::compute::fill_async(
+                        buffer_manager.get_new_centroids().begin(),
+                        buffer_manager.get_new_centroids().end(),
+                        0,
+                        this->queue
+                        )
+                .get_event();
+
             // execute fused variant
             fu_event = this->f_fused(
                     this->queue,
                     this->num_features,
                     this->num_points,
                     this->num_clusters,
-                    buffer_manager.get_points(),
-                    buffer_manager.get_centroids(),
-                    buffer_manager.get_labels(),
-                    buffer_manager.get_masses(),
+                    buffer_manager.get_points().begin(),
+                    buffer_manager.get_points().end(),
+                    buffer_manager.get_centroids().begin(),
+                    buffer_manager.get_centroids().end(),
+                    buffer_manager.get_new_centroids().begin(),
+                    buffer_manager.get_new_centroids().end(),
+                    buffer_manager.get_labels().begin(),
+                    buffer_manager.get_labels().end(),
+                    buffer_manager.get_masses().begin(),
+                    buffer_manager.get_masses().end(),
                     this->measurement->add_datapoint(iteration),
                     fu_wait_list);
+
+            boost::compute::wait_list division_wait_list;
+            matrix_divide.row(
+                    this->queue,
+                    this->num_features,
+                    this->num_clusters,
+                    buffer_manager.get_new_centroids().begin(),
+                    buffer_manager.get_new_centroids().end(),
+                    buffer_manager.get_masses().begin(),
+                    buffer_manager.get_masses().end(),
+                    this->measurement->add_datapoint(iteration),
+                    division_wait_list
+                    );
+
+            std::swap(
+                    buffer_manager.get_centroids(),
+                    buffer_manager.get_new_centroids());
 
             fu_wait_list.insert(fu_event);
         }
@@ -153,6 +199,7 @@ public:
 
 private:
     FusedFunction f_fused;
+    MatrixBinaryOp<PointT, MassT> matrix_divide;
 
     boost::compute::context context;
     boost::compute::command_queue queue;
@@ -216,6 +263,14 @@ private:
             future.wait();
         }
 
+        void set_new_centroids_buffer()
+        {
+            new_centroids = std::make_shared<Vector<PointT>>(
+                    num_clusters * num_features,
+                    0,
+                    queue);
+        }
+
         void set_labels_buffer()
         {
             if (not labels || labels->size() != num_points) {
@@ -241,6 +296,10 @@ private:
 
         Vector<PointT>& get_centroids() {
             return *centroids;
+        }
+
+        Vector<PointT>& get_new_centroids() {
+            return *new_centroids;
         }
 
         Vector<LabelT>& get_labels() {
@@ -315,6 +374,7 @@ private:
         boost::compute::command_queue queue;
         VectorPtr<PointT> points;
         VectorPtr<PointT> centroids;
+        VectorPtr<PointT> new_centroids;
         VectorPtr<LabelT> labels;
         VectorPtr<MassT> masses;
     } buffer_manager;
