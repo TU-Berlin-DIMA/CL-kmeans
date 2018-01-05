@@ -76,9 +76,11 @@ public:
         defines += " -DCL_POINT=";
         defines += boost::compute::type_name<PointT>();
         if (std::is_same<float, PointT>::value) {
+            defines += " -DCL_SINT=int";
             defines += " -DCL_POINT_MAX=FLT_MAX";
         }
         else if (std::is_same<double, PointT>::value) {
+            defines += " -DCL_SINT=long";
             defines += " -DCL_POINT_MAX=DBL_MAX";
         }
         defines += " -DCL_LABEL=";

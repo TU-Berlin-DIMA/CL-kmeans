@@ -189,7 +189,7 @@ void lloyd_fused_cluster_merge(
         VEC_TYPE(CL_LABEL) label;
         VEC_TYPE(CL_POINT) min_dist = CL_POINT_MAX;
 
-        for (CL_INT c = 0; c < NUM_CLUSTERS; ++c) {
+        for (CL_LABEL c = 0; c < NUM_CLUSTERS; ++c) {
 
             VEC_TYPE(CL_POINT) dist = 0;
 
