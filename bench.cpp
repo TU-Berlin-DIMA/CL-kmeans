@@ -15,6 +15,7 @@
 #include "kmeans_three_stage.hpp"
 #include "kmeans_three_stage_buffered.hpp"
 #include "kmeans_single_stage.hpp"
+#include "kmeans_single_stage_buffered.hpp"
 #include "kmeans_naive.hpp"
 #include "kmeans_initializer.hpp"
 
@@ -352,7 +353,11 @@ public:
                 kmeans = threestagebuffered;
             }
         }
-        else if (km_config.pipeline == "single_stage") {
+        else if (
+                km_config.pipeline == "single_stage"
+                or km_config.pipeline == "single_stage_buffered"
+                )
+        {
             auto fu_config =
                 config.get_fused_configuration();
 
@@ -373,16 +378,30 @@ public:
                     << std::endl;
             }
 
-            Clustering::KmeansSingleStage<
-                PointT,
-                LabelT,
-                MassT,
-                ColMajor> singlestage;
+            if (km_config.pipeline == "single_stage") {
+                Clustering::KmeansSingleStage<
+                    PointT,
+                    LabelT,
+                    MassT,
+                    ColMajor> singlestage;
 
-            singlestage.set_queue(queue);
-            singlestage.set_context(context);
-            singlestage.set_fused(fu_config);
-            kmeans = singlestage;
+                singlestage.set_queue(queue);
+                singlestage.set_context(context);
+                singlestage.set_fused(fu_config);
+                kmeans = singlestage;
+            }
+            else if (km_config.pipeline == "single_stage_buffered") {
+                Clustering::KmeansSingleStageBuffered<
+                    PointT,
+                    LabelT,
+                    MassT,
+                    ColMajor> singlestagebuffered;
+
+                singlestagebuffered.set_queue(queue);
+                singlestagebuffered.set_context(context);
+                singlestagebuffered.set_fused(fu_config);
+                kmeans = singlestagebuffered;
+            }
         }
 
         if (options.verify() || bm_config.verify) {
@@ -405,6 +424,7 @@ public:
                 if (verify_res == 0) {
                     std::cout << "Correct labels";
                     std::cout << std::endl;
+                    bm.print_result();
                 }
                 else {
                     std::cout << verify_res << " incorrect labels";
