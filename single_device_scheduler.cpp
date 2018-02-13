@@ -186,7 +186,8 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
         return -1;
     }
 
-    Event transfer_event;
+    events.emplace_back();
+    Event& transfer_event = events.back();
 
     ret = buffer_cache.get(
             queue,
@@ -201,7 +202,8 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
         return -1;
     }
     auto& bdesc = buffers.front();
-    kernel_function(
+    events.emplace_back();
+    events.back() = kernel_function(
             queue,
             0,
             bdesc.content_length,
@@ -209,7 +211,8 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
             *datapoint
             );
 
-    Event unlock_event;
+    events.emplace_back();
+    Event& unlock_event = events.back();
     ret = buffer_cache.unlock(
             queue,
             object_id,
@@ -291,7 +294,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
         return -1;
     }
 
-    Event fst_transfer_event;
+    events.emplace_back();
+    Event& fst_transfer_event = events.back();
     ret = buffer_cache.get(
             queue,
             fst_object_id,
@@ -305,7 +309,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
         return -1;
     }
 
-    Event snd_transfer_event;
+    events.emplace_back();
+    Event& snd_transfer_event = events.back();
     ret = buffer_cache.get(
             queue,
             snd_object_id,
@@ -321,7 +326,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
 
     auto& fst_bdesc = fst_buffers.front();
     auto& snd_bdesc = snd_buffers.front();
-    kernel_function(
+    events.emplace_back();
+    events.back() = kernel_function(
             queue,
             0,
             fst_bdesc.content_length,
@@ -331,7 +337,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
             *datapoint
             );
 
-    Event fst_unlock_event;
+    events.emplace_back();
+    Event& fst_unlock_event = events.back();
     ret = buffer_cache.unlock(
             queue,
             fst_object_id,
@@ -343,7 +350,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
         return -1;
     }
 
-    Event snd_unlock_event;
+    events.emplace_back();
+    Event& snd_unlock_event = events.back();
     ret = buffer_cache.unlock(
             queue,
             snd_object_id,
