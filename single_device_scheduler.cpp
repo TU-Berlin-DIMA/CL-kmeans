@@ -42,7 +42,10 @@ int sds::add_buffer_cache(std::shared_ptr<BufferCache> buffer_cache)
 
 int sds::add_device(Context context, Device device)
 {
-    device_info_i = {{{Queue(context, device), Queue(context, device)}}};
+    device_info_i = {{{
+        Queue(context, device, Queue::enable_profiling),
+        Queue(context, device, Queue::enable_profiling)
+    }}};
 
     return 1;
 }
