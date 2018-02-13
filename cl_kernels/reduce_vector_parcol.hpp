@@ -75,7 +75,7 @@ public:
         datapoint.set_name("ReduceVectorParcol");
 
         Event event;
-        boost::compute::wait_list wait_list = events;
+        boost::compute::wait_list wait_list;
         size_t work_offset = 0;
         uint32_t round = 0;
         size_t global_size = data.size() / 2;
@@ -98,11 +98,11 @@ public:
                     work_offset,
                     global_size,
                     0,
-                    wait_list);
+                    events);
+            datapoint.add_event() = event;
 
             wait_list.clear();
             wait_list.insert(event);
-            datapoint.add_event() = event;
 
             ++round;
             global_size /= 2;
