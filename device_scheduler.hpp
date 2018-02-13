@@ -24,6 +24,8 @@
 #include <boost/compute/device.hpp>
 #include <boost/compute/event.hpp>
 
+#include "measurement/measurement.hpp"
+
 namespace Clustering {
     class DeviceScheduler {
     public:
@@ -47,8 +49,22 @@ namespace Clustering {
          *
          * Enqueable functions must be reenterable.
          */
-        using FunUnary = std::function<Event(Queue, size_t, size_t, Buffer)>;
-        using FunBinary = std::function<Event(Queue, size_t, size_t, size_t, Buffer, Buffer)>;
+        using FunUnary = std::function<Event(
+                Queue,
+                size_t,
+                size_t,
+                Buffer,
+                Measurement::DataPoint&
+                )>;
+        using FunBinary = std::function<Event(
+                Queue,
+                size_t,
+                size_t,
+                size_t,
+                Buffer,
+                Buffer,
+                Measurement::DataPoint&
+                )>;
 
         virtual ~DeviceScheduler() {};
 
@@ -90,7 +106,8 @@ namespace Clustering {
                 FunUnary kernel_function,
                 uint32_t object_id,
                 size_t step,
-                std::future<std::deque<Event>>& kernel_events
+                std::future<std::deque<Event>>& kernel_events,
+                Measurement::DataPoint& datapoint
                 ) = 0;
         virtual int enqueue(
                 FunBinary kernel_function,
@@ -98,7 +115,8 @@ namespace Clustering {
                 uint32_t snd_object_id,
                 size_t fst_step,
                 size_t snd_step,
-                std::future<std::deque<Event>>& kernel_events
+                std::future<std::deque<Event>>& kernel_events,
+                Measurement::DataPoint& datapoint
                 ) = 0;
 
         /*

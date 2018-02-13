@@ -19,6 +19,8 @@
 #include <gtest/gtest.h>
 #include <boost/compute/core.hpp>
 
+#include <measurement/measurement.hpp>
+
 constexpr size_t MAX_PRINT_FAILURES = 3;
 constexpr std::chrono::milliseconds WAIT_DURATION(900);
 constexpr size_t BUFFER_SIZE = 16ul << 20;  //  16 MB
@@ -86,17 +88,22 @@ public:
                 bc::command_queue queue,
                 size_t cl_offset,
                 size_t size,
-                bc::buffer buffer
+                bc::buffer buffer,
+                Measurement::DataPoint& dp
                 )
         {
+            dp.set_name("zero");
             bc::kernel kernel = zero_program.create_kernel("zero");
             kernel.set_args(buffer, (cl_uint) (size / sizeof(cl_int)));
-            return queue.enqueue_1d_range_kernel(
+            bc::event event;
+            event = queue.enqueue_1d_range_kernel(
                     kernel,
                     cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
                     LOCAL_SIZE
                     );
+            dp.add_event() = event;
+            return event;
         };
 
         bc::program inc_program = bc::program::build_with_source(
@@ -108,17 +115,22 @@ public:
                 bc::command_queue queue,
                 size_t cl_offset,
                 size_t size,
-                bc::buffer buffer
+                bc::buffer buffer,
+                Measurement::DataPoint& dp
                 )
         {
+            dp.set_name("inc");
             bc::kernel kernel = inc_program.create_kernel("inc");
             kernel.set_args(buffer, (cl_uint) (size / sizeof(cl_int)));
-            return queue.enqueue_1d_range_kernel(
+            bc::event event;
+            event = queue.enqueue_1d_range_kernel(
                     kernel,
                     cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
                     LOCAL_SIZE
                     );
+            dp.add_event() = event;
+            return event;
         };
 
         bc::program copy_program = bc::program::build_with_source(
@@ -132,17 +144,22 @@ public:
                 size_t dst_size,
                 size_t /* src_size */,
                 bc::buffer dst,
-                bc::buffer src
+                bc::buffer src,
+                Measurement::DataPoint& dp
                 )
         {
+            dp.set_name("copy");
             bc::kernel kernel = copy_program.create_kernel("copy");
             kernel.set_args(dst, src, (cl_uint) (dst_size / sizeof(cl_int)));
-            return queue.enqueue_1d_range_kernel(
+            bc::event event;
+            event = queue.enqueue_1d_range_kernel(
                     kernel,
                     cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
                     LOCAL_SIZE
                     );
+            dp.add_event() = event;
+            return event;
         };
 
         bc::program reduce_program = bc::program::build_with_source(
@@ -156,19 +173,24 @@ public:
                 size_t dst_size,
                 size_t src_size,
                 bc::buffer dst,
-                bc::buffer src
+                bc::buffer src,
+                Measurement::DataPoint& dp
                 )
         {
             assert(dst_size * 2 >= src_size);
 
+            dp.set_name("reduce");
             bc::kernel kernel = reduce_program.create_kernel("reduce");
             kernel.set_args(dst, src, (cl_uint) (src_size / sizeof(cl_int)));
-            return queue.enqueue_1d_range_kernel(
+            bc::event event;
+            event = queue.enqueue_1d_range_kernel(
                     kernel,
                     cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
                     LOCAL_SIZE
                     );
+            dp.add_event() = event;
+            return event;
         };
     }
 
@@ -251,8 +273,9 @@ TEST_F(SingleDeviceScheduler, EnqueueUnaryKernel)
 {
     int ret = 0;
     std::future<std::deque<bc::event>> fevents;
+    Measurement::Measurement measurement;
 
-    ret = scheduler->enqueue(dsenv->zero_f, fst_object_id, buffer_size, fevents);
+    ret = scheduler->enqueue(dsenv->zero_f, fst_object_id, buffer_size, fevents, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     ASSERT_TRUE(fevents.valid());
 
@@ -271,11 +294,12 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
 {
     int ret = 0;
     std::future<std::deque<bc::event>> zero_fevents, inc_fevents;
+    Measurement::Measurement measurement;
 
-    ret = scheduler->enqueue(dsenv->zero_f, fst_object_id, buffer_size, zero_fevents);
+    ret = scheduler->enqueue(dsenv->zero_f, fst_object_id, buffer_size, zero_fevents, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
 
-    ret = scheduler->enqueue(dsenv->increment_f, fst_object_id, buffer_size, inc_fevents);
+    ret = scheduler->enqueue(dsenv->increment_f, fst_object_id, buffer_size, inc_fevents, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
 
     ret = scheduler->run();
@@ -314,12 +338,13 @@ TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
 {
     int ret = 0;
     std::future<std::deque<bc::event>> copy_fevents;
+    Measurement::Measurement measurement;
 
     for (auto& obj : fst_data_object) {
         obj = 0x0EADBEEF;
     }
 
-    ret = scheduler->enqueue(dsenv->copy_f, fst_object_id, snd_object_id, buffer_size, buffer_size, copy_fevents);
+    ret = scheduler->enqueue(dsenv->copy_f, fst_object_id, snd_object_id, buffer_size, buffer_size, copy_fevents, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
 
     ret = scheduler->run();
@@ -358,6 +383,7 @@ TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
 {
     int ret = 0;
     std::future<std::deque<bc::event>> copy_fevents;
+    Measurement::Measurement measurement;
 
     decltype(snd_data_object) dst_object(snd_data_object.size() / 2);
     auto dst_object_id = buffer_cache->add_object(
@@ -366,7 +392,7 @@ TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
             Clustering::ObjectMode::Mutable
             );
 
-    ret = scheduler->enqueue(dsenv->copy_f, dst_object_id, snd_object_id, buffer_size / 2, buffer_size, copy_fevents);
+    ret = scheduler->enqueue(dsenv->copy_f, dst_object_id, snd_object_id, buffer_size / 2, buffer_size, copy_fevents, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
 
     ret = scheduler->run();

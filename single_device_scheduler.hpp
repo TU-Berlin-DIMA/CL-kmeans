@@ -26,6 +26,8 @@
 #include <boost/compute/device.hpp>
 #include <boost/compute/event.hpp>
 
+#include "measurement/measurement.hpp"
+
 namespace Clustering {
     class SingleDeviceScheduler : public DeviceScheduler {
     public:
@@ -50,7 +52,8 @@ namespace Clustering {
                 FunUnary kernel_function,
                 uint32_t object_id,
                 size_t step,
-                std::future<std::deque<Event>>& kernel_events
+                std::future<std::deque<Event>>& kernel_events,
+                Measurement::DataPoint& datapoint
                 );
         int enqueue(
                 FunBinary kernel_function,
@@ -58,7 +61,8 @@ namespace Clustering {
                 uint32_t snd_object_id,
                 size_t fst_step,
                 size_t snd_step,
-                std::future<std::deque<Event>>& kernel_events
+                std::future<std::deque<Event>>& kernel_events,
+                Measurement::DataPoint& datapoint
                 );
         int enqueue_barrier();
 
@@ -82,6 +86,7 @@ namespace Clustering {
             uint32_t object_id;
             size_t step;
             std::deque<Event> events;
+            Measurement::DataPoint *datapoint = nullptr;
             std::promise<std::deque<Event>> events_promise;
 
         };
@@ -96,6 +101,7 @@ namespace Clustering {
             size_t fst_step;
             size_t snd_step;
             std::deque<Event> events;
+            Measurement::DataPoint *datapoint = nullptr;
             std::promise<std::deque<Event>> events_promise;
         };
 

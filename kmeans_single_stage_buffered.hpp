@@ -150,9 +150,7 @@ public:
                 num_clusters = this->num_clusters,
                 &device_old_centroids = this->device_old_centroids,
                 &device_new_centroids = this->device_new_centroids,
-                &device_masses = this->device_masses,
-                &measurement = this->measurement,
-                iterations
+                &device_masses = this->device_masses
             ]
             (
              boost::compute::command_queue queue,
@@ -160,7 +158,8 @@ public:
              size_t point_bytes,
              size_t label_bytes,
              boost::compute::buffer points,
-             boost::compute::buffer labels
+             boost::compute::buffer labels,
+             Measurement::DataPoint& datapoint
             )
             {
                 boost::compute::wait_list wait_list;
@@ -201,7 +200,7 @@ public:
                         labels_end,
                         device_masses.begin(),
                         device_masses.end(),
-                        measurement->add_datapoint(iterations),
+                        datapoint,
                         wait_list
                         );
             };
@@ -214,7 +213,8 @@ public:
                         labels_handle,
                         buffer_size,
                         buffer_size / this->num_features,
-                        fu_future
+                        fu_future,
+                        this->measurement->add_datapoint(iterations)
                         ));
 
             assert(true == scheduler.run());

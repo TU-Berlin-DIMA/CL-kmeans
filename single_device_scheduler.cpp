@@ -54,7 +54,8 @@ int sds::enqueue(
         FunUnary kernel_function,
         uint32_t object_id,
         size_t step,
-        std::future<std::deque<Event>>& kernel_events
+        std::future<std::deque<Event>>& kernel_events,
+        Measurement::DataPoint& datapoint
         )
 {
 
@@ -62,6 +63,7 @@ int sds::enqueue(
     runnable->kernel_function = kernel_function;
     runnable->object_id = object_id;
     runnable->step = step;
+    runnable->datapoint = &datapoint;
 
     kernel_events = runnable->events_promise.get_future();
 
@@ -76,7 +78,8 @@ int sds::enqueue(
         uint32_t snd_object_id,
         size_t fst_step,
         size_t snd_step,
-        std::future<std::deque<Event>>& kernel_events
+        std::future<std::deque<Event>>& kernel_events,
+        Measurement::DataPoint& datapoint
         )
 {
     auto runnable = std::make_unique<BinaryRunnable>();
@@ -85,6 +88,7 @@ int sds::enqueue(
     runnable->snd_object_id = snd_object_id;
     runnable->fst_step = fst_step;
     runnable->snd_step = snd_step;
+    runnable->datapoint = &datapoint;
 
     kernel_events = runnable->events_promise.get_future();
 
@@ -177,8 +181,12 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
         std::cout << "[UnaryRunnable::run] objectptr: " << (uint64_t)object_ptr << " offset " << offset << " endoffset " << end_offset << std::endl;
     }
 
-    events.emplace_back();
-    Event& transfer_event = events.back();
+    if (not this->datapoint) {
+        std::cerr << "[Run] error running UnaryRunnable; datapoint is NULL" << std::endl;
+        return -1;
+    }
+
+    Event transfer_event;
 
     ret = buffer_cache.get(
             queue,
@@ -186,26 +194,27 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
             object_ptr + offset,
             object_ptr + end_offset,
             buffers,
+            // TODO: convert to datapoint->create_child()
             transfer_event
             );
     if (ret < 0) {
         return -1;
     }
     auto& bdesc = buffers.front();
-    events.emplace_back();
-    events.back() = kernel_function(
+    kernel_function(
             queue,
             0,
             bdesc.content_length,
-            bdesc.buffer
+            bdesc.buffer,
+            *datapoint
             );
 
-    events.emplace_back();
-    Event& unlock_event = events.back();
+    Event unlock_event;
     ret = buffer_cache.unlock(
             queue,
             object_id,
             buffers,
+            // TODO: convert to datapoint->create_child()
             unlock_event
             );
     if (ret < 0) {
@@ -277,28 +286,33 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
         std::cout << "[BinaryRunnable::run] fst_object_id: " << fst_object_id << " snd_object_id " << snd_object_id << " fst_offset " << fst_offset << " fst_step " << fst_end_offset - fst_offset << " snd_offset " << snd_offset << " snd_step " << snd_end_offset - snd_offset << std::endl;
     }
 
-    events.emplace_back();
-    Event& fst_transfer_event = events.back();
+    if (not this->datapoint) {
+        std::cerr << "[Run] error running BinaryRunnable; datapoint is NULL" << std::endl;
+        return -1;
+    }
+
+    Event fst_transfer_event;
     ret = buffer_cache.get(
             queue,
             fst_object_id,
             fst_object_ptr + fst_offset,
             fst_object_ptr + fst_end_offset,
             fst_buffers,
+            // TODO: convert to datapoint->create_child()
             fst_transfer_event
             );
     if (ret < 0) {
         return -1;
     }
 
-    events.emplace_back();
-    Event& snd_transfer_event = events.back();
+    Event snd_transfer_event;
     ret = buffer_cache.get(
             queue,
             snd_object_id,
             snd_object_ptr + snd_offset,
             snd_object_ptr + snd_end_offset,
             snd_buffers,
+            // TODO: convert to datapoint->create_child()
             snd_transfer_event
             );
     if (ret < 0) {
@@ -307,34 +321,34 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
 
     auto& fst_bdesc = fst_buffers.front();
     auto& snd_bdesc = snd_buffers.front();
-    events.emplace_back();
-    events.back() = kernel_function(
+    kernel_function(
             queue,
             0,
             fst_bdesc.content_length,
             snd_bdesc.content_length,
             fst_bdesc.buffer,
-            snd_bdesc.buffer
+            snd_bdesc.buffer,
+            *datapoint
             );
 
-    events.emplace_back();
-    Event& fst_unlock_event = events.back();
+    Event fst_unlock_event;
     ret = buffer_cache.unlock(
             queue,
             fst_object_id,
             fst_buffers,
+            // TODO: convert to datapoint->create_child()
             fst_unlock_event
             );
     if (ret < 0) {
         return -1;
     }
 
-    events.emplace_back();
-    Event& snd_unlock_event = events.back();
+    Event snd_unlock_event;
     ret = buffer_cache.unlock(
             queue,
             snd_object_id,
             snd_buffers,
+            // TODO: convert to datapoint->create_child()
             snd_unlock_event
             );
     if (ret < 0) {

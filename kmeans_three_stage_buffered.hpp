@@ -146,9 +146,7 @@ public:
                 f_labeling = this->f_labeling,
                 num_features = this->num_features,
                 num_clusters = this->num_clusters,
-                &device_old_centroids = this->device_old_centroids,
-                &measurement = this->measurement,
-                iterations
+                &device_old_centroids = this->device_old_centroids
             ]
             (
              boost::compute::command_queue queue,
@@ -156,7 +154,8 @@ public:
              size_t point_bytes,
              size_t label_bytes,
              boost::compute::buffer points,
-             boost::compute::buffer labels
+             boost::compute::buffer labels,
+             Measurement::DataPoint& datapoint
             )
             {
 
@@ -194,7 +193,7 @@ public:
                         device_old_centroids.end(),
                         labels_begin,
                         labels_end,
-                        measurement->add_datapoint(iterations),
+                        datapoint,
                         wait_list
                         );
             };
@@ -207,21 +206,21 @@ public:
                         labels_handle,
                         buffer_size,
                         buffer_size / this->num_features,
-                        ll_future
+                        ll_future,
+                        this->measurement->add_datapoint(iterations)
                         ));
 
             auto mass_update_lambda = [
                 f_mass_update = this->f_mass_update,
                 num_clusters = this->num_clusters,
-                &device_masses = this->device_masses,
-                &measurement = this->measurement,
-                iterations
+                &device_masses = this->device_masses
             ]
             (
              boost::compute::command_queue queue,
              size_t /* cl_offset */,
              size_t label_bytes,
-             boost::compute::buffer labels
+             boost::compute::buffer labels,
+             Measurement::DataPoint& datapoint
             )
             {
                 boost::compute::wait_list wait_list;
@@ -245,7 +244,7 @@ public:
                         labels_end,
                         device_masses.begin(),
                         device_masses.end(),
-                        measurement->add_datapoint(iterations),
+                        datapoint,
                         wait_list);
             };
 
@@ -255,7 +254,8 @@ public:
                         mass_update_lambda,
                         labels_handle,
                         buffer_size / this->num_features,
-                        mu_future
+                        mu_future,
+                        this->measurement->add_datapoint(iterations)
                         ));
 
             auto centroid_update_lambda = [
@@ -263,9 +263,7 @@ public:
                 num_features = this->num_features,
                 num_clusters = this->num_clusters,
                 &device_new_centroids = this->device_new_centroids,
-                &device_masses = this->device_masses,
-                &measurement = this->measurement,
-                iterations
+                &device_masses = this->device_masses
             ]
             (
              boost::compute::command_queue queue,
@@ -273,7 +271,8 @@ public:
              size_t point_bytes,
              size_t label_bytes,
              boost::compute::buffer points,
-             boost::compute::buffer labels
+             boost::compute::buffer labels,
+             Measurement::DataPoint& datapoint
             )
             {
                 boost::compute::wait_list wait_list;
@@ -312,7 +311,7 @@ public:
                         labels_end,
                         device_masses.begin(),
                         device_masses.end(),
-                        measurement->add_datapoint(iterations),
+                        datapoint,
                         wait_list
                         );
             };
@@ -325,7 +324,8 @@ public:
                         labels_handle,
                         buffer_size,
                         buffer_size / this->num_features,
-                        cu_future
+                        cu_future,
+                        this->measurement->add_datapoint(iterations)
                         ));
 
             assert(true == scheduler.run());
