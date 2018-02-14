@@ -7,6 +7,7 @@
  * Copyright (c) 2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
+#include <measurement/measurement.hpp>
 #include <simple_buffer_cache.hpp>
 
 #include <gtest/gtest.h>
@@ -77,10 +78,12 @@ TEST_F(SimpleBufferCache, GetSize)
 TEST_F(SimpleBufferCache, WriteAndGetCheckBuffer)
 {
     boost::compute::event event;
+    boost::compute::wait_list wait_list;
+    Measurement::Measurement measurement;
     Clustering::BufferCache::BufferList buffers;
     int ret = 0;
 
-    ret = buffer_cache.write_and_get(queue, object_id, &data_object[0], &data_object[buffer_ints], buffers, event);
+    ret = buffer_cache.write_and_get(queue, object_id, &data_object[0], &data_object[buffer_ints], buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
 
     for (auto& bufdesc : buffers) {
@@ -91,27 +94,31 @@ TEST_F(SimpleBufferCache, WriteAndGetCheckBuffer)
 TEST_F(SimpleBufferCache, ReadNotCached)
 {
     boost::compute::event event;
+    boost::compute::wait_list wait_list;
+    Measurement::Measurement measurement;
     int ret = 0;
     uint32_t *begin = &data_object[0];
     uint32_t *end = &data_object[buffer_ints];
 
     // flush cache or ensure read segment not in cache
 
-    ret = buffer_cache.read(queue, object_id, begin, end, event);
+    ret = buffer_cache.read(queue, object_id, begin, end, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
 }
 
 TEST_F(SimpleBufferCache, WriteReadBasic)
 {
     boost::compute::event event;
+    boost::compute::wait_list wait_list;
+    Measurement::Measurement measurement;
     Clustering::BufferCache::BufferList buffers;
     int ret = 0;
     uint32_t *begin = &data_object[0];
     uint32_t *end = &data_object[buffer_ints];
 
-    ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event);
+    ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
-    ret = buffer_cache.read(queue, object_id, begin, end, event);
+    ret = buffer_cache.read(queue, object_id, begin, end, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
@@ -124,7 +131,7 @@ TEST_F(SimpleBufferCache, WriteReadBasic)
         }
     }
     EXPECT_EQ(0u, failed_fields);
-    ret = buffer_cache.unlock(queue, object_id, buffers, event);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
 }
@@ -132,6 +139,8 @@ TEST_F(SimpleBufferCache, WriteReadBasic)
 TEST_F(SimpleBufferCache, WriteReadDeadBeefAligned)
 {
     boost::compute::event event;
+    boost::compute::wait_list wait_list;
+    Measurement::Measurement measurement;
     Clustering::BufferCache::BufferList buffers;
     int ret = 0;
     uint32_t *begin = &data_object[buffer_ints];
@@ -140,13 +149,13 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeefAligned)
     for (auto& obj : data_object) {
         obj = 0xDEADBEEFu;
     }
-    ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event);
+    ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
     for (auto& obj : data_object) {
         obj = 0xCAFED00Du;
     }
-    ret = buffer_cache.read(queue, object_id, begin, end, event);
+    ret = buffer_cache.read(queue, object_id, begin, end, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
@@ -159,7 +168,7 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeefAligned)
         }
     }
     EXPECT_EQ(0u, failed_fields);
-    ret = buffer_cache.unlock(queue, object_id, buffers, event);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
 }
@@ -167,6 +176,8 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeefAligned)
 TEST_F(SimpleBufferCache, WriteReadDeadBeefNonAligned)
 {
     boost::compute::event event;
+    boost::compute::wait_list wait_list;
+    Measurement::Measurement measurement;
     Clustering::BufferCache::BufferList buffers;
     int ret = 0;
     const uint32_t offset = buffer_ints / 2;
@@ -182,14 +193,14 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeefNonAligned)
     *canary_before = 0x13371337u;
     *canary_after = 0x13371337u;
 
-    ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event);
+    ret = buffer_cache.write_and_get(queue, object_id, begin, end, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     EXPECT_EQ(length * sizeof(decltype(data_object)::value_type), buffers.front().content_length);
     event.wait();
     for (auto iter = begin; iter != end; ++iter) {
         *iter = 0xCAFED00Du;
     }
-    ret = buffer_cache.read(queue, object_id, begin, end, event);
+    ret = buffer_cache.read(queue, object_id, begin, end, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
@@ -204,7 +215,7 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeefNonAligned)
     EXPECT_EQ(0u, failed_fields);
     EXPECT_EQ(0x13371337u, *canary_before);
     EXPECT_EQ(0x13371337u, *canary_after);
-    ret = buffer_cache.unlock(queue, object_id, buffers, event);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
 }
@@ -212,14 +223,16 @@ TEST_F(SimpleBufferCache, WriteReadDeadBeefNonAligned)
 TEST_F(SimpleBufferCache, GetReadBasic)
 {
     boost::compute::event event;
+    boost::compute::wait_list wait_list;
+    Measurement::Measurement measurement;
     Clustering::BufferCache::BufferList buffers;
     int ret = 0;
     uint32_t *begin = &data_object[0];
     uint32_t *end = &data_object[buffer_ints];
 
-    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
+    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
-    ret = buffer_cache.read(queue, object_id, begin, end, event);
+    ret = buffer_cache.read(queue, object_id, begin, end, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
@@ -232,7 +245,7 @@ TEST_F(SimpleBufferCache, GetReadBasic)
         }
     }
     EXPECT_EQ(0u, failed_fields);
-    ret = buffer_cache.unlock(queue, object_id, buffers, event);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
 }
@@ -240,22 +253,24 @@ TEST_F(SimpleBufferCache, GetReadBasic)
 TEST_F(SimpleBufferCache, GetTwice)
 {
     boost::compute::event event;
+    boost::compute::wait_list wait_list;
+    Measurement::Measurement measurement;
     Clustering::BufferCache::BufferList buffers;
     int ret = 0;
     uint32_t *begin = &data_object[0];
     uint32_t *end = &data_object[buffer_ints];
 
-    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
+    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
 
     // Test without unlocking, should fail
-    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
+    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_GT(0, ret);
 
     // Unlock, then try to get again
-    ret = buffer_cache.unlock(queue, object_id, buffers, event);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
-    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
+    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
 }
@@ -263,6 +278,8 @@ TEST_F(SimpleBufferCache, GetTwice)
 TEST_F(SimpleBufferCache, GetReadDeadBeef)
 {
     boost::compute::event event;
+    boost::compute::wait_list wait_list;
+    Measurement::Measurement measurement;
     Clustering::BufferCache::BufferList buffers;
     int ret = 0;
     uint32_t *begin = &data_object[0];
@@ -271,13 +288,13 @@ TEST_F(SimpleBufferCache, GetReadDeadBeef)
     for (auto& obj : data_object) {
         obj = 0xDEADBEEFu;
     }
-    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event);
+    ret = buffer_cache.get(queue, object_id, begin, end, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
     for (auto& obj : data_object) {
         obj = 0xCAFED00Du;
     }
-    ret = buffer_cache.read(queue, object_id, begin, end, event);
+    ret = buffer_cache.read(queue, object_id, begin, end, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
     uint32_t failed_fields = 0;
@@ -290,7 +307,7 @@ TEST_F(SimpleBufferCache, GetReadDeadBeef)
         }
     }
     EXPECT_EQ(0u, failed_fields);
-    ret = buffer_cache.unlock(queue, object_id, buffers, event);
+    ret = buffer_cache.unlock(queue, object_id, buffers, event, wait_list, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
     event.wait();
 }
@@ -307,6 +324,8 @@ TEST_F(SimpleBufferCache, ParallelWrites)
     uint32_t *start_ptr[DUAL_QUEUE], *end_ptr[DUAL_QUEUE];
     Clustering::BufferCache::BufferList buffers[DUAL_QUEUE];
     bc::event event[DUAL_QUEUE];
+    boost::compute::wait_list wait_list[DUAL_QUEUE];
+    Measurement::Measurement measurement;
 
     for (auto& obj : data_object) {
         obj = 0xDEADBEEFu;
@@ -335,7 +354,9 @@ TEST_F(SimpleBufferCache, ParallelWrites)
                     start_ptr[0],
                     end_ptr[0],
                     buffers[0],
-                    event[0]
+                    event[0],
+                    wait_list[0],
+                    measurement.add_datapoint()
                     ));
 
         if (start_ptr[1] < end_ptr[1]) {
@@ -347,7 +368,9 @@ TEST_F(SimpleBufferCache, ParallelWrites)
                         start_ptr[1],
                         end_ptr[1],
                         buffers[1],
-                        event[1]
+                        event[1],
+                        wait_list[1],
+                        measurement.add_datapoint()
                         ));
 
             event[1].wait();
@@ -361,7 +384,9 @@ TEST_F(SimpleBufferCache, ParallelWrites)
                         dualq[1],
                         object_id,
                         buffers[1],
-                        event[1]
+                        event[1],
+                        wait_list[1],
+                        measurement.add_datapoint()
                         ));
             event[1].wait();
         }
@@ -377,7 +402,9 @@ TEST_F(SimpleBufferCache, ParallelWrites)
                 dualq[0],
                 object_id,
                 buffers[0],
-                event[0]
+                event[0],
+                wait_list[0],
+                measurement.add_datapoint()
                 ));
         event[0].wait();
     }
@@ -400,7 +427,9 @@ TEST_F(SimpleBufferCache, ParallelWrites)
                     object_id,
                     start_ptr[0],
                     end_ptr[0],
-                    event[0]
+                    event[0],
+                    wait_list[0],
+                    measurement.add_datapoint()
                     ));
     }
 

@@ -7,8 +7,10 @@
  * Copyright (c) 2017, Lutz, Clemens <lutzcle@cml.li>
  */
 
+#include "timer.hpp"
 #include "simple_buffer_cache.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -112,8 +114,10 @@ void SimpleBufferCache::object(uint32_t oid, void *& data_object, size_t& length
     length = obj.size;
 }
 
-int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list)
+int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint)
 {
+    datapoint.set_name("BufferCache::get");
+
     char *cbegin = (char*) begin, *cend = (char*) end;
     size_t size = cend - cbegin;
 
@@ -141,7 +145,7 @@ int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, Bu
     auto cache_slot = find_cache_slot(device_id, oid, buffer_id);
     if (cache_slot == -2) {
         // Case: not yet in cache
-        return write_and_get(queue, oid, begin, end, buffers, event, wait_list);
+        return write_and_get(queue, oid, begin, end, buffers, event, wait_list, datapoint.create_child());
     }
     else if (cache_slot < 0) {
         // Case: other error
@@ -161,8 +165,10 @@ int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, Bu
     return 1;
 }
 
-int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list)
+int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint)
 {
+    datapoint.set_name("BufferCache::write_and_get");
+
     char *cbegin = (char*) begin, *cend = (char*) end;
     size_t size = cend - cbegin;
 
@@ -196,7 +202,7 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
         return -1;
     }
 
-    if (evict_cache_slot(queue, device_id, cache_slot, event, wait_list) < 0) {
+    if (evict_cache_slot(queue, device_id, cache_slot, event, wait_list, datapoint.create_child()) < 0) {
         std::cerr << "write_and_get: cannot evict cache slot " << cache_slot << std::endl;
         return -1;
     }
@@ -207,13 +213,21 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     else {
         wait_list.wait();
     }
+
+    Timer::Timer memcpy_timer;
+    memcpy_timer.start();
     std::memcpy(host_ptr, begin, size);
+    uint64_t memcpy_time = memcpy_timer
+        .stop<std::chrono::nanoseconds>();
+    datapoint.add_value() = memcpy_time;
+
     event = queue.enqueue_write_buffer_async(
             device_buffer,
             0,
             size,
             host_ptr
             );
+    datapoint.add_event() = event;
 
     buffers.clear();
     buffers.push_back({device_buffer, size, buffer_id});
@@ -226,8 +240,10 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     return 1;
 }
 
-int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, Event& event, WaitList const& wait_list)
+int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint)
 {
+    datapoint.set_name("BufferCache:read");
+
     char *cbegin = (char*) begin, *cend = (char*) end;
     size_t size = cend - cbegin;
 
@@ -283,8 +299,15 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
             host_ptr,
             wait_list
             );
+    datapoint.add_event() = read_event;
     read_event.wait();
+
+    Timer::Timer memcpy_timer;
+    memcpy_timer.start();
     std::memcpy(begin, host_ptr, size);
+    uint64_t memcpy_time = memcpy_timer
+        .stop<std::chrono::nanoseconds>();
+    datapoint.add_value() = memcpy_time;
 
     // TODO: make asynchronous and set event = read_event instead of calling wait()
     // event = read_event;
@@ -292,8 +315,10 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
     return 1;
 }
 
-int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list)
+int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint)
 {
+    datapoint.set_name("SimpleBufferCache::evict_cache_slot");
+
     DeviceInfo& devinfo = device_info_i[device_id];
     int64_t& object_id = devinfo.cached_object_id[cache_slot];
     int64_t& buffer_id = devinfo.cached_buffer_id[cache_slot];
@@ -321,7 +346,8 @@ int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_
             cached_ptr,
             ((char*)cached_ptr) + content_length,
             event,
-            wait_list
+            wait_list,
+            datapoint.create_child()
         );
     if (ret < 0) {
         std::cerr << "evict_cache_slot: write-back error" << std::endl;
@@ -358,8 +384,10 @@ int SimpleBufferCache::try_lock(uint32_t device_id, uint32_t cache_slot)
     }
 }
 
-int SimpleBufferCache::unlock(Queue queue, uint32_t oid, BufferList const& buffers, Event&, WaitList const&)
+int SimpleBufferCache::unlock(Queue queue, uint32_t oid, BufferList const& buffers, Event&, WaitList const&, Measurement::DataPoint& datapoint)
 {
+    datapoint.set_name("BufferCache::unlock");
+
     Device device = queue.get_device();
     int64_t dev_id = find_device_id(device);
     if (dev_id < 0) {

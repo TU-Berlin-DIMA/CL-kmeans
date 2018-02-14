@@ -13,9 +13,12 @@
 #include <deque>
 #include <iostream>
 
+#include <boost/compute/wait_list.hpp>
+
 #define VERBOSE false
 
 using namespace Clustering;
+namespace bc = boost::compute;
 
 using sds = SingleDeviceScheduler;
 
@@ -162,6 +165,7 @@ int sds::run()
 int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t index)
 {
     int ret = 0;
+    bc::wait_list dummy_wait_list;
 
     void *object_vptr = nullptr;
     char *object_ptr = nullptr;
@@ -188,7 +192,6 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
 
     events.emplace_back();
     Event& transfer_event = events.back();
-
     ret = buffer_cache.get(
             queue,
             object_id,
@@ -196,7 +199,9 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
             object_ptr + end_offset,
             buffers,
             // TODO: convert to datapoint->create_child()
-            transfer_event
+            transfer_event,
+            dummy_wait_list,
+            datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
@@ -218,7 +223,9 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
             object_id,
             buffers,
             // TODO: convert to datapoint->create_child()
-            unlock_event
+            unlock_event,
+            dummy_wait_list,
+            datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
@@ -263,6 +270,7 @@ int64_t sds::BinaryRunnable::register_buffers(BufferCache& buffer_cache)
 int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t index)
 {
     int ret = 0;
+    bc::wait_list dummy_wait_list;
 
     void *fst_object_vptr = nullptr, *snd_object_vptr = nullptr;
     char *fst_object_ptr = nullptr, *snd_object_ptr = nullptr;
@@ -303,7 +311,9 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
             fst_object_ptr + fst_end_offset,
             fst_buffers,
             // TODO: convert to datapoint->create_child()
-            fst_transfer_event
+            fst_transfer_event,
+            dummy_wait_list,
+            datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
@@ -318,7 +328,9 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
             snd_object_ptr + snd_end_offset,
             snd_buffers,
             // TODO: convert to datapoint->create_child()
-            snd_transfer_event
+            snd_transfer_event,
+            dummy_wait_list,
+            datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
@@ -344,7 +356,9 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
             fst_object_id,
             fst_buffers,
             // TODO: convert to datapoint->create_child()
-            fst_unlock_event
+            fst_unlock_event,
+            dummy_wait_list,
+            datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
@@ -357,7 +371,9 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
             snd_object_id,
             snd_buffers,
             // TODO: convert to datapoint->create_child()
-            snd_unlock_event
+            snd_unlock_event,
+            dummy_wait_list,
+            datapoint->create_child()
             );
     if (ret < 0) {
         return -1;

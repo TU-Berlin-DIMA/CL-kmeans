@@ -273,6 +273,7 @@ public:
                 )
             {
                 boost::compute::event labels_read_event;
+                boost::compute::wait_list labels_read_wait_list;
                 auto iter_step = (iter + labels_content_size > end)
                     ? end
                     : iter + labels_content_size
@@ -284,7 +285,9 @@ public:
                             labels_handle,
                             iter,
                             iter_step,
-                            labels_read_event
+                            labels_read_event,
+                            labels_read_wait_list,
+                            this->measurement->add_datapoint()
                             ));
             }
         }

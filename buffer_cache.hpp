@@ -19,6 +19,8 @@
 #include <boost/compute/command_queue.hpp>
 #include <boost/compute/utility/wait_list.hpp>
 
+#include "measurement/measurement.hpp"
+
 namespace Clustering {
 
 enum class ObjectMode {
@@ -103,7 +105,7 @@ public:
      *
      * Returns 1 if successful, negative value if unsuccessful.
      */
-    virtual int get(Queue queue, uint32_t object_id, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list = WaitList()) = 0;
+    virtual int get(Queue queue, uint32_t object_id, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint) = 0;
 
     /*
      * Asynchronously write buffer at offset from host to device and get locked buffer at location of pointer.
@@ -111,14 +113,14 @@ public:
      *
      * Returns 1 if successful, negative value if unsucessful.
      */
-    virtual int write_and_get(Queue queue, uint32_t object_id, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list = WaitList()) = 0;
+    virtual int write_and_get(Queue queue, uint32_t object_id, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint) = 0;
 
     /*
      * Asynchronously read buffer at location of pointer from device to host.
      *
      * Returns 1 if successful, negative value if unsuccessful.
      */
-    virtual int read(Queue queue, uint32_t object_id, void *begin, void *end, Event& event, WaitList const& wait_list = WaitList()) = 0;
+    virtual int read(Queue queue, uint32_t object_id, void *begin, void *end, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint) = 0;
 
     /*
      * Asynchronously write buffer at location of pointer from src device to dst device and get locked buffer at offset.
@@ -126,12 +128,12 @@ public:
      *
      * Returns 1 if successful, negative value if unsuccessful.
      */
-    virtual int sync_and_get(Queue dst, Queue src, uint32_t object_id, void *begin, void *end, Event& event, WaitList const& wait_list = WaitList()) = 0;
+    virtual int sync_and_get(Queue dst, Queue src, uint32_t object_id, void *begin, void *end, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint) = 0;
 
     /*
      * Locking prevents eviction of buffer at location of pointer on device. Necessary during kernel execution.
      */
-    virtual int unlock(Queue queue, uint32_t object_id, BufferList const& buffers, Event& event, WaitList const& wait_list = WaitList()) = 0;
+    virtual int unlock(Queue queue, uint32_t object_id, BufferList const& buffers, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint) = 0;
 
 protected:
 

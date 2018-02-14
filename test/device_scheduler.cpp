@@ -295,6 +295,7 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
     int ret = 0;
     std::future<std::deque<bc::event>> zero_fevents, inc_fevents;
     Measurement::Measurement measurement;
+    bc::wait_list dummy_wait_list;
 
     ret = scheduler->enqueue(dsenv->zero_f, fst_object_id, buffer_size, zero_fevents, measurement.add_datapoint());
     ASSERT_EQ(true, ret);
@@ -316,7 +317,9 @@ TEST_F(SingleDeviceScheduler, RunUnaryAndRead)
                 fst_object_id,
                 &fst_data_object[offset],
                 &fst_data_object[offset + num_ints],
-                read_event
+                read_event,
+                dummy_wait_list,
+                measurement.add_datapoint()
                 );
         ASSERT_EQ(true, ret);
     }
@@ -339,6 +342,7 @@ TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
     int ret = 0;
     std::future<std::deque<bc::event>> copy_fevents;
     Measurement::Measurement measurement;
+    bc::wait_list dummy_wait_list;
 
     for (auto& obj : fst_data_object) {
         obj = 0x0EADBEEF;
@@ -361,7 +365,9 @@ TEST_F(SingleDeviceScheduler, RunBinaryAndRead)
                 fst_object_id,
                 &fst_data_object[offset],
                 &fst_data_object[offset + num_ints],
-                read_event
+                read_event,
+                dummy_wait_list,
+                measurement.add_datapoint()
                 );
         ASSERT_EQ(true, ret);
     }
@@ -384,6 +390,7 @@ TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
     int ret = 0;
     std::future<std::deque<bc::event>> copy_fevents;
     Measurement::Measurement measurement;
+    bc::wait_list dummy_wait_list;
 
     decltype(snd_data_object) dst_object(snd_data_object.size() / 2);
     auto dst_object_id = buffer_cache->add_object(
@@ -409,7 +416,9 @@ TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
                 dst_object_id,
                 &dst_object[offset],
                 &dst_object[offset + num_ints],
-                read_event
+                read_event,
+                dummy_wait_list,
+                measurement.add_datapoint()
                 );
         ASSERT_EQ(true, ret);
     }
