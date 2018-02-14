@@ -207,14 +207,16 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
         return -1;
     }
     auto& bdesc = buffers.front();
-    events.emplace_back();
-    events.back() = kernel_function(
+    Event kernel_event;
+    kernel_event = kernel_function(
             queue,
             0,
             bdesc.content_length,
             bdesc.buffer,
             *datapoint
             );
+    datapoint->add_event() = kernel_event;
+    events.push_back(kernel_event);
 
     events.emplace_back();
     Event& unlock_event = events.back();
@@ -338,8 +340,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
 
     auto& fst_bdesc = fst_buffers.front();
     auto& snd_bdesc = snd_buffers.front();
-    events.emplace_back();
-    events.back() = kernel_function(
+    Event kernel_event;
+    kernel_event = kernel_function(
             queue,
             0,
             fst_bdesc.content_length,
@@ -348,6 +350,8 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
             snd_bdesc.buffer,
             *datapoint
             );
+    datapoint->add_event() = kernel_event;
+    events.push_back(kernel_event);
 
     events.emplace_back();
     Event& fst_unlock_event = events.back();
