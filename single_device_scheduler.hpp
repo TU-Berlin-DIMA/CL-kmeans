@@ -72,16 +72,36 @@ namespace Clustering {
             std::array<Queue, 2> qpair;
         } device_info_i;
 
+        struct RState {
+            Queue queue;
+
+            protected:
+                virtual void dummy_func() {}
+        };
+
+        struct UnaryRState : public RState {
+            BufferCache::BufferList active_buffers;
+        };
+
+        struct BinaryRState : public RState {
+            BufferCache::BufferList fst_active_buffers;
+            BufferCache::BufferList snd_active_buffers;
+        };
+
         struct Runnable {
             virtual int64_t register_buffers(BufferCache& buffer_cache) = 0;
-            virtual int run(Queue queue, BufferCache& buffer_cache, uint32_t index) = 0;
-            virtual int finish() = 0;
+            virtual std::unique_ptr<RState> create_rstate(Queue queue) = 0;
+            virtual int run(RState *rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event) = 0;
+            virtual int finish(RState *rstate, BufferCache& buffer_cache) = 0;
+            virtual int teardown() = 0;
         };
 
         struct UnaryRunnable : public Runnable {
             int64_t register_buffers(BufferCache& buffer_cache);
-            int run(Queue queue, BufferCache& buffer_cache, uint32_t index);
-            int finish();
+            std::unique_ptr<RState> create_rstate(Queue queue);
+            int run(RState *rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event);
+            int finish(RState *rstate, BufferCache& buffer_cache);
+            int teardown();
             FunUnary kernel_function;
             uint32_t object_id;
             size_t step;
@@ -93,8 +113,10 @@ namespace Clustering {
 
         struct BinaryRunnable : public Runnable {
             int64_t register_buffers(BufferCache& buffer_cache);
-            int run(Queue queue, BufferCache& buffer_cache, uint32_t index);
-            int finish();
+            std::unique_ptr<RState> create_rstate(Queue queue);
+            int run(RState *rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event);
+            int finish(RState *rstate, BufferCache& buffer_cache);
+            int teardown();
             FunBinary kernel_function;
             uint32_t fst_object_id;
             uint32_t snd_object_id;

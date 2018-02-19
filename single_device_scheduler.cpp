@@ -131,15 +131,37 @@ int sds::run()
     }
 
     uint32_t current_queue = 0;
+    std::deque<std::unique_ptr<RState>> active_rstates;
     for (uint32_t current_index = 0u; current_index < num_buffers; ++current_index) {
 
         Queue& queue = device_info_i.qpair[current_queue];
 
         for (auto& runnable : run_queue_i) {
-            auto ret = runnable->run(queue, *buffer_cache_i, current_index);
-            if (ret < 0) {
+            if (VERBOSE) {
+                std::cout << "[Run] Schedule job on queue " << current_queue << std::endl;
+            }
+
+            Event run_event;
+            std::unique_ptr<RState> rstate_ptr = runnable->create_rstate(queue);
+
+            // TODO: run a small pipeline of jobs and manage cache
+            //
+            // for (3 runnables per queue)
+            // runnable->run()
+            //
+            // for (first runnable on each queue)
+            // runnable->finish()
+            // if (next_runnable)
+            // next_runnable->run()
+            //
+            if (runnable->run(rstate_ptr.get(), *buffer_cache_i, current_index, run_event) < 0) {
                 return -1;
             }
+            if (runnable->finish(rstate_ptr.get(), *buffer_cache_i) < 0) {
+                return -1;
+            }
+
+            active_rstates.push_back(std::move(rstate_ptr));
         }
 
     //     // TODO: dual-queue scheduling
@@ -147,8 +169,7 @@ int sds::run()
     }
 
     for (auto& runnable : run_queue_i) {
-        auto ret = runnable->finish();
-        if (ret < 0) {
+        if (runnable->teardown() < 0) {
             return -1;
         }
     }
@@ -162,18 +183,23 @@ int sds::run()
     return 1;
 }
 
-int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t index)
+int sds::UnaryRunnable::run(RState *rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event)
 {
     int ret = 0;
     bc::wait_list dummy_wait_list;
 
+    UnaryRState *urstate = dynamic_cast<UnaryRState*>(rstate);
+    if (not this->datapoint) {
+        std::cerr << "[UnaryRunnable::run] nullptr error converting RState" << std::endl;
+        return -1;
+    }
+
     void *object_vptr = nullptr;
     char *object_ptr = nullptr;
     size_t object_size = 0;
-    buffer_cache.object(object_id, object_vptr, object_size);
+    buffer_cache.object(this->object_id, object_vptr, object_size);
     object_ptr = (char*) object_vptr;
 
-    BufferCache::BufferList buffers;
     size_t offset = step * index;
 
     size_t end_offset = (offset + step < object_size)
@@ -193,45 +219,28 @@ int sds::UnaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t ind
     events.emplace_back();
     Event& transfer_event = events.back();
     ret = buffer_cache.get(
-            queue,
-            object_id,
+            urstate->queue,
+            this->object_id,
             object_ptr + offset,
             object_ptr + end_offset,
-            buffers,
-            // TODO: convert to datapoint->create_child()
+            urstate->active_buffers,
             transfer_event,
             dummy_wait_list,
-            datapoint->create_child()
+            this->datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
     }
-    auto& bdesc = buffers.front();
-    Event kernel_event;
-    kernel_event = kernel_function(
-            queue,
+    auto& bdesc = urstate->active_buffers.front();
+    last_event = kernel_function(
+            urstate->queue,
             0,
             bdesc.content_length,
             bdesc.buffer,
-            *datapoint
+            *this->datapoint
             );
-    datapoint->add_event() = kernel_event;
-    events.push_back(kernel_event);
-
-    events.emplace_back();
-    Event& unlock_event = events.back();
-    ret = buffer_cache.unlock(
-            queue,
-            object_id,
-            buffers,
-            // TODO: convert to datapoint->create_child()
-            unlock_event,
-            dummy_wait_list,
-            datapoint->create_child()
-            );
-    if (ret < 0) {
-        return -1;
-    }
+    this->datapoint->add_event() = last_event;
+    events.push_back(last_event);
 
     return 1;
 }
@@ -247,7 +256,45 @@ int64_t sds::UnaryRunnable::register_buffers(BufferCache& buffer_cache)
     return (object_size + step - 1) / step;
 }
 
-int sds::UnaryRunnable::finish()
+std::unique_ptr<sds::RState> sds::UnaryRunnable::create_rstate(Queue queue)
+{
+    auto urstate_ptr = new UnaryRState;
+    urstate_ptr->queue = queue;
+    std::unique_ptr<RState> rstate_ptr(urstate_ptr);
+
+    return rstate_ptr;
+}
+
+int sds::UnaryRunnable::finish(RState *rstate, BufferCache& buffer_cache)
+{
+    int ret = 0;
+    bc::wait_list dummy_wait_list;
+
+    UnaryRState *urstate = dynamic_cast<UnaryRState*>(rstate);
+    if (not this->datapoint) {
+        std::cerr << "[UnaryRunnable::finish] nullptr error converting RState" << std::endl;
+        return -1;
+    }
+
+    events.emplace_back();
+    Event& unlock_event = events.back();
+    ret = buffer_cache.unlock(
+            urstate->queue,
+            this->object_id,
+            urstate->active_buffers,
+            unlock_event,
+            dummy_wait_list,
+            this->datapoint->create_child()
+            );
+
+    if (ret < 0) {
+        return -1;
+    }
+
+    return 1;
+}
+
+int sds::UnaryRunnable::teardown()
 {
     events_promise.set_value(std::move(events));
 
@@ -269,20 +316,34 @@ int64_t sds::BinaryRunnable::register_buffers(BufferCache& buffer_cache)
     return (fst_num == snd_num) ? fst_num : -1;
 }
 
-int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t index)
+std::unique_ptr<sds::RState> sds::BinaryRunnable::create_rstate(Queue queue)
+{
+    auto brstate_ptr = new BinaryRState;
+    brstate_ptr->queue = queue;
+    std::unique_ptr<RState> rstate_ptr(brstate_ptr);
+
+    return rstate_ptr;
+}
+
+int sds::BinaryRunnable::run(RState *rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event)
 {
     int ret = 0;
     bc::wait_list dummy_wait_list;
 
+    BinaryRState *brstate = dynamic_cast<BinaryRState*>(rstate);
+    if (not this->datapoint) {
+        std::cerr << "[BinaryRunnable::run] nullptr error converting RState" << std::endl;
+        return -1;
+    }
+
     void *fst_object_vptr = nullptr, *snd_object_vptr = nullptr;
     char *fst_object_ptr = nullptr, *snd_object_ptr = nullptr;
     size_t fst_object_size = 0, snd_object_size = 0;
-    buffer_cache.object(fst_object_id, fst_object_vptr, fst_object_size);
-    buffer_cache.object(snd_object_id, snd_object_vptr, snd_object_size);
+    buffer_cache.object(this->fst_object_id, fst_object_vptr, fst_object_size);
+    buffer_cache.object(this->snd_object_id, snd_object_vptr, snd_object_size);
     fst_object_ptr = (char*) fst_object_vptr;
     snd_object_ptr = (char*) snd_object_vptr;
 
-    BufferCache::BufferList fst_buffers, snd_buffers;
     auto fst_offset = fst_step * index;
     auto snd_offset = snd_step * index;
 
@@ -307,15 +368,14 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
     events.emplace_back();
     Event& fst_transfer_event = events.back();
     ret = buffer_cache.get(
-            queue,
-            fst_object_id,
+            brstate->queue,
+            this->fst_object_id,
             fst_object_ptr + fst_offset,
             fst_object_ptr + fst_end_offset,
-            fst_buffers,
-            // TODO: convert to datapoint->create_child()
+            brstate->fst_active_buffers,
             fst_transfer_event,
             dummy_wait_list,
-            datapoint->create_child()
+            this->datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
@@ -324,45 +384,56 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
     events.emplace_back();
     Event& snd_transfer_event = events.back();
     ret = buffer_cache.get(
-            queue,
-            snd_object_id,
+            brstate->queue,
+            this->snd_object_id,
             snd_object_ptr + snd_offset,
             snd_object_ptr + snd_end_offset,
-            snd_buffers,
-            // TODO: convert to datapoint->create_child()
+            brstate->snd_active_buffers,
             snd_transfer_event,
             dummy_wait_list,
-            datapoint->create_child()
+            this->datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
     }
 
-    auto& fst_bdesc = fst_buffers.front();
-    auto& snd_bdesc = snd_buffers.front();
-    Event kernel_event;
-    kernel_event = kernel_function(
-            queue,
+    auto& fst_bdesc = brstate->fst_active_buffers.front();
+    auto& snd_bdesc = brstate->snd_active_buffers.front();
+    last_event = kernel_function(
+            brstate->queue,
             0,
             fst_bdesc.content_length,
             snd_bdesc.content_length,
             fst_bdesc.buffer,
             snd_bdesc.buffer,
-            *datapoint
+            *this->datapoint
             );
-    datapoint->add_event() = kernel_event;
-    events.push_back(kernel_event);
+    this->datapoint->add_event() = last_event;
+    events.push_back(last_event);
+
+    return 1;
+}
+
+int sds::BinaryRunnable::finish(RState *rstate, BufferCache& buffer_cache)
+{
+    int ret = 0;
+    bc::wait_list dummy_wait_list;
+
+    BinaryRState *brstate = dynamic_cast<BinaryRState*>(rstate);
+    if (not this->datapoint) {
+        std::cerr << "[BinaryRunnable::finish] nullptr error converting RState" << std::endl;
+        return -1;
+    }
 
     events.emplace_back();
     Event& fst_unlock_event = events.back();
     ret = buffer_cache.unlock(
-            queue,
-            fst_object_id,
-            fst_buffers,
-            // TODO: convert to datapoint->create_child()
+            brstate->queue,
+            this->fst_object_id,
+            brstate->fst_active_buffers,
             fst_unlock_event,
             dummy_wait_list,
-            datapoint->create_child()
+            this->datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
@@ -371,13 +442,12 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
     events.emplace_back();
     Event& snd_unlock_event = events.back();
     ret = buffer_cache.unlock(
-            queue,
-            snd_object_id,
-            snd_buffers,
-            // TODO: convert to datapoint->create_child()
+            brstate->queue,
+            this->snd_object_id,
+            brstate->snd_active_buffers,
             snd_unlock_event,
             dummy_wait_list,
-            datapoint->create_child()
+            this->datapoint->create_child()
             );
     if (ret < 0) {
         return -1;
@@ -386,7 +456,7 @@ int sds::BinaryRunnable::run(Queue queue, BufferCache& buffer_cache, uint32_t in
     return 1;
 }
 
-int sds::BinaryRunnable::finish()
+int sds::BinaryRunnable::teardown()
 {
     events_promise.set_value(std::move(events));
 
