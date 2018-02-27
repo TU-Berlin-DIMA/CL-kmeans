@@ -53,11 +53,17 @@ private:
     uint32_t static constexpr DoubleBuffering = 2u;
 
     struct DeviceInfo {
+        struct SlotLock {
+            enum SlotLockStatus { Free = 0, ReadLock, WriteLock };
+            SlotLockStatus status;
+            uint32_t count;
+        };
+
         Context context;
         Device device;
         size_t pool_size;
         size_t num_slots;
-        std::vector<int> slot_lock;
+        std::vector<SlotLock> slot_lock;
         std::vector<int64_t> cached_object_id;
         std::vector<int64_t> cached_buffer_id;
         std::vector<void*> cached_ptr;
@@ -77,7 +83,8 @@ private:
     std::vector<ObjectInfo> object_info_i;
 
     int evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint);
-    int try_lock(uint32_t device_id, uint32_t cache_slot);
+    int try_read_lock(uint32_t device_id, uint32_t cache_slot);
+    int try_write_lock(uint32_t device_id, uint32_t cache_slot);
     int64_t find_device_id(Device device);
     int64_t find_buffer_id(uint32_t device_id, uint32_t oid, void *ptr);
     int64_t find_cache_slot(uint32_t device_id, uint32_t oid, uint32_t buffer_id);

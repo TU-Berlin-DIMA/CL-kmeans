@@ -56,7 +56,7 @@ int SimpleBufferCache::add_device(Context context, Device device, size_t pool_si
     info.device = device;
     info.pool_size = pool_size;
     info.num_slots = num_cache_slots;
-    info.slot_lock.resize(num_cache_slots, 0);
+    info.slot_lock.resize(num_cache_slots, {});
     info.cached_object_id.resize(num_cache_slots, -1);
     info.cached_buffer_id.resize(num_cache_slots, -1);
     info.cached_ptr.resize(num_cache_slots, nullptr);
@@ -154,8 +154,8 @@ int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, Bu
     }
 
     // Case: in cache
-    if(try_lock(device_id, cache_slot) < 0) {
-        std::cerr << "get: try_lock error" << std::endl;
+    if(try_read_lock(device_id, cache_slot) < 0) {
+        std::cerr << "get: try_read_lock error" << std::endl;
         return -1;
     }
     auto& device_info = device_info_i[device_id];
@@ -196,7 +196,7 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     void *host_ptr = device_info.host_ptr[cache_slot];
     auto& device_buffer = device_info.device_buffer[cache_slot];
 
-    auto locked = try_lock(device_id, cache_slot);
+    auto locked = try_write_lock(device_id, cache_slot);
     if (locked != 1) {
         std::cerr << "write_and_get: cannot lock cache slot " << cache_slot << std::endl;
         return -1;
@@ -362,21 +362,52 @@ int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_
     return 1;
 }
 
-int SimpleBufferCache::try_lock(uint32_t device_id, uint32_t cache_slot)
+int SimpleBufferCache::try_read_lock(uint32_t device_id, uint32_t cache_slot)
 {
     DeviceInfo& dev = device_info_i[device_id];
     if (cache_slot >= dev.num_slots) {
-        std::cerr << "try_lock: invalid cache slot " << cache_slot << std::endl;
+        std::cerr << "try_read_lock: invalid cache slot " << cache_slot << std::endl;
         return -1;
     }
 
     if (VERBOSE) {
-        std::cerr << "try_lock: DID " << device_id << " SlotID " << cache_slot << std::endl;
+        std::cerr << "try_read_lock: DID " << device_id << " SlotID " << cache_slot << std::endl;
     }
 
     auto& lock = dev.slot_lock[cache_slot];
-    if (not lock) {
-        lock = 1;
+    if (lock.status == DeviceInfo::SlotLock::Free) {
+        lock.status = DeviceInfo::SlotLock::ReadLock;
+        lock.count = 1;
+
+        return 1;
+    }
+    else if (lock.status == DeviceInfo::SlotLock::ReadLock) {
+        ++lock.count;
+
+        return 1;
+    }
+    else {
+        return -1;
+    }
+}
+
+int SimpleBufferCache::try_write_lock(uint32_t device_id, uint32_t cache_slot)
+{
+    DeviceInfo& dev = device_info_i[device_id];
+    if (cache_slot >= dev.num_slots) {
+        std::cerr << "try_write_lock: invalid cache slot " << cache_slot << std::endl;
+        return -1;
+    }
+
+    if (VERBOSE) {
+        std::cerr << "try_write_lock: DID " << device_id << " SlotID " << cache_slot << std::endl;
+    }
+
+    auto& lock = dev.slot_lock[cache_slot];
+    if (lock.status == DeviceInfo::SlotLock::Free) {
+        lock.status = DeviceInfo::SlotLock::WriteLock;
+        lock.count = 1;
+
         return 1;
     }
     else {
@@ -416,7 +447,24 @@ int SimpleBufferCache::unlock(Queue queue, uint32_t oid, BufferList const& buffe
         std::cerr << "unlock: OID " << oid << " BID " << buf_id << " DID " << dev_id << " SlotID " << slot_id << std::endl;
     }
 
-    dev.slot_lock[slot_id] = 0;
+    auto& lock = dev.slot_lock[slot_id];
+    if (lock.status == DeviceInfo::SlotLock::ReadLock) {
+        if (lock.count == 1) {
+            lock.status = DeviceInfo::SlotLock::Free;
+            lock.count = 0;
+        }
+        else {
+            --lock.count;
+        }
+    }
+    else if (lock.status == DeviceInfo::SlotLock::WriteLock) {
+        lock.status = DeviceInfo::SlotLock::Free;
+        lock.count = 0;
+    }
+    else {
+        std::cerr << "unlock: invalid lock state error" << std::endl;
+        return -1;
+    }
 
     return 1;
 }
@@ -490,9 +538,9 @@ int64_t SimpleBufferCache::assign_cache_slot(uint32_t device_id, uint32_t oid, u
 
     auto& dev = device_info_i[device_id];
     uint32_t base_slot = (oid - 1) * DoubleBuffering;
-    uint32_t slot = (dev.slot_lock[base_slot] == false) ? base_slot : base_slot + 1;
+    uint32_t slot = (dev.slot_lock[base_slot].status == DeviceInfo::SlotLock::Free) ? base_slot : base_slot + 1;
 
-    if (dev.slot_lock[slot] == true) {
+    if (dev.slot_lock[slot].status != DeviceInfo::SlotLock::Free) {
         std::cerr << "assign_cache_slot: cannot find free cache slot" << std::endl;
         return -1;
     }
