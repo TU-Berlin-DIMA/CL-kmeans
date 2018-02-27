@@ -73,6 +73,7 @@ namespace Clustering {
         } device_info_i;
 
         struct RState {
+            virtual ~RState() {};
             Queue queue;
 
             protected:
@@ -80,10 +81,12 @@ namespace Clustering {
         };
 
         struct UnaryRState : public RState {
+            ~UnaryRState() {}
             BufferCache::BufferList active_buffers;
         };
 
         struct BinaryRState : public RState {
+            ~BinaryRState() {}
             BufferCache::BufferList fst_active_buffers;
             BufferCache::BufferList snd_active_buffers;
         };

@@ -131,10 +131,36 @@ int sds::run()
     }
 
     uint32_t current_queue = 0;
-    std::deque<std::unique_ptr<RState>> active_rstates;
+    std::deque<std::vector<std::unique_ptr<RState>>> active_rstates;
     for (uint32_t current_index = 0u; current_index < num_buffers; ++current_index) {
 
+        if (active_rstates.size() >= device_info_i.qpair.size()) {
+
+            auto& first_rstate = active_rstates.front();
+
+            for (
+                    auto iter = std::make_pair(
+                        run_queue_i.begin(),
+                        first_rstate.begin()
+                        );
+                    iter.first != run_queue_i.end()
+                    && iter.second != first_rstate.end();
+                    ++iter.first, ++iter.second
+                )
+            {
+                auto& runnable = *iter.first;
+                auto& rstate_ptr = *iter.second;
+                if (runnable->finish(rstate_ptr.get(), *buffer_cache_i) < 0) {
+                    return -1;
+                }
+            }
+
+            active_rstates.pop_front();
+        }
+
         Queue& queue = device_info_i.qpair[current_queue];
+        decltype(active_rstates)::value_type new_active_rstate;
+        new_active_rstate.reserve(run_queue_i.size());
 
         for (auto& runnable : run_queue_i) {
             if (VERBOSE) {
@@ -144,28 +170,40 @@ int sds::run()
             Event run_event;
             std::unique_ptr<RState> rstate_ptr = runnable->create_rstate(queue);
 
-            // TODO: run a small pipeline of jobs and manage cache
-            //
-            // for (3 runnables per queue)
-            // runnable->run()
-            //
-            // for (first runnable on each queue)
-            // runnable->finish()
-            // if (next_runnable)
-            // next_runnable->run()
-            //
             if (runnable->run(rstate_ptr.get(), *buffer_cache_i, current_index, run_event) < 0) {
                 return -1;
             }
+
+            new_active_rstate.push_back(std::move(rstate_ptr));
+        }
+
+        active_rstates.push_back(std::move(new_active_rstate));
+
+        current_queue = (current_queue + 1) % device_info_i.qpair.size();
+    }
+
+    while (not active_rstates.empty()) {
+        auto& first_rstate = active_rstates.front();
+
+        for (
+                auto iter = std::make_pair(
+                    run_queue_i.begin(),
+                    first_rstate.begin()
+                    );
+                iter.first != run_queue_i.end()
+                && iter.second != first_rstate.end();
+                ++iter.first, ++iter.second
+            )
+        {
+            auto& runnable = *iter.first;
+            auto& rstate_ptr = *iter.second;
+
             if (runnable->finish(rstate_ptr.get(), *buffer_cache_i) < 0) {
                 return -1;
             }
-
-            active_rstates.push_back(std::move(rstate_ptr));
         }
 
-    //     // TODO: dual-queue scheduling
-        // current_queue = (current_queue + 1) % device_info_i.qpair.size();
+        active_rstates.pop_front();
     }
 
     for (auto& runnable : run_queue_i) {
