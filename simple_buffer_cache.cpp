@@ -240,7 +240,7 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     return 1;
 }
 
-int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint)
+int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, Event&, WaitList const& wait_list, Measurement::DataPoint& datapoint)
 {
     datapoint.set_name("BufferCache:read");
 
@@ -527,7 +527,7 @@ int64_t SimpleBufferCache::find_cache_slot(uint32_t device_id, uint32_t oid, uin
     return -2;
 }
 
-int64_t SimpleBufferCache::assign_cache_slot(uint32_t device_id, uint32_t oid, uint32_t bid)
+int64_t SimpleBufferCache::assign_cache_slot(uint32_t device_id, uint32_t oid, uint32_t /* bid */)
 {
     if (device_id >= device_info_i.size()) {
         return -1;
