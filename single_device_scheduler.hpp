@@ -12,6 +12,7 @@
 
 #include <buffer_cache.hpp>
 #include <device_scheduler.hpp>
+#include "measurement/measurement.hpp"
 
 #include <array>
 #include <functional>
@@ -25,8 +26,6 @@
 #include <boost/compute/context.hpp>
 #include <boost/compute/device.hpp>
 #include <boost/compute/event.hpp>
-
-#include "measurement/measurement.hpp"
 
 namespace Clustering {
     class SingleDeviceScheduler : public DeviceScheduler {
@@ -72,39 +71,35 @@ namespace Clustering {
             std::array<Queue, 2> qpair;
         } device_info_i;
 
-        struct RState {
-            virtual ~RState() {};
-            Queue queue;
+        class RState {
+        public:
+            RState(Queue queue);
+            Queue queue();
+            BufferCache::BufferList& active_buffers(uint32_t object_id);
+            int activate_buffers(uint32_t object_id, size_t runnable_step, BufferCache& buffer_cache, uint32_t index, std::deque<Event>& events, Measurement::DataPoint& datapoint);
+            int deactivate_buffers(uint32_t object_id, BufferCache& buffer_cache, std::deque<Event>& events, Measurement::DataPoint& datapoint);
 
-            protected:
-                virtual void dummy_func() {}
-        };
+        private:
+            Queue queue_i;
 
-        struct UnaryRState : public RState {
-            ~UnaryRState() {}
-            BufferCache::BufferList active_buffers;
-        };
-
-        struct BinaryRState : public RState {
-            ~BinaryRState() {}
-            BufferCache::BufferList fst_active_buffers;
-            BufferCache::BufferList snd_active_buffers;
+            // key: object_id, value: BufferList
+            std::map<uint32_t, BufferCache::BufferList> active_buffers_i;
         };
 
         struct Runnable {
             virtual int64_t register_buffers(BufferCache& buffer_cache) = 0;
-            virtual std::unique_ptr<RState> create_rstate(Queue queue) = 0;
-            virtual int run(RState *rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event) = 0;
-            virtual int finish(RState *rstate, BufferCache& buffer_cache) = 0;
-            virtual int teardown() = 0;
+            virtual int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index) = 0;
+            virtual int deactivate_buffers(RState& rstate, BufferCache& buffer_cache) = 0;
+            virtual int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event) = 0;
+            virtual int finish() = 0;
         };
 
         struct UnaryRunnable : public Runnable {
             int64_t register_buffers(BufferCache& buffer_cache);
-            std::unique_ptr<RState> create_rstate(Queue queue);
-            int run(RState *rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event);
-            int finish(RState *rstate, BufferCache& buffer_cache);
-            int teardown();
+            int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index);
+            int deactivate_buffers(RState& rstate, BufferCache& buffer_cache);
+            int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event);
+            int finish();
             FunUnary kernel_function;
             uint32_t object_id;
             size_t step;
@@ -116,10 +111,10 @@ namespace Clustering {
 
         struct BinaryRunnable : public Runnable {
             int64_t register_buffers(BufferCache& buffer_cache);
-            std::unique_ptr<RState> create_rstate(Queue queue);
-            int run(RState *rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event);
-            int finish(RState *rstate, BufferCache& buffer_cache);
-            int teardown();
+            int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index);
+            int deactivate_buffers(RState& rstate, BufferCache& buffer_cache);
+            int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event);
+            int finish();
             FunBinary kernel_function;
             uint32_t fst_object_id;
             uint32_t snd_object_id;
