@@ -93,8 +93,15 @@ public:
                 this->buffer_cache->add_device(
                     this->context,
                     this->queue.get_device(),
-                    this->queue.get_device().global_memory_size()
-                    - 64 * 1024 * 1024
+                    // TODO: remove this temporary fix
+                    // Underlaying problem is that we try allocate too
+                    // much pinned memory on host in SimpleBufferCache.
+                    // Instead, need to multiplex each pinned buffer among
+                    // multiple device buffers
+                    //
+                    // this->queue.get_device().global_memory_size()
+                    // - 64 * 1024 * 1024
+                    128 * 1024 * 1024
                     ));
         auto points_handle = this->buffer_cache->add_object(
                 (void*)this->host_points_partitioned.data(),
