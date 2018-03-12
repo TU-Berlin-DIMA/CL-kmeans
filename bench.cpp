@@ -47,7 +47,7 @@ class CmdOptions {
 public:
     int parse(int argc, char **argv) {
         char help_msg[] =
-            "Usage: " BENCH_NAME " [OPTION] [K] [FILE]\n"
+            "Usage: " BENCH_NAME " [OPTION] [FILE]\n"
             "Options"
             ;
 
