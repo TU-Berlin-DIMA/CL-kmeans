@@ -44,13 +44,14 @@ public:
     KmeansSingleStageBuffered() :
         AbstractKmeans<PointT, LabelT, MassT, ColMajor>()
     {
+    }
+
+    void run() {
+
         buffer_cache = std::make_shared<SimpleBufferCache>(
                 size_t(buffer_size)
                 );
         this->scheduler.add_buffer_cache(buffer_cache);
-    }
-
-    void run() {
 
         this->matrix_divide.prepare(
                 this->context,
