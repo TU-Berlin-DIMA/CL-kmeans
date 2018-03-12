@@ -242,7 +242,7 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
 
 int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, Event&, WaitList const& wait_list, Measurement::DataPoint& datapoint)
 {
-    datapoint.set_name("BufferCache:read");
+    datapoint.set_name("BufferCache::read");
 
     char *cbegin = (char*) begin, *cend = (char*) end;
     size_t size = cend - cbegin;
