@@ -3,7 +3,7 @@
 # obtain one at http://mozilla.org/MPL/2.0/.
 # 
 # 
-# Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+# Copyright (c) 2016-2018, Lutz, Clemens <lutzcle@cml.li>
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 SET(CMAKE_C_COMPILER clang)

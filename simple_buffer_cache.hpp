@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2017, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2017-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef SIMPLE_BUFFER_CACHE_HPP
