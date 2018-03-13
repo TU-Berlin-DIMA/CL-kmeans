@@ -21,6 +21,7 @@ char const *const timestamp_format = "%F-%H-%M-%S";
 
 char const *const experiment_file_suffix = "_expm";
 char const *const measurements_file_suffix = "_mnts";
+char const *const events_file_suffix = "_evnt";
 
 std::string Measurement::DataPoint::get_name() { return name_; }
 
@@ -51,6 +52,60 @@ uint64_t Measurement::DataPoint::get_value() {
   }
 
   return value;
+}
+
+size_t Measurement::DataPoint::num_events() {
+
+    if (not has_event_) {
+        return 0;
+    }
+    else {
+        return events_.size();
+    }
+}
+
+uint64_t Measurement::DataPoint::get_event_queued(size_t i) {
+
+    if (not has_event_ or i >= events_.size()) {
+        return 0;
+    }
+    else {
+        auto& e = events_[i];
+        return e.get_profiling_info<uint64_t>(Event::profiling_command_queued);
+    }
+}
+
+uint64_t Measurement::DataPoint::get_event_submit(size_t i) {
+
+    if (not has_event_ or i >= events_.size()) {
+        return 0;
+    }
+    else {
+        auto& e = events_[i];
+        return e.get_profiling_info<uint64_t>(Event::profiling_command_submit);
+    }
+}
+
+uint64_t Measurement::DataPoint::get_event_start(size_t i) {
+
+    if (not has_event_ or i >= events_.size()) {
+        return 0;
+    }
+    else {
+        auto& e = events_[i];
+        return e.get_profiling_info<uint64_t>(Event::profiling_command_start);
+    }
+}
+
+uint64_t Measurement::DataPoint::get_event_end(size_t i) {
+
+    if (not has_event_ or i >= events_.size()) {
+        return 0;
+    }
+    else {
+        auto& e = events_[i];
+        return e.get_profiling_info<uint64_t>(Event::profiling_command_end);
+    }
 }
 
 Measurement::Measurement::Measurement() {
@@ -134,6 +189,54 @@ void Measurement::Measurement::write_csv(std::string filename) {
     mf.close();
     mf.clear();
   }
+
+  {
+    std::string events_file =
+        format_filename(filename, experiment_id, events_file_suffix);
+    std::ofstream ef(events_file, std::ios_base::out | std::ios::trunc);
+
+    ef << "ExperimentID";
+    ef << ',';
+    ef << "Run";
+    ef << ',';
+    ef << "TypeName";
+    ef << ',';
+    ef << "Iteration";
+    ef << ',';
+    ef << "Queued";
+    ef << ',';
+    ef << "Submit";
+    ef << ',';
+    ef << "Start";
+    ef << ',';
+    ef << "End";
+
+    ef << '\n';
+
+    for (DataPoint dp : get_datapoints_with_events()) {
+        ef << experiment_id;
+        ef << ',';
+        ef << run_;
+        ef << ',';
+        ef << dp.get_name();
+        ef << ',';
+        if (dp.is_iterative() == true) {
+            ef << dp.get_iteration();
+        }
+        ef << ',';
+        ef << dp.get_event_queued(0);
+        ef << ',';
+        ef << dp.get_event_submit(0);
+        ef << ',';
+        ef << dp.get_event_start(0);
+        ef << ',';
+        ef << dp.get_event_end(0);
+        ef << '\n';
+    }
+
+    ef.close();
+    ef.clear();
+  }
 }
 
 std::string Measurement::Measurement::get_unique_id() {
@@ -204,4 +307,25 @@ Measurement::Measurement::get_flattened_datapoints() {
     }
 
     return subpoints;
+}
+
+std::deque<Measurement::DataPoint>
+Measurement::Measurement::get_datapoints_with_events() {
+    std::deque<DataPoint> event_points;
+    std::deque<DataPoint> stack(data_points_);
+
+    while (not stack.empty()) {
+        auto dp = stack.front();
+        stack.pop_front();
+
+        if (dp.num_events() > 0) {
+            event_points.push_back(dp);
+        }
+
+        for (auto& cp : dp.children_) {
+            stack.push_front(cp);
+        }
+    }
+
+    return event_points;
 }

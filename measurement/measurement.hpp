@@ -67,6 +67,11 @@ private:
     bool is_iterative();
     int get_iteration();
     uint64_t get_value();
+    size_t num_events();
+    uint64_t get_event_queued(size_t i);
+    uint64_t get_event_submit(size_t i);
+    uint64_t get_event_start(size_t i);
+    uint64_t get_event_end(size_t i);
 
     std::string name_;
     bool iterative_;
@@ -103,6 +108,7 @@ private:
 
   std::string format_filename(std::string basefile, std::string experiment_id, std::string suffix);
   std::deque<DataPoint> get_flattened_datapoints();
+  std::deque<DataPoint> get_datapoints_with_events();
 
   int run_;
   std::deque<DataPoint> data_points_;
