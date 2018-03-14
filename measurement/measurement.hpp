@@ -72,6 +72,7 @@ private:
     uint64_t get_event_submit(size_t i);
     uint64_t get_event_start(size_t i);
     uint64_t get_event_end(size_t i);
+    uint64_t get_event_queue_id(size_t i);
 
     std::string name_;
     bool iterative_;

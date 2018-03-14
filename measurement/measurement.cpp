@@ -108,6 +108,18 @@ uint64_t Measurement::DataPoint::get_event_end(size_t i) {
     }
 }
 
+uint64_t Measurement::DataPoint::get_event_queue_id(size_t i) {
+
+    if (not has_event_ or i >= events_.size()) {
+        return 0;
+    }
+    else {
+        auto& e = events_[i];
+        cl_command_queue queue_ptr = e.get_info<cl_command_queue>(CL_EVENT_COMMAND_QUEUE);
+        return (uint64_t) queue_ptr;
+    }
+}
+
 Measurement::Measurement::Measurement() {
     run_date_ = std::chrono::system_clock::now();
     set_parameter("TimeStamp", get_datetime());
@@ -203,6 +215,8 @@ void Measurement::Measurement::write_csv(std::string filename) {
     ef << ',';
     ef << "Iteration";
     ef << ',';
+    ef << "CommandQueueID";
+    ef << ',';
     ef << "Queued";
     ef << ',';
     ef << "Submit";
@@ -223,6 +237,8 @@ void Measurement::Measurement::write_csv(std::string filename) {
         if (dp.is_iterative() == true) {
             ef << dp.get_iteration();
         }
+        ef << ',';
+        ef << dp.get_event_queue_id(0);
         ef << ',';
         ef << dp.get_event_queued(0);
         ef << ',';
