@@ -26,6 +26,7 @@ ENDIF(CMAKE_BUILD_TYPE MATCHES Debug)
 
 OPTION(MATRIX_BOUNDSCHECK "Enable matrix bounds checking" OFF)
 
+SET(THREADS_PREFER_PTHREAD_FLAG ON)
 SET(CMAKE_C_FLAGS "-std=c11 -O3 -ffp-contract=fast -march=native -Wall -Wextra -DUNIX")
 SET(CMAKE_CXX_FLAGS "-std=c++14 -O3 -ffp-contract=fast -march=native -Wall -Wextra -DUNIX")
 SET(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
@@ -34,6 +35,7 @@ SET(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 ADD_SUBDIRECTORY(libs)
 SET(GTEST_ROOT "${PROJECT_SOURCE_DIR}/libs/gtest/build")
 
+FIND_PACKAGE(Threads REQUIRED)
 FIND_PACKAGE(Boost 1.50 REQUIRED COMPONENTS program_options system filesystem)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/libs/boost_compute/include")
@@ -64,7 +66,7 @@ SET(BENCH_SOURCES
     measurement/measurement.cpp
     )
 ADD_EXECUTABLE(bench ${BENCH_SOURCES})
-TARGET_LINK_LIBRARIES(bench ${OPENCL_LIBRARIES} ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(bench ${OPENCL_LIBRARIES} ${Boost_LIBRARIES} Threads::Threads)
 IF(CUDA_FOUND)
     TARGET_LINK_LIBRARIES(bench ${CUDA_LIBRARIES})
 ENDIF(CUDA_FOUND)

@@ -14,10 +14,15 @@
 
 #include <cstdint>
 #include <vector>
+#include <list>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include <boost/compute/buffer.hpp>
 #include <boost/compute/device.hpp>
 #include <boost/compute/event.hpp>
+#include <boost/compute/user_event.hpp>
 #include <boost/compute/command_queue.hpp>
 #include <boost/compute/utility/wait_list.hpp>
 
@@ -35,6 +40,7 @@ public:
     using WaitList = boost::compute::wait_list;
 
     SimpleBufferCache(size_t buffer_size);
+    ~SimpleBufferCache();
 
     // TODO: return multiple OpenCL events in read / write / etc
 
@@ -79,8 +85,39 @@ private:
         ObjectMode mode;
     };
 
+    struct AsyncTask;
+
+    class IOThread {
+    public:
+        void launch();
+        void join();
+        static void work(IOThread *io_thread);
+        void push_back(AsyncTask *task);
+
+    private:
+        std::thread thread;
+        std::list<AsyncTask*> tasks;
+        std::mutex queue_mutex;
+        std::condition_variable queue_cv;
+        int queue_locked;
+
+        AsyncTask* pop_front();
+        static void async_memcpy(AsyncTask& task);
+    };
+
+    struct AsyncTask {
+        IOThread *io_thread;
+        void *src_ptr;
+        void *dst_ptr;
+        size_t size;
+        WaitList wait_list;
+        boost::compute::user_event finish_event;
+        Measurement::DataPoint *datapoint;
+    };
+
     std::vector<DeviceInfo> device_info_i;
     std::vector<ObjectInfo> object_info_i;
+    IOThread io_thread;
 
     int evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint);
     int try_read_lock(uint32_t device_id, uint32_t cache_slot);

@@ -19,6 +19,7 @@ FUNCTION(ADD_TEST_MODULE TEST_NAME TEST_SOURCE)
         ${GTEST_LIBRARIES}
         ${OPENCL_LIBRARIES}
         ${CLEXT_LIBRARIES}
+        Threads::Threads
         )
 ENDFUNCTION()
 

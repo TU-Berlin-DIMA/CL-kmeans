@@ -300,6 +300,7 @@ public:
             }
         }
 
+        this->queue.finish();
     }
 
     void set_fused(FusedConfiguration config) {

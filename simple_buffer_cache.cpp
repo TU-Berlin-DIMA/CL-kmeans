@@ -28,6 +28,11 @@ SimpleBufferCache::SimpleBufferCache(size_t buffer_size)
     ObjectInfo& obj = object_info_i[0];
     obj.ptr = nullptr;
     obj.size = 0;
+    io_thread.launch();
+}
+
+SimpleBufferCache::~SimpleBufferCache() {
+    io_thread.join();
 }
 
 size_t SimpleBufferCache::pool_size(Device device)
@@ -165,7 +170,7 @@ int SimpleBufferCache::get(Queue queue, uint32_t oid, void *begin, void *end, Bu
     return 1;
 }
 
-int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffers, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint)
+int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffers, Event& finish_event, WaitList const& wait_list, Measurement::DataPoint& datapoint)
 {
     datapoint.set_name("BufferCache::write_and_get");
 
@@ -202,32 +207,39 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
         return -1;
     }
 
-    if (evict_cache_slot(queue, device_id, cache_slot, event, wait_list, datapoint.create_child()) < 0) {
+    Event evict_event;
+    if (evict_cache_slot(queue, device_id, cache_slot, evict_event, wait_list, datapoint.create_child()) < 0) {
         std::cerr << "write_and_get: cannot evict cache slot " << cache_slot << std::endl;
         return -1;
     }
 
-    if (wait_list.empty()) {
-        queue.finish();
+    WaitList task_wait_list(wait_list);
+    Event empty_event;
+    if (evict_event != empty_event) {
+        task_wait_list.insert(evict_event);
     }
-    else {
-        wait_list.wait();
-    }
+    boost::compute::user_event task_uevent(queue.get_context());
+    AsyncTask *async_task = new AsyncTask{
+        &this->io_thread,
+            begin,
+            host_ptr,
+            size,
+            task_wait_list,
+            task_uevent,
+            &datapoint
+    };
 
-    Timer::Timer memcpy_timer;
-    memcpy_timer.start();
-    std::memcpy(host_ptr, begin, size);
-    uint64_t memcpy_time = memcpy_timer
-        .stop<std::chrono::nanoseconds>();
-    datapoint.add_value() = memcpy_time;
+    WaitList write_wait_list(async_task->finish_event);
+    this->io_thread.push_back(async_task);
 
-    event = queue.enqueue_write_buffer_async(
+    finish_event = queue.enqueue_write_buffer_async(
             device_buffer,
             0,
             size,
-            host_ptr
+            host_ptr,
+            write_wait_list
             );
-    datapoint.add_event() = event;
+    datapoint.add_event() = finish_event;
 
     buffers.clear();
     buffers.push_back({device_buffer, size, buffer_id});
@@ -240,7 +252,7 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     return 1;
 }
 
-int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, Event&, WaitList const& wait_list, Measurement::DataPoint& datapoint)
+int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, Event& finish_event, WaitList const& wait_list, Measurement::DataPoint& datapoint)
 {
     datapoint.set_name("BufferCache::read");
 
@@ -300,18 +312,25 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
             wait_list
             );
     datapoint.add_event() = read_event;
-    read_event.wait();
 
-    Timer::Timer memcpy_timer;
-    memcpy_timer.start();
-    std::memcpy(begin, host_ptr, size);
-    uint64_t memcpy_time = memcpy_timer
-        .stop<std::chrono::nanoseconds>();
-    datapoint.add_value() = memcpy_time;
+    WaitList task_wait_list(read_event);
+    boost::compute::user_event task_uevent(queue.get_context());
+    AsyncTask *async_task = new AsyncTask{
+        &this->io_thread,
+            host_ptr,
+            begin,
+            size,
+            task_wait_list,
+            task_uevent,
+            &datapoint
+    };
 
-    // TODO: make asynchronous and set event = read_event instead of calling wait()
-    // event = read_event;
+    WaitList barrier_wait_list(async_task->finish_event);
+    Event barrier_event;
+    barrier_event = queue.enqueue_barrier(barrier_wait_list);
+    this->io_thread.push_back(async_task);
 
+    finish_event = barrier_event;
     return 1;
 }
 
@@ -547,3 +566,76 @@ int64_t SimpleBufferCache::assign_cache_slot(uint32_t device_id, uint32_t oid, u
 
     return slot;
 }
+
+void SimpleBufferCache::IOThread::launch() {
+
+    this->queue_locked = false;
+    this->thread = std::thread(&work, this);
+}
+
+void SimpleBufferCache::IOThread::join() {
+
+    this->push_back(nullptr);
+    this->thread.join();
+}
+
+void SimpleBufferCache::IOThread::work(IOThread *io_thread) {
+
+    AsyncTask *task = nullptr;
+    while (true) {
+        task = io_thread->pop_front();
+
+        if (task == nullptr) {
+            break;
+        }
+
+        task->wait_list.wait();
+        async_memcpy(*task);
+        task->finish_event.set_status(Event::complete);
+        delete task;
+    }
+}
+
+void SimpleBufferCache::IOThread::async_memcpy(AsyncTask& task) {
+
+    Timer::Timer memcpy_timer;
+    memcpy_timer.start();
+    std::memcpy(task.dst_ptr, task.src_ptr, task.size);
+    uint64_t memcpy_time = memcpy_timer
+        .stop<std::chrono::nanoseconds>();
+    task.datapoint->add_value() = memcpy_time;
+}
+
+void SimpleBufferCache::IOThread::push_back(AsyncTask *task) {
+
+    std::unique_lock<std::mutex> lock(this->queue_mutex);
+
+    while (this->queue_locked) {
+        this->queue_cv.wait(lock);
+    }
+    this->queue_locked = true;
+
+    this->tasks.push_back(task);
+
+    this->queue_locked = false;
+    this->queue_cv.notify_all();
+}
+
+SimpleBufferCache::AsyncTask* SimpleBufferCache::IOThread::pop_front() {
+
+    std::unique_lock<std::mutex> lock(this->queue_mutex);
+
+    while (this->queue_locked or this->tasks.empty()) {
+        this->queue_cv.wait(lock);
+    }
+    this->queue_locked = true;
+
+    AsyncTask *task = this->tasks.front();
+    this->tasks.pop_front();
+
+    this->queue_locked = false;
+    this->queue_cv.notify_all();
+
+    return task;
+}
+

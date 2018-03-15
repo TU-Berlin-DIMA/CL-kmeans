@@ -411,6 +411,7 @@ public:
             }
         }
 
+        this->queue.finish();
     }
 
     void set_labeler(LabelingConfiguration config) {
