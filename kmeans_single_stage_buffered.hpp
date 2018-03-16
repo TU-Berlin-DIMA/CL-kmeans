@@ -167,10 +167,10 @@ public:
              size_t label_bytes,
              boost::compute::buffer points,
              boost::compute::buffer labels,
+             boost::compute::wait_list wait_list,
              Measurement::DataPoint& datapoint
             )
             {
-                boost::compute::wait_list wait_list;
                 auto num_buffer_points = label_bytes / sizeof(LabelT);
 
                 boost::compute::buffer_iterator<PointT>

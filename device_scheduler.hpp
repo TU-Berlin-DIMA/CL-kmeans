@@ -23,6 +23,7 @@
 #include <boost/compute/context.hpp>
 #include <boost/compute/device.hpp>
 #include <boost/compute/event.hpp>
+#include <boost/compute/utility/wait_list.hpp>
 
 #include "measurement/measurement.hpp"
 
@@ -35,6 +36,7 @@ namespace Clustering {
         using Device = boost::compute::device;
         using Event = boost::compute::event;
         using Queue = boost::compute::command_queue;
+        using WaitList = boost::compute::wait_list;
 
         /*
          * Function signatures of enqueable functions.
@@ -54,6 +56,7 @@ namespace Clustering {
                 size_t,
                 size_t,
                 Buffer,
+                WaitList,
                 Measurement::DataPoint&
                 )>;
         using FunBinary = std::function<Event(
@@ -63,6 +66,7 @@ namespace Clustering {
                 size_t,
                 Buffer,
                 Buffer,
+                WaitList,
                 Measurement::DataPoint&
                 )>;
 

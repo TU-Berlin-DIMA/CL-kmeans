@@ -89,6 +89,7 @@ public:
                 size_t cl_offset,
                 size_t size,
                 bc::buffer buffer,
+                bc::wait_list wait_list,
                 Measurement::DataPoint& dp
                 )
         {
@@ -100,7 +101,8 @@ public:
                     kernel,
                     cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
-                    LOCAL_SIZE
+                    LOCAL_SIZE,
+                    wait_list
                     );
             dp.add_event() = event;
             return event;
@@ -116,6 +118,7 @@ public:
                 size_t cl_offset,
                 size_t size,
                 bc::buffer buffer,
+                bc::wait_list wait_list,
                 Measurement::DataPoint& dp
                 )
         {
@@ -127,7 +130,8 @@ public:
                     kernel,
                     cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
-                    LOCAL_SIZE
+                    LOCAL_SIZE,
+                    wait_list
                     );
             dp.add_event() = event;
             return event;
@@ -145,6 +149,7 @@ public:
                 size_t /* src_size */,
                 bc::buffer dst,
                 bc::buffer src,
+                bc::wait_list wait_list,
                 Measurement::DataPoint& dp
                 )
         {
@@ -156,7 +161,8 @@ public:
                     kernel,
                     cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
-                    LOCAL_SIZE
+                    LOCAL_SIZE,
+                    wait_list
                     );
             dp.add_event() = event;
             return event;
@@ -174,6 +180,7 @@ public:
                 size_t src_size,
                 bc::buffer dst,
                 bc::buffer src,
+                bc::wait_list wait_list,
                 Measurement::DataPoint& dp
                 )
         {
@@ -187,7 +194,8 @@ public:
                     kernel,
                     cl_offset / sizeof(cl_int),
                     GLOBAL_SIZE,
-                    LOCAL_SIZE
+                    LOCAL_SIZE,
+                    wait_list
                     );
             dp.add_event() = event;
             return event;

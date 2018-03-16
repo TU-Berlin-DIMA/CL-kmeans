@@ -75,12 +75,15 @@ namespace Clustering {
         public:
             RState(Queue queue);
             Queue queue();
+            void last_event(Event event);
+            Event last_event();
             BufferCache::BufferList& active_buffers(uint32_t object_id);
-            int activate_buffers(uint32_t object_id, size_t runnable_step, BufferCache& buffer_cache, uint32_t index, std::deque<Event>& events, Measurement::DataPoint& datapoint);
-            int deactivate_buffers(uint32_t object_id, BufferCache& buffer_cache, std::deque<Event>& events, Measurement::DataPoint& datapoint);
+            int activate_buffers(uint32_t object_id, size_t runnable_step, BufferCache& buffer_cache, uint32_t index, WaitList wait_list, std::deque<Event>& events, Event& last_event, Measurement::DataPoint& datapoint);
+            int deactivate_buffers(uint32_t object_id, BufferCache& buffer_cache, WaitList wait_list, std::deque<Event>& events, Event& last_event, Measurement::DataPoint& datapoint);
 
         private:
             Queue queue_i;
+            Event last_event_i;
 
             // key: object_id, value: BufferList
             std::map<uint32_t, BufferCache::BufferList> active_buffers_i;
@@ -88,17 +91,17 @@ namespace Clustering {
 
         struct Runnable {
             virtual int64_t register_buffers(BufferCache& buffer_cache) = 0;
-            virtual int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index) = 0;
-            virtual int deactivate_buffers(RState& rstate, BufferCache& buffer_cache) = 0;
-            virtual int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event) = 0;
+            virtual int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index, WaitList wait_list, Event& last_event) = 0;
+            virtual int deactivate_buffers(RState& rstate, BufferCache& buffer_cache, WaitList wait_list, Event& last_event) = 0;
+            virtual int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, WaitList wait_list, Event& last_event) = 0;
             virtual int finish() = 0;
         };
 
         struct UnaryRunnable : public Runnable {
             int64_t register_buffers(BufferCache& buffer_cache);
-            int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index);
-            int deactivate_buffers(RState& rstate, BufferCache& buffer_cache);
-            int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event);
+            int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index, WaitList wait_list, Event& last_event);
+            int deactivate_buffers(RState& rstate, BufferCache& buffer_cache, WaitList wait_list, Event& last_event);
+            int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, WaitList wait_list, Event& last_event);
             int finish();
             FunUnary kernel_function;
             uint32_t object_id;
@@ -111,9 +114,9 @@ namespace Clustering {
 
         struct BinaryRunnable : public Runnable {
             int64_t register_buffers(BufferCache& buffer_cache);
-            int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index);
-            int deactivate_buffers(RState& rstate, BufferCache& buffer_cache);
-            int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, Event& last_event);
+            int activate_buffers(RState& rstate, BufferCache& buffer_cache, uint32_t index, WaitList wait_list, Event& last_event);
+            int deactivate_buffers(RState& rstate, BufferCache& buffer_cache, WaitList wait_list, Event& last_event);
+            int run(RState& rstate, BufferCache& buffer_cache, uint32_t index, WaitList wait_list, Event& last_event);
             int finish();
             FunBinary kernel_function;
             uint32_t fst_object_id;
