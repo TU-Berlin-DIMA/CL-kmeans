@@ -35,7 +35,7 @@ public:
         queue = boost::compute::system::default_queue();
 
         buffer_cache.add_device(queue.get_context(), device, pool_size);
-        object_id = buffer_cache.add_object(data_object.data(), data_object.size() * sizeof(int), Clustering::ObjectMode::Mutable);
+        object_id = buffer_cache.add_object(data_object.data(), data_object.size() * sizeof(int), Clustering::ObjectMode::ReadWrite);
     }
 
     void SetUp()

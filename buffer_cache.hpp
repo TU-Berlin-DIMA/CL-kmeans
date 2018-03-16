@@ -24,8 +24,8 @@
 namespace Clustering {
 
 enum class ObjectMode {
-    Mutable,
-    Immutable
+    ReadWrite,
+    ReadOnly
 };
 
 class BufferCache {
@@ -84,7 +84,7 @@ public:
      *
      * Returns new object id (oid).
      */
-    virtual uint32_t add_object(void *data_object, size_t length, ObjectMode mode = ObjectMode::Immutable) = 0;
+    virtual uint32_t add_object(void *data_object, size_t length, ObjectMode mode = ObjectMode::ReadOnly) = 0;
 
     /*
      * Get pointer to previously added data object.

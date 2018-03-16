@@ -46,7 +46,7 @@ public:
 
     size_t pool_size(Device device);
     int add_device(Context context, Device device, size_t pool_size);
-    uint32_t add_object(void *data_object, size_t length, ObjectMode mode = ObjectMode::Immutable);
+    uint32_t add_object(void *data_object, size_t length, ObjectMode mode = ObjectMode::ReadOnly);
     void object(uint32_t object_id, void *& data_object, size_t& length);
     int get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffer, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint);
     int write_and_get(Queue queue, uint32_t oid, void *begin, void *end, BufferList& buffer, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint);

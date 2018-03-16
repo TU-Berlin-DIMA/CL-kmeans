@@ -232,12 +232,12 @@ public:
         fst_object_id = buffer_cache->add_object(
                 fst_data_object.data(),
                 fst_data_object.size() * sizeof(int),
-                Clustering::ObjectMode::Mutable
+                Clustering::ObjectMode::ReadWrite
                 );
         snd_object_id = buffer_cache->add_object(
                 snd_data_object.data(),
                 snd_data_object.size() * sizeof(int),
-                Clustering::ObjectMode::Mutable
+                Clustering::ObjectMode::ReadWrite
                 );
 
         scheduler->add_buffer_cache(buffer_cache);
@@ -396,7 +396,7 @@ TEST_F(SingleDeviceScheduler, RunBinaryWithSteps)
     auto dst_object_id = buffer_cache->add_object(
             dst_object.data(),
             dst_object.size() * sizeof(decltype(dst_object)::value_type),
-            Clustering::ObjectMode::Mutable
+            Clustering::ObjectMode::ReadWrite
             );
 
     ret = scheduler->enqueue(dsenv->copy_f, dst_object_id, snd_object_id, buffer_size / 2, buffer_size, copy_fevents, measurement.add_datapoint());

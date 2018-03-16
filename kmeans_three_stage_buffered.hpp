@@ -107,12 +107,12 @@ public:
         auto points_handle = this->buffer_cache->add_object(
                 (void*)this->host_points_partitioned.data(),
                 this->host_points->size() * sizeof(PointT),
-                ObjectMode::Immutable
+                ObjectMode::ReadOnly
                 );
         auto labels_handle = this->buffer_cache->add_object(
                 this->host_labels->data(),
                 this->host_labels->size() * sizeof(LabelT),
-                ObjectMode::Mutable
+                ObjectMode::ReadWrite
                 );
 
         // If centroids initializer function is callable, then call

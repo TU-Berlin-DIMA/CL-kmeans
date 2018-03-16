@@ -274,7 +274,7 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
         std::cerr << "read: find_buffer_id error" << std::endl;
         return buffer_id;
     }
-    if (object_info_i[oid].mode == ObjectMode::Immutable) {
+    if (object_info_i[oid].mode == ObjectMode::ReadOnly) {
         // Assume object didn't change, don't need to do anything
         return 1;
     }
@@ -349,7 +349,7 @@ int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_
         // Case: cache slot is empty
         return 1;
     }
-    else if (mode == ObjectMode::Immutable) {
+    else if (mode == ObjectMode::ReadOnly) {
         // Case: object is immutable, can trivially be evicted
         object_id = -1;
         buffer_id = -1;
