@@ -23,9 +23,19 @@
 
 namespace Clustering {
 
+/*
+ * Modes define how objects are treated on access and cache eviction:
+ *
+ * ReadWrite: Copied to device on access and copied from device on eviction.
+ * ReadOnly: Copied to device on access and dropped on eviction.
+ * Transient: Instantiated on access and dropped on eviction.
+ *
+ * Note: Transient mode useful for e.g. pipelines while object is locked in cache.
+ */
 enum class ObjectMode {
     ReadWrite,
-    ReadOnly
+    ReadOnly,
+    Transient
 };
 
 class BufferCache {

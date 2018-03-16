@@ -94,6 +94,7 @@ int SimpleBufferCache::add_device(Context context, Device device, size_t pool_si
     return 1;
 }
 
+// TODO: Objects in ObjectMode::Transient don't need an underlying host object
 uint32_t SimpleBufferCache::add_object(void *data_object, size_t size, ObjectMode mode)
 {
     uint32_t oid = object_info_i.size();
@@ -213,6 +214,20 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
         return -1;
     }
 
+    buffers.clear();
+    buffers.push_back({device_buffer, size, buffer_id});
+
+    device_info.cached_object_id[cache_slot] = oid;
+    device_info.cached_buffer_id[cache_slot] = buffer_id;
+    device_info.cached_ptr[cache_slot] = begin;
+    device_info.cached_content_length[cache_slot] = size;
+
+    auto& mode = object_info_i[oid].mode;
+    if (mode == ObjectMode::Transient) {
+        // Don't need to actually write anything, locking is enough
+        return 1;
+    }
+
     WaitList task_wait_list(wait_list);
     Event empty_event;
     if (evict_event != empty_event) {
@@ -241,14 +256,6 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
             );
     datapoint.add_event() = finish_event;
 
-    buffers.clear();
-    buffers.push_back({device_buffer, size, buffer_id});
-
-    device_info.cached_object_id[cache_slot] = oid;
-    device_info.cached_buffer_id[cache_slot] = buffer_id;
-    device_info.cached_ptr[cache_slot] = begin;
-    device_info.cached_content_length[cache_slot] = size;
-
     return 1;
 }
 
@@ -274,7 +281,8 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
         std::cerr << "read: find_buffer_id error" << std::endl;
         return buffer_id;
     }
-    if (object_info_i[oid].mode == ObjectMode::ReadOnly) {
+    auto& mode = object_info_i[oid].mode;
+    if (mode == ObjectMode::ReadOnly or mode == ObjectMode::Transient) {
         // Assume object didn't change, don't need to do anything
         return 1;
     }
@@ -349,7 +357,7 @@ int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_
         // Case: cache slot is empty
         return 1;
     }
-    else if (mode == ObjectMode::ReadOnly) {
+    else if (mode == ObjectMode::ReadOnly or mode == ObjectMode::Transient) {
         // Case: object is immutable, can trivially be evicted
         object_id = -1;
         buffer_id = -1;
