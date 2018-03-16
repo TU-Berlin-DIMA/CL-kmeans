@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #include "measurement.hpp"
@@ -228,26 +228,29 @@ void Measurement::Measurement::write_csv(std::string filename) {
     ef << '\n';
 
     for (DataPoint dp : get_datapoints_with_events()) {
-        ef << experiment_id;
-        ef << ',';
-        ef << run_;
-        ef << ',';
-        ef << dp.get_name();
-        ef << ',';
-        if (dp.is_iterative() == true) {
-            ef << dp.get_iteration();
+        size_t num_events = dp.num_events();
+        for (size_t i = 0; i < num_events; ++i) {
+            ef << experiment_id;
+            ef << ',';
+            ef << run_;
+            ef << ',';
+            ef << dp.get_name();
+            ef << ',';
+            if (dp.is_iterative() == true) {
+                ef << dp.get_iteration();
+            }
+            ef << ',';
+            ef << dp.get_event_queue_id(i);
+            ef << ',';
+            ef << dp.get_event_queued(i);
+            ef << ',';
+            ef << dp.get_event_submit(i);
+            ef << ',';
+            ef << dp.get_event_start(i);
+            ef << ',';
+            ef << dp.get_event_end(i);
+            ef << '\n';
         }
-        ef << ',';
-        ef << dp.get_event_queue_id(0);
-        ef << ',';
-        ef << dp.get_event_queued(0);
-        ef << ',';
-        ef << dp.get_event_submit(0);
-        ef << ',';
-        ef << dp.get_event_start(0);
-        ef << ',';
-        ef << dp.get_event_end(0);
-        ef << '\n';
     }
 
     ef.close();
