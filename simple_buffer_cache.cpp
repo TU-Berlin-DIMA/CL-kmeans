@@ -225,11 +225,12 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     auto& mode = object_info_i[oid].mode;
     if (mode == ObjectMode::Transient) {
         // Don't need to actually write anything, locking is enough
+        finish_event = evict_event;
         return 1;
     }
 
     WaitList task_wait_list(wait_list);
-    Event empty_event;
+    Event const empty_event;
     if (evict_event != empty_event) {
         task_wait_list.insert(evict_event);
     }
