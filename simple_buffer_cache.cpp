@@ -28,11 +28,12 @@ SimpleBufferCache::SimpleBufferCache(size_t buffer_size)
     ObjectInfo& obj = object_info_i[0];
     obj.ptr = nullptr;
     obj.size = 0;
-    io_thread.launch();
 }
 
 SimpleBufferCache::~SimpleBufferCache() {
-    io_thread.join();
+    for (auto& t : io_thread) {
+        t.second.join();
+    }
 }
 
 size_t SimpleBufferCache::pool_size(Device device)
@@ -235,8 +236,9 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
         task_wait_list.insert(evict_event);
     }
     boost::compute::user_event task_uevent(queue.get_context());
+    auto& iot = this->get_io_thread(queue);
     AsyncTask *async_task = new AsyncTask{
-        &this->io_thread,
+        &iot,
             begin,
             host_ptr,
             size,
@@ -246,7 +248,7 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     };
 
     WaitList write_wait_list(async_task->finish_event);
-    this->io_thread.push_back(async_task);
+    iot.push_back(async_task);
 
     finish_event = queue.enqueue_write_buffer_async(
             device_buffer,
@@ -324,8 +326,9 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
 
     WaitList task_wait_list(read_event);
     boost::compute::user_event task_uevent(queue.get_context());
+    auto& iot = this->get_io_thread(queue);
     AsyncTask *async_task = new AsyncTask{
-        &this->io_thread,
+        &iot,
             host_ptr,
             begin,
             size,
@@ -337,7 +340,7 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
     WaitList barrier_wait_list(async_task->finish_event);
     Event barrier_event;
     barrier_event = queue.enqueue_barrier(barrier_wait_list);
-    this->io_thread.push_back(async_task);
+    iot.push_back(async_task);
 
     finish_event = barrier_event;
     return 1;
@@ -574,6 +577,17 @@ int64_t SimpleBufferCache::assign_cache_slot(uint32_t device_id, uint32_t oid, u
     }
 
     return slot;
+}
+
+SimpleBufferCache::IOThread& SimpleBufferCache::get_io_thread(Queue& queue) {
+
+    auto iot = this->io_thread.find(queue);
+    if (iot == this->io_thread.end()) {
+        this->io_thread[queue].launch();
+        iot = this->io_thread.find(queue);
+    }
+
+    return iot->second;
 }
 
 void SimpleBufferCache::IOThread::launch() {

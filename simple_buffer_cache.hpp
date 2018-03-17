@@ -18,6 +18,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <map>
 
 #include <boost/compute/buffer.hpp>
 #include <boost/compute/device.hpp>
@@ -117,7 +118,7 @@ private:
 
     std::vector<DeviceInfo> device_info_i;
     std::vector<ObjectInfo> object_info_i;
-    IOThread io_thread;
+    std::map<Queue, IOThread> io_thread;
 
     int evict_cache_slot(Queue queue, uint32_t device_id, uint32_t cache_slot, Event& event, WaitList const& wait_list, Measurement::DataPoint& datapoint);
     int try_read_lock(uint32_t device_id, uint32_t cache_slot);
@@ -126,6 +127,8 @@ private:
     int64_t find_buffer_id(uint32_t device_id, uint32_t oid, void *ptr);
     int64_t find_cache_slot(uint32_t device_id, uint32_t oid, uint32_t buffer_id);
     int64_t assign_cache_slot(uint32_t device_id, uint32_t oid, uint32_t bid);
+    IOThread& get_io_thread(Queue& queue);
+
 };
 
 } // namespace Clustering
