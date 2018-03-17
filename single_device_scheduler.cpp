@@ -142,10 +142,7 @@ int sds::run()
         if (active_rstates.size() >= device_info_i.qpair.size()) {
 
             auto& first_rstate = active_rstates.front();
-            WaitList deactivate_wait_list;
-            if (run_event != empty_event) {
-                deactivate_wait_list.insert(run_event);
-            }
+            WaitList deactivate_wait_list(first_rstate.last_event());
             for (auto& runnable : run_queue_i) {
                 int ret = 0;
                 runnable->deactivate_buffers(
@@ -184,10 +181,15 @@ int sds::run()
                 return -1;
             }
 
-            activate_wait_list = WaitList(activate_event);
+            // activate_event is empty when buffer is in cache
+            // in that case, don't modify the wait list
+            // only if we have a new event, then create a new wait list
+            if (activate_event != empty_event) {
+                activate_wait_list = WaitList(activate_event);
+            }
         }
 
-        WaitList run_wait_list(activate_event);
+        WaitList run_wait_list = activate_wait_list;
         for (auto& runnable : run_queue_i) {
             if (VERBOSE) {
                 std::cout << "[Run] Schedule job on queue " << current_queue << std::endl;
