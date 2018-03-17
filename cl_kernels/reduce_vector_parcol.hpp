@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef REDUCE_VECTOR_PARCOL_HPP
@@ -68,9 +68,32 @@ public:
             Vector<T>& data,
             Measurement::DataPoint& datapoint,
             boost::compute::wait_list const& events
-            ) {
+            )
+    {
+        return (*this)(
+                queue,
+                num_cols,
+                result_rows,
+                data.begin(),
+                data.end(),
+                datapoint,
+                events
+                );
+    }
 
-        assert(data.size() >= num_cols * result_rows);
+    Event operator() (
+            boost::compute::command_queue queue,
+            size_t num_cols,
+            size_t result_rows,
+            boost::compute::buffer_iterator<T> data_begin,
+            boost::compute::buffer_iterator<T> data_end,
+            Measurement::DataPoint& datapoint,
+            boost::compute::wait_list const& events
+            )
+    {
+
+        size_t data_size = data_end - data_begin;
+        assert(data_size >= num_cols * result_rows);
 
         datapoint.set_name("ReduceVectorParcol");
 
@@ -78,8 +101,7 @@ public:
         boost::compute::wait_list wait_list = events;
         size_t work_offset = 0;
         uint32_t round = 0;
-        size_t global_size = data.size() / 2;
-        size_t data_size = data.size();
+        size_t global_size = data_size / 2;
 
         while (
                 data_size > result_rows
@@ -90,7 +112,7 @@ public:
             assert(global_size % result_rows == 0);
 
             this->kernel_compact.set_args(
-                    data,
+                    data_begin.get_buffer(),
                     (cl_uint) data_size);
 
             event = queue.enqueue_1d_range_kernel(
@@ -116,7 +138,7 @@ public:
             assert(WORKGROUP_SIZE % result_rows == 0);
 
             this->kernel_inner.set_args(
-                    data,
+                    data_begin.get_buffer(),
                     (cl_uint) num_cols,
                     (cl_uint) result_rows);
 
