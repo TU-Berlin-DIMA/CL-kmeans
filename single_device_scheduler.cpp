@@ -132,6 +132,7 @@ int sds::run()
 
     uint32_t current_queue = 0;
     std::deque<RState> active_rstates;
+    Event trans_loop_run_event;
     for (uint32_t current_index = 0u; current_index < num_buffers; ++current_index) {
 
         Event run_event;
@@ -190,6 +191,9 @@ int sds::run()
         }
 
         WaitList run_wait_list = activate_wait_list;
+        if (trans_loop_run_event != empty_event) {
+            run_wait_list.insert(trans_loop_run_event);
+        }
         for (auto& runnable : run_queue_i) {
             if (VERBOSE) {
                 std::cout << "[Run] Schedule job on queue " << current_queue << std::endl;
@@ -209,6 +213,7 @@ int sds::run()
             run_wait_list = WaitList(run_event);
         }
 
+        trans_loop_run_event = run_event;
         active_rstate.last_event(run_event);
         active_rstates.push_back(std::move(active_rstate));
         current_queue = (current_queue + 1) % device_info_i.qpair.size();
