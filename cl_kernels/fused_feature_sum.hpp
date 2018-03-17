@@ -52,7 +52,11 @@ public:
     FusedFeatureSum() :
         g_stride_g_mem_kernel(Utility::log2(MAX_FEATURES)),
         g_stride_l_mem_kernel(Utility::log2(MAX_FEATURES)),
-        l_stride_g_mem_kernel(Utility::log2(MAX_FEATURES))
+        l_stride_g_mem_kernel(Utility::log2(MAX_FEATURES)),
+        local_points(1),
+        local_new_centroids(1),
+        local_masses(1),
+        local_labels(1)
     {}
 
     void prepare(
@@ -247,22 +251,51 @@ public:
                         ));
         }
 
-        LocalBuffer<PointT> local_points(
+        size_t const local_points_size =
+            this->config.local_size[0]
+            * this->config.vector_length
+            * num_features
+            ;
+        if (this->local_points.size() < local_points_size) {
+            this->local_points = std::move(
+                    LocalBuffer<PointT>(
+                        local_points_size
+                        ));
+        }
+
+        size_t const local_new_centroids_size =
+            this->config.local_size[0]
+            * num_thread_features
+            * num_clusters
+            ;
+        if (this->local_new_centroids.size() < local_new_centroids_size) {
+            this->local_new_centroids = std::move(
+                    LocalBuffer<PointT>(
+                        local_new_centroids_size
+                        ));
+        }
+
+        size_t const local_masses_size =
+                this->config.local_size[0]
+                * num_clusters
+                ;
+        if (this->local_masses.size() < local_masses_size) {
+            this->local_masses = std::move(
+                    LocalBuffer<MassT>(
+                        local_masses_size
+                        ));
+        }
+
+        size_t const local_labels_size =
                 this->config.local_size[0]
                 * this->config.vector_length
-                * num_features
-                );
-        LocalBuffer<PointT> local_new_centroids(
-                this->config.local_size[0]
-                * num_thread_features
-                * num_clusters
-                );
-        LocalBuffer<MassT> local_masses(
-                this->config.local_size[0] * num_clusters
-                );
-        LocalBuffer<LabelT> local_labels(
-                this->config.local_size[0] * this->config.vector_length
-                );
+                ;
+        if (this->local_labels.size() < local_labels_size) {
+            this->local_labels = std::move(
+                    LocalBuffer<LabelT>(
+                        local_labels_size
+                        ));
+        }
 
         size_t const min_ro_centroids_size = num_clusters * num_features;
         if (this->ro_centroids.size() < min_ro_centroids_size) {
@@ -289,9 +322,9 @@ public:
             device.type() == device.gpu &&
             device.local_memory_size() >
             (
-             local_points.size() * sizeof(PointT) +
-             local_new_centroids.size() * sizeof(PointT) +
-             local_masses.size() * sizeof(MassT)
+             local_points_size * sizeof(PointT) +
+             local_new_centroids_size * sizeof(PointT) +
+             local_masses_size * sizeof(MassT)
             )
             ;
         auto& kernel = (use_local_stride)
@@ -310,10 +343,10 @@ public:
                     this->tmp_new_centroids,
                     this->new_masses,
                     labels_begin.get_buffer(),
-                    local_points,
-                    local_new_centroids,
-                    local_masses,
-                    local_labels,
+                    this->local_points,
+                    this->local_new_centroids,
+                    this->local_masses,
+                    this->local_labels,
                     (cl_uint)num_points,
                     (cl_uint)num_clusters,
                     (cl_uint)num_thread_features
@@ -326,7 +359,7 @@ public:
                     this->tmp_new_centroids,
                     this->new_masses,
                     labels_begin.get_buffer(),
-                    local_labels,
+                    this->local_labels,
                     (cl_uint)num_points,
                     (cl_uint)num_clusters,
                     (cl_uint)num_thread_features
@@ -422,6 +455,10 @@ private:
     Vector<PointT> tmp_new_centroids;
     Vector<MassT> new_masses;
     ReadonlyVector<PointT> ro_centroids;
+    LocalBuffer<PointT> local_points;
+    LocalBuffer<PointT> local_new_centroids;
+    LocalBuffer<MassT> local_masses;
+    LocalBuffer<LabelT> local_labels;
     FusedConfiguration config;
     ReduceVectorParcol<PointT> reduce_centroids;
     ReduceVectorParcol<MassT> reduce_masses;
