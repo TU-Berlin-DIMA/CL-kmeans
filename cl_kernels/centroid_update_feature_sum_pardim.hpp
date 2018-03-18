@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef CENTROID_UPDATE_FEATURE_SUM_PARDIM_HPP
@@ -47,6 +47,10 @@ public:
     using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
     template <typename T>
     using LocalBuffer = boost::compute::local_buffer<T>;
+
+    CentroidUpdateFeatureSumPardim() :
+        local_centroids(1)
+    {}
 
     void prepare(
             Context context,
@@ -201,13 +205,25 @@ public:
 
         size_t min_centroids_size =
             global_size[0] * num_clusters * num_features;
-        Vector<PointT> tmp_centroids(min_centroids_size, queue.get_context());
+        if (this->tmp_centroids.size() < min_centroids_size) {
+            this->tmp_centroids = std::move(
+                    Vector<PointT>(
+                        min_centroids_size,
+                        queue.get_context()
+                        ));
+        }
 
-        LocalBuffer<PointT> local_centroids(
-                local_size[0] * local_size[1]
-                * this->config.thread_features
-                * num_clusters
-                );
+        size_t const local_centroids_size =
+            local_size[0] * local_size[1]
+            * this->config.thread_features
+            * num_clusters
+            ;
+        if (this->local_centroids.size() != local_centroids_size) {
+            this->local_centroids = std::move(
+                    LocalBuffer<PointT>(
+                        local_centroids_size
+                        ));
+        }
 
         boost::compute::device device = queue.get_device();
         bool use_local_stride =
@@ -217,7 +233,7 @@ public:
         bool use_local_memory =
             device.type() == device.gpu &&
             device.local_memory_size() >
-            local_centroids.size() * sizeof(PointT)
+            local_centroids_size * sizeof(PointT)
             ;
         Kernel& kernel = (use_local_stride)
             ? l_stride_g_mem_kernel
@@ -229,9 +245,9 @@ public:
         if (use_local_memory) {
             kernel.set_args(
                     points_begin.get_buffer(),
-                    tmp_centroids,
+                    this->tmp_centroids,
                     labels_begin.get_buffer(),
-                    local_centroids,
+                    this->local_centroids,
                     (cl_uint)num_features,
                     (cl_uint)num_points,
                     (cl_uint)num_clusters);
@@ -239,7 +255,7 @@ public:
         else {
             kernel.set_args(
                 points_begin.get_buffer(),
-                tmp_centroids,
+                this->tmp_centroids,
                 labels_begin.get_buffer(),
                 (cl_uint)num_features,
                 (cl_uint)num_points,
@@ -266,7 +282,8 @@ public:
                 queue,
                 global_size[0],
                 num_clusters * num_features,
-                tmp_centroids,
+                this->tmp_centroids.begin(),
+                this->tmp_centroids.begin() + min_centroids_size,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -279,8 +296,8 @@ public:
                 num_clusters,
                 centroids_begin,
                 centroids_end,
-                tmp_centroids.begin(),
-                tmp_centroids.begin() + num_clusters * num_features,
+                this->tmp_centroids.begin(),
+                this->tmp_centroids.begin() + num_clusters * num_features,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -296,6 +313,8 @@ private:
     Kernel g_stride_g_mem_kernel;
     Kernel g_stride_l_mem_kernel;
     Kernel l_stride_g_mem_kernel;
+    Vector<PointT> tmp_centroids;
+    LocalBuffer<PointT> local_centroids;
     CentroidUpdateConfiguration config;
     ReduceVectorParcol<PointT> reduce;
     MatrixBinaryOp<PointT, PointT> matrix_add;
