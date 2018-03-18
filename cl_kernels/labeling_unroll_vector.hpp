@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef LABELING_UNROLL_VECTOR_HPP
@@ -23,6 +23,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <utility> // std::move
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -43,6 +44,8 @@ public:
     template <typename T>
     using Vector = boost::compute::vector<T>;
     template <typename T>
+    using ReadonlyVector = boost::compute::vector<T, readonly_allocator<T>>;
+    template <typename T>
     using PinnedAllocator = boost::compute::pinned_allocator<T>;
     template <typename T>
     using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
@@ -50,7 +53,8 @@ public:
     LabelingUnrollVector() :
         g_stride_g_mem_kernel(Utility::log2(MAX_FEATURES)),
         g_stride_l_mem_kernel(Utility::log2(MAX_FEATURES)),
-        l_stride_g_mem_kernel(Utility::log2(MAX_FEATURES))
+        l_stride_g_mem_kernel(Utility::log2(MAX_FEATURES)),
+        local_points(1)
     {}
 
     void prepare(Context context, LabelingConfiguration config) {
@@ -187,20 +191,30 @@ public:
 
         datapoint.set_name("LabelingUnrollVector");
 
-        LocalBuffer<PointT> local_points(
-                this->config.local_size[0]
-                * this->config.vector_length
-                * num_features
-                );
+        size_t const local_points_size =
+            this->config.local_size[0]
+            * this->config.vector_length
+            * num_features
+            ;
+        if (this->local_points.size() != local_points_size) {
+            this->local_points = std::move(
+                    LocalBuffer<PointT>(
+                        local_points_size
+                        ));
+        }
 
-        boost::compute::vector<PointT, readonly_allocator<PointT>> ro_centroids(
-                num_clusters * num_features,
-                queue.get_context()
-                );
+        size_t const min_ro_centroids_size = num_clusters * num_features;
+        if (this->ro_centroids.size() < min_ro_centroids_size) {
+            this->ro_centroids = std::move(
+                    ReadonlyVector<PointT>(
+                        min_ro_centroids_size,
+                        queue.get_context()
+                        ));
+        }
         boost::compute::copy(
                 centroids_begin,
                 centroids_begin + num_clusters * num_features,
-                ro_centroids.begin(),
+                this->ro_centroids.begin(),
                 queue
                 );
 
@@ -212,7 +226,7 @@ public:
         bool use_local_memory =
             device.type() == device.gpu &&
             device.local_memory_size() >
-            local_points.size() * sizeof(PointT)
+            local_points_size * sizeof(PointT)
             ;
         auto& kernel = (use_local_stride)
             ? this->l_stride_g_mem_kernel
@@ -227,16 +241,16 @@ public:
         if (use_local_memory) {
             kernel[kernel_index].set_args(
                     points_begin.get_buffer(),
-                    ro_centroids,
+                    this->ro_centroids,
                     labels_begin.get_buffer(),
-                    local_points,
+                    this->local_points,
                     (cl_uint) num_points,
                     (cl_uint) num_clusters);
         }
         else {
             kernel[kernel_index].set_args(
                     points_begin.get_buffer(),
-                    ro_centroids,
+                    this->ro_centroids,
                     labels_begin.get_buffer(),
                     (cl_uint) num_points,
                     (cl_uint) num_clusters);
@@ -265,6 +279,8 @@ private:
     std::vector<Kernel> g_stride_g_mem_kernel;
     std::vector<Kernel> g_stride_l_mem_kernel;
     std::vector<Kernel> l_stride_g_mem_kernel;
+    ReadonlyVector<PointT> ro_centroids;
+    LocalBuffer<PointT> local_points;
     LabelingConfiguration config;
 
 };
