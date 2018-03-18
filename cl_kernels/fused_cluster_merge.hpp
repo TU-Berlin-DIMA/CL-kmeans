@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef FUSED_CLUSTER_MERGE_HPP
@@ -26,6 +26,7 @@
 #include <vector>
 #include <stdexcept>
 #include <iostream>
+#include <utility> // std::move
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -51,7 +52,10 @@ public:
     FusedClusterMerge() :
         g_stride_g_mem_kernel(Utility::log2(MAX_FEATURES)),
         g_stride_l_mem_kernel(Utility::log2(MAX_FEATURES)),
-        l_stride_g_mem_kernel(Utility::log2(MAX_FEATURES))
+        l_stride_g_mem_kernel(Utility::log2(MAX_FEATURES)),
+        local_points(1),
+        local_new_centroids(1),
+        local_masses(1)
     {}
 
     void prepare(
@@ -223,41 +227,72 @@ public:
             this->config.global_size[0]
             * num_clusters
             * num_features;
-        Vector<PointT> tmp_new_centroids(
-                min_centroids_size,
-                queue.get_context()
-                );
+        if (this->tmp_new_centroids.size() < min_centroids_size) {
+            this->tmp_new_centroids = std::move(
+                    Vector<PointT>(
+                        min_centroids_size,
+                        queue.get_context()
+                        ));
+        }
 
         size_t const min_masses_size =
             this->config.global_size[0]
             * num_clusters;
-        Vector<MassT> new_masses(
-                min_masses_size,
-                queue.get_context()
-                );
+        if (this->new_masses.size() < min_masses_size) {
+            this->new_masses = std::move(
+                    Vector<MassT>(
+                        min_masses_size,
+                        queue.get_context()
+                        ));
+        }
 
-        LocalBuffer<PointT> local_points(
-                this->config.local_size[0]
-                * this->config.vector_length
-                * num_features
-                );
-        LocalBuffer<PointT> local_new_centroids(
+        size_t const local_points_size =
+            this->config.local_size[0]
+            * this->config.vector_length
+            * num_features
+            ;
+        if (this->local_points.size() != local_points_size) {
+            this->local_points = std::move(
+                    LocalBuffer<PointT>(
+                        local_points_size
+                        ));
+        }
+
+        size_t const local_new_centroids_size =
                 this->config.local_size[0]
                 * num_clusters
                 * num_features
-                );
-        LocalBuffer<MassT> local_masses(
-                this->config.local_size[0] * num_clusters
-                );
+                ;
+        if (this->local_new_centroids.size() != local_new_centroids_size) {
+            this->local_new_centroids = std::move(
+                    LocalBuffer<PointT>(
+                        local_new_centroids_size
+                        ));
+        }
 
-        ReadonlyVector<PointT> ro_centroids(
-                num_clusters * num_features,
-                queue.get_context()
-                );
+        size_t const local_masses_size =
+                this->config.local_size[0]
+                * num_clusters
+                ;
+        if (this->local_masses.size() != local_masses_size) {
+            this->local_masses = std::move(
+                    LocalBuffer<MassT>(
+                        local_masses_size
+                        ));
+        }
+
+        size_t const min_ro_centroids_size = num_clusters * num_features;
+        if (this->ro_centroids.size() < min_ro_centroids_size) {
+            this->ro_centroids = std::move(
+                    ReadonlyVector<PointT>(
+                        min_ro_centroids_size,
+                        queue.get_context()
+                        ));
+        }
         boost::compute::copy_async(
                 old_centroids_begin,
                 old_centroids_end,
-                ro_centroids.begin(),
+                this->ro_centroids.begin(),
                 queue
                 );
 
@@ -288,22 +323,22 @@ public:
         if (use_local_memory) {
             kernel.set_args(
                     points_begin.get_buffer(),
-                    ro_centroids,
-                    tmp_new_centroids,
-                    new_masses,
+                    this->ro_centroids,
+                    this->tmp_new_centroids,
+                    this->new_masses,
                     labels_begin.get_buffer(),
-                    local_points,
-                    local_new_centroids,
-                    local_masses,
+                    this->local_points,
+                    this->local_new_centroids,
+                    this->local_masses,
                     (cl_uint)num_points,
                     (cl_uint)num_clusters);
         }
         else {
             kernel.set_args(
                     points_begin.get_buffer(),
-                    ro_centroids,
-                    tmp_new_centroids,
-                    new_masses,
+                    this->ro_centroids,
+                    this->tmp_new_centroids,
+                    this->new_masses,
                     labels_begin.get_buffer(),
                     (cl_uint)num_points,
                     (cl_uint)num_clusters);
@@ -329,7 +364,8 @@ public:
                 queue,
                 this->config.global_size[0],
                 num_clusters * num_features,
-                tmp_new_centroids,
+                this->tmp_new_centroids.begin(),
+                this->tmp_new_centroids.begin() + min_centroids_size,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -342,8 +378,8 @@ public:
                 num_clusters,
                 new_centroids_begin,
                 new_centroids_end,
-                tmp_new_centroids.begin(),
-                tmp_new_centroids.begin() + num_clusters * num_features,
+                this->tmp_new_centroids.begin(),
+                this->tmp_new_centroids.begin() + num_clusters * num_features,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -354,7 +390,8 @@ public:
                 queue,
                 this->config.global_size[0],
                 num_clusters,
-                new_masses,
+                this->new_masses.begin(),
+                this->new_masses.begin() + min_masses_size,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -367,8 +404,8 @@ public:
                 num_clusters,
                 masses_begin,
                 masses_end,
-                new_masses.begin(),
-                new_masses.begin() + num_clusters,
+                this->new_masses.begin(),
+                this->new_masses.begin() + num_clusters,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -385,6 +422,12 @@ private:
     std::vector<Kernel> g_stride_g_mem_kernel;
     std::vector<Kernel> g_stride_l_mem_kernel;
     std::vector<Kernel> l_stride_g_mem_kernel;
+    Vector<PointT> tmp_new_centroids;
+    Vector<MassT> new_masses;
+    ReadonlyVector<PointT> ro_centroids;
+    LocalBuffer<PointT> local_points;
+    LocalBuffer<PointT> local_new_centroids;
+    LocalBuffer<MassT> local_masses;
     FusedConfiguration config;
     ReduceVectorParcol<PointT> reduce_centroids;
     ReduceVectorParcol<MassT> reduce_masses;
