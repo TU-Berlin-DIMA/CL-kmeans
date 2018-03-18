@@ -16,7 +16,7 @@
 #include <iostream>
 
 #define VERBOSE false
-#define CPU_ZERO_COPY false
+#define CPU_ZERO_COPY true
 
 using namespace Clustering;
 namespace bc = boost::compute;
