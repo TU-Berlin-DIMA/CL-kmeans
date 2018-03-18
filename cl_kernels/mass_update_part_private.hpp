@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2017, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2017-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef MASS_UPDATE_PART_PRIVATE_HPP
@@ -21,6 +21,7 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <utility> // std::move
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -43,6 +44,12 @@ public:
     using PinnedAllocator = boost::compute::pinned_allocator<T>;
     template <typename T>
     using PinnedVector = boost::compute::vector<T, PinnedAllocator<T>>;
+    template <typename T>
+    using LocalBuffer = boost::compute::local_buffer<T>;
+
+    MassUpdatePartPrivate() :
+        local_masses(1)
+    {}
 
     void prepare(
             Context context,
@@ -151,10 +158,24 @@ public:
             num_clusters * this->config.global_size[0];
 
         Vector<MassT> tmp_masses(buffer_size, queue.get_context());
+        if (this->tmp_masses.size() < buffer_size) {
+            this->tmp_masses = std::move(
+                    Vector<MassT>(
+                        buffer_size,
+                        queue.get_context()
+                        ));
+        }
 
-        boost::compute::local_buffer<MassT> local_masses(
-                num_clusters * this->config.local_size[0]
-                );
+        size_t const local_masses_size =
+            num_clusters
+            * this->config.local_size[0]
+            ;
+        if (this->local_masses.size() != local_masses_size) {
+            this->local_masses = std::move(
+                    LocalBuffer<MassT>(
+                        local_masses_size
+                        ));
+        }
 
         boost::compute::device device = queue.get_device();
         bool use_local_stride =
@@ -163,7 +184,7 @@ public:
             ;
         bool use_local_memory =
             device.type() == device.gpu &&
-            device.local_memory_size() > local_masses.size() * sizeof(MassT)
+            device.local_memory_size() > local_masses_size * sizeof(MassT)
             ;
         auto& kernel = (use_local_stride)
             ? l_stride_g_mem_kernel
@@ -175,8 +196,8 @@ public:
         if (use_local_memory) {
             kernel.set_args(
                     labels_begin.get_buffer(),
-                    tmp_masses,
-                    local_masses,
+                    this->tmp_masses,
+                    this->local_masses,
                     (uint32_t) num_points,
                     (uint32_t) num_clusters
                     );
@@ -184,7 +205,7 @@ public:
         else {
             kernel.set_args(
                     labels_begin.get_buffer(),
-                    tmp_masses,
+                    this->tmp_masses,
                     (uint32_t) num_points,
                     (uint32_t) num_clusters
                     );
@@ -206,7 +227,8 @@ public:
                 queue,
                 this->config.global_size[0],
                 num_clusters,
-                tmp_masses,
+                this->tmp_masses.begin(),
+                this->tmp_masses.begin() + buffer_size,
                 datapoint.create_child(),
                 wait_list_i);
 
@@ -217,8 +239,8 @@ public:
                 num_clusters,
                 masses_begin,
                 masses_end,
-                tmp_masses.begin(),
-                tmp_masses.begin() + num_clusters,
+                this->tmp_masses.begin(),
+                this->tmp_masses.begin() + num_clusters,
                 datapoint.create_child(),
                 wait_list_i
                 );
@@ -233,6 +255,8 @@ private:
     Kernel g_stride_g_mem_kernel;
     Kernel g_stride_l_mem_kernel;
     Kernel l_stride_g_mem_kernel;
+    Vector<MassT> tmp_masses;
+    LocalBuffer<MassT> local_masses;
     MassUpdateConfiguration config;
     ReduceVectorParcol<MassT> reduce;
     MatrixBinaryOp<MassT, MassT> matrix_add;
