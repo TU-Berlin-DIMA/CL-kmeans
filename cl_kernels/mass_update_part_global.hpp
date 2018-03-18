@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef MASS_UPDATE_PART_GLOBAL_HPP
@@ -21,6 +21,7 @@
 #include <cassert>
 #include <string>
 #include <type_traits>
+#include <utility> // std::move
 
 #include <boost/compute/core.hpp>
 #include <boost/compute/container/vector.hpp>
@@ -124,7 +125,13 @@ public:
 
         size_t const buffer_size = num_clusters * num_work_groups;
 
-        Vector<MassT> tmp_masses(buffer_size, queue.get_context());
+        if (this->tmp_masses.size() < buffer_size) {
+            this->tmp_masses = std::move(
+                    Vector<MassT>(
+                        buffer_size,
+                        queue.get_context()
+                        ));
+        }
 
         boost::compute::device device = queue.get_device();
         Kernel& kernel = (
@@ -137,7 +144,7 @@ public:
 
         kernel.set_args(
                 labels_begin.get_buffer(),
-                tmp_masses,
+                this->tmp_masses,
                 (uint32_t) num_points,
                 (uint32_t) num_clusters);
 
@@ -159,7 +166,8 @@ public:
                 queue,
                 num_work_groups,
                 num_clusters,
-                tmp_masses,
+                this->tmp_masses.begin(),
+                this->tmp_masses.begin() + buffer_size,
                 datapoint.create_child(),
                 wait_list_i
                 );
@@ -171,8 +179,8 @@ public:
                 num_clusters,
                 masses_begin,
                 masses_end,
-                tmp_masses.begin(),
-                tmp_masses.begin() + num_clusters,
+                this->tmp_masses.begin(),
+                this->tmp_masses.begin() + num_clusters,
                 datapoint.create_child(),
                 wait_list_i
                 );
@@ -186,6 +194,7 @@ private:
 
     Kernel global_stride_kernel;
     Kernel local_stride_kernel;
+    Vector<MassT> tmp_masses;
     MassUpdateConfiguration config;
     ReduceVectorParcol<MassT> reduce;
     MatrixBinaryOp<MassT, MassT> matrix_add;
