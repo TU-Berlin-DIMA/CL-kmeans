@@ -16,8 +16,10 @@
 #include <iostream>
 
 #define VERBOSE false
+#define CPU_ZERO_COPY false
 
 using namespace Clustering;
+namespace bc = boost::compute;
 
 SimpleBufferCache::SimpleBufferCache(size_t buffer_size)
     :
@@ -73,23 +75,27 @@ int SimpleBufferCache::add_device(Context context, Device device, size_t pool_si
 
     auto queue = Queue(context, device);
 
-    for (auto& buf : info.device_buffer) {
-        buf = Buffer(context, buffer_size_i);
-    }
+    // Leave CPU buffers default-initialized, we create them on-demand
+    // For other devices, do buffer initialization
+    if (not (CPU_ZERO_COPY and device.type() == Device::cpu)) {
+        for (auto& buf : info.device_buffer) {
+            buf = Buffer(context, buffer_size_i);
+        }
 
-    for (size_t i = 0; i < info.host_buffer.size(); ++i) {
-        auto& buf = info.host_buffer[i];
-        buf = Buffer(
-                context,
-                buffer_size_i,
-                Buffer::read_write | Buffer::alloc_host_ptr
-                );
-        info.host_ptr[i] = queue.enqueue_map_buffer(
-                buf,
-                Queue::map_write_invalidate_region,
-                0,
-                buffer_size_i
-                );
+        for (size_t i = 0; i < info.host_buffer.size(); ++i) {
+            auto& buf = info.host_buffer[i];
+            buf = Buffer(
+                    context,
+                    buffer_size_i,
+                    Buffer::read_write | Buffer::alloc_host_ptr
+                    );
+            info.host_ptr[i] = queue.enqueue_map_buffer(
+                    buf,
+                    Queue::map_write_invalidate_region,
+                    0,
+                    buffer_size_i
+                    );
+        }
     }
 
     return 1;
@@ -216,48 +222,61 @@ int SimpleBufferCache::write_and_get(Queue queue, uint32_t oid, void *begin, voi
     }
 
     buffers.clear();
-    buffers.push_back({device_buffer, size, buffer_id});
 
     device_info.cached_object_id[cache_slot] = oid;
     device_info.cached_buffer_id[cache_slot] = buffer_id;
     device_info.cached_ptr[cache_slot] = begin;
     device_info.cached_content_length[cache_slot] = size;
 
-    auto& mode = object_info_i[oid].mode;
-    if (mode == ObjectMode::Transient) {
-        // Don't need to actually write anything, locking is enough
-        finish_event = evict_event;
-        return 1;
+    if (CPU_ZERO_COPY and device_info.device.type() == Device::cpu) {
+        device_buffer = Buffer(
+                device_info.context,
+                size,
+                Buffer::use_host_ptr | Buffer::read_write,
+                begin
+                );
+
+        buffers.push_back({device_buffer, size, buffer_id});
     }
+    else {
+        buffers.push_back({device_buffer, size, buffer_id});
 
-    WaitList task_wait_list(wait_list);
-    Event const empty_event;
-    if (evict_event != empty_event) {
-        task_wait_list.insert(evict_event);
+        auto& mode = object_info_i[oid].mode;
+        if (mode == ObjectMode::Transient) {
+            // Don't need to actually write anything, locking is enough
+            finish_event = evict_event;
+            return 1;
+        }
+
+        WaitList task_wait_list(wait_list);
+        Event const empty_event;
+        if (evict_event != empty_event) {
+            task_wait_list.insert(evict_event);
+        }
+        boost::compute::user_event task_uevent(queue.get_context());
+        auto& iot = this->get_io_thread(queue);
+        AsyncTask *async_task = new AsyncTask{
+            &iot,
+                begin,
+                host_ptr,
+                size,
+                task_wait_list,
+                task_uevent,
+                &datapoint
+        };
+
+        WaitList write_wait_list(async_task->finish_event);
+        iot.push_back(async_task);
+
+        finish_event = queue.enqueue_write_buffer_async(
+                device_buffer,
+                0,
+                size,
+                host_ptr,
+                write_wait_list
+                );
+        datapoint.add_event() = finish_event;
     }
-    boost::compute::user_event task_uevent(queue.get_context());
-    auto& iot = this->get_io_thread(queue);
-    AsyncTask *async_task = new AsyncTask{
-        &iot,
-            begin,
-            host_ptr,
-            size,
-            task_wait_list,
-            task_uevent,
-            &datapoint
-    };
-
-    WaitList write_wait_list(async_task->finish_event);
-    iot.push_back(async_task);
-
-    finish_event = queue.enqueue_write_buffer_async(
-            device_buffer,
-            0,
-            size,
-            host_ptr,
-            write_wait_list
-            );
-    datapoint.add_event() = finish_event;
 
     return 1;
 }
@@ -314,35 +333,38 @@ int SimpleBufferCache::read(Queue queue, uint32_t oid, void *begin, void *end, E
         return -1;
     }
 
-    Event read_event;
-    read_event = queue.enqueue_read_buffer_async(
-            device_buffer,
-            0,
-            size,
-            host_ptr,
-            wait_list
-            );
-    datapoint.add_event() = read_event;
+    if (not (CPU_ZERO_COPY and device_info.device.type() == Device::cpu)) {
+        Event read_event;
+        read_event = queue.enqueue_read_buffer_async(
+                device_buffer,
+                0,
+                size,
+                host_ptr,
+                wait_list
+                );
+        datapoint.add_event() = read_event;
 
-    WaitList task_wait_list(read_event);
-    boost::compute::user_event task_uevent(queue.get_context());
-    auto& iot = this->get_io_thread(queue);
-    AsyncTask *async_task = new AsyncTask{
-        &iot,
-            host_ptr,
-            begin,
-            size,
-            task_wait_list,
-            task_uevent,
-            &datapoint
-    };
+        WaitList task_wait_list(read_event);
+        boost::compute::user_event task_uevent(queue.get_context());
+        auto& iot = this->get_io_thread(queue);
+        AsyncTask *async_task = new AsyncTask{
+            &iot,
+                host_ptr,
+                begin,
+                size,
+                task_wait_list,
+                task_uevent,
+                &datapoint
+        };
 
-    WaitList barrier_wait_list(async_task->finish_event);
-    Event barrier_event;
-    barrier_event = queue.enqueue_barrier(barrier_wait_list);
-    iot.push_back(async_task);
+        WaitList barrier_wait_list(async_task->finish_event);
+        Event barrier_event;
+        barrier_event = queue.enqueue_barrier(barrier_wait_list);
+        iot.push_back(async_task);
 
-    finish_event = barrier_event;
+        finish_event = barrier_event;
+    }
+
     return 1;
 }
 
@@ -370,19 +392,22 @@ int SimpleBufferCache::evict_cache_slot(Queue queue, uint32_t device_id, uint32_
 
         return 1;
     }
-    // Case: object is mutable and presumed dirty, must write back to evict
-    int ret = read(
-            queue,
-            object_id,
-            cached_ptr,
-            ((char*)cached_ptr) + content_length,
-            event,
-            wait_list,
-            datapoint.create_child()
-        );
-    if (ret < 0) {
-        std::cerr << "evict_cache_slot: write-back error" << std::endl;
-        return -1;
+
+    if (not (CPU_ZERO_COPY and devinfo.device.type() == Device::cpu)) {
+        // Case: object is mutable and presumed dirty, must write back to evict
+        int ret = read(
+                queue,
+                object_id,
+                cached_ptr,
+                ((char*)cached_ptr) + content_length,
+                event,
+                wait_list,
+                datapoint.create_child()
+                );
+        if (ret < 0) {
+            std::cerr << "evict_cache_slot: write-back error" << std::endl;
+            return -1;
+        }
     }
 
     object_id = -1;
