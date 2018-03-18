@@ -4,7 +4,7 @@
  * obtain one at http://mozilla.org/MPL/2.0/.
  *
  *
- * Copyright (c) 2016-2017, Lutz, Clemens <lutzcle@cml.li>
+ * Copyright (c) 2016-2018, Lutz, Clemens <lutzcle@cml.li>
  */
 
 #ifndef CENTROID_UPDATE_FEATURE_SUM_HPP
@@ -145,11 +145,17 @@ public:
 
         size_t min_centroids_size =
             num_clusters * this->config.global_size[0];
-        Vector<PointT> tmp_centroids(min_centroids_size, queue.get_context());
+        if (this->tmp_centroids.size() < min_centroids_size) {
+            this->tmp_centroids = std::move(
+                    Vector<PointT>(
+                        min_centroids_size,
+                        queue.get_context()
+                        ));
+        }
 
         this->kernel.set_args(
                 points_begin.get_buffer(),
-                tmp_centroids,
+                this->tmp_centroids,
                 labels_begin.get_buffer(),
                 (cl_uint)num_features,
                 (cl_uint)num_points,
@@ -176,7 +182,8 @@ public:
                 queue,
                 num_point_blocks,
                 num_clusters * num_features,
-                tmp_centroids,
+                this->tmp_centroids.begin(),
+                this->tmp_centroids.begin() + min_centroids_size,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -189,8 +196,8 @@ public:
                 num_clusters,
                 centroids_begin,
                 centroids_end,
-                tmp_centroids.begin(),
-                tmp_centroids.begin() + num_clusters * num_features,
+                this->tmp_centroids.begin(),
+                this->tmp_centroids.begin() + num_clusters * num_features,
                 datapoint.create_child(),
                 wait_list
                 );
@@ -204,6 +211,7 @@ private:
     static constexpr const char* KERNEL_NAME = "lloyd_feature_sum_sequential";
 
     Kernel kernel;
+    Vector<PointT> tmp_centroids;
     CentroidUpdateConfiguration config;
     ReduceVectorParcol<PointT> reduce_centroids;
     MatrixBinaryOp<PointT, PointT> matrix_add;
