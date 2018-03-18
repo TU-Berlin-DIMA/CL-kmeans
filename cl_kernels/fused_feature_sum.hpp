@@ -256,7 +256,7 @@ public:
             * this->config.vector_length
             * num_features
             ;
-        if (this->local_points.size() < local_points_size) {
+        if (this->local_points.size() != local_points_size) {
             this->local_points = std::move(
                     LocalBuffer<PointT>(
                         local_points_size
@@ -268,7 +268,7 @@ public:
             * num_thread_features
             * num_clusters
             ;
-        if (this->local_new_centroids.size() < local_new_centroids_size) {
+        if (this->local_new_centroids.size() != local_new_centroids_size) {
             this->local_new_centroids = std::move(
                     LocalBuffer<PointT>(
                         local_new_centroids_size
@@ -279,7 +279,7 @@ public:
                 this->config.local_size[0]
                 * num_clusters
                 ;
-        if (this->local_masses.size() < local_masses_size) {
+        if (this->local_masses.size() != local_masses_size) {
             this->local_masses = std::move(
                     LocalBuffer<MassT>(
                         local_masses_size
@@ -290,7 +290,7 @@ public:
                 this->config.local_size[0]
                 * this->config.vector_length
                 ;
-        if (this->local_labels.size() < local_labels_size) {
+        if (this->local_labels.size() != local_labels_size) {
             this->local_labels = std::move(
                     LocalBuffer<LabelT>(
                         local_labels_size
