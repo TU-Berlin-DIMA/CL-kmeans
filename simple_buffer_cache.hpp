@@ -72,7 +72,7 @@ private:
         size_t num_slots;
         std::vector<SlotLock> slot_lock;
         std::vector<int64_t> cached_object_id;
-        std::vector<int64_t> cached_buffer_id;
+        std::vector<size_t> cached_buffer_id;
         std::vector<void*> cached_ptr;
         std::vector<size_t> cached_content_length;
         std::vector<Buffer> device_buffer;
@@ -124,9 +124,9 @@ private:
     int try_read_lock(uint32_t device_id, uint32_t cache_slot);
     int try_write_lock(uint32_t device_id, uint32_t cache_slot);
     int64_t find_device_id(Device device);
-    int64_t find_buffer_id(uint32_t device_id, uint32_t oid, void *ptr);
-    int64_t find_cache_slot(uint32_t device_id, uint32_t oid, uint32_t buffer_id);
-    int64_t assign_cache_slot(uint32_t device_id, uint32_t oid, uint32_t bid);
+    int find_buffer_id(uint32_t device_id, uint32_t oid, void *ptr, size_t& buffer_id);
+    int64_t find_cache_slot(uint32_t device_id, uint32_t oid, size_t buffer_id);
+    int64_t assign_cache_slot(uint32_t device_id, uint32_t oid, size_t buffer_id);
     IOThread& get_io_thread(Queue& queue);
 
 };

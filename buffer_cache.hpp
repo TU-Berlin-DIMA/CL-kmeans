@@ -55,7 +55,7 @@ public:
     public:
         Buffer buffer;
         size_t content_length;
-        int64_t buffer_id; /* internal data */
+        size_t buffer_id; /* internal data */
     };
 
     /*
