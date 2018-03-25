@@ -46,8 +46,8 @@ public:
   {
     // No data copy, reference existing centroids
     arma::Mat<T> arma_centroids(
-        num_clusters,
-        points_.n_cols
+        points_.n_rows,
+        num_clusters
         );
 
     Timer::Timer cpu_timer;
@@ -56,7 +56,7 @@ public:
     arma::kmeans(
         arma_centroids,
         points_,
-        arma_centroids.n_rows,
+        num_clusters,
         // arma::keep_existing,
         arma::static_subset,
         max_iterations,
