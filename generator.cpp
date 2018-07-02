@@ -35,6 +35,7 @@ public:
         po::options_description cmdline(help_msg);
         cmdline.add_options()
             ("help", "Produce help message")
+            ("csv", "Generate CSV file (default output is binary)")
             ("size", po::value<uint64_t>(&megabytes_)->default_value(100),
              "Target file size in MiB (as float-type data)")
             ("features", po::value<uint64_t>(&features_)->default_value(2),
@@ -74,6 +75,13 @@ public:
             return -1;
         }
 
+        if (vm.count("csv")) {
+            csv_format_ = true;
+        }
+        else {
+            csv_format_ = false;
+        }
+
         // Ensure we have required options
         if (output_file_.empty()) {
             std::cout << "Give me an output file!" << std::endl;
@@ -81,6 +89,10 @@ public:
         }
 
         return 1;
+    }
+
+    bool csv_format() const {
+        return csv_format_;
     }
 
     uint64_t features() const {
@@ -117,6 +129,7 @@ public:
 
 private:
     std::string output_file_;
+    bool csv_format_;
     uint64_t features_;
     uint64_t clusters_;
     uint64_t megabytes_;
@@ -142,5 +155,10 @@ int main(int argc, char **argv) {
     generator.num_clusters(options.clusters());
     generator.point_multiple(options.multiple());
 
-    generator.generate_bin(options.output_file().c_str());
+    if (options.csv_format()) {
+        generator.generate_csv(options.output_file().c_str());
+    }
+    else {
+        generator.generate_bin(options.output_file().c_str());
+    }
 }
