@@ -79,6 +79,17 @@ SET(GENERATOR_SOURCES
 ADD_EXECUTABLE(generator ${GENERATOR_SOURCES})
 TARGET_LINK_LIBRARIES(generator ${Boost_LIBRARIES})
 
+SET(TRANSFERBENCH_NAME "transfer_bench")
+SET(TRANSFERBENCH_SOURCES
+    transfer_bench.cpp
+    buffer_helper.cpp
+    simple_buffer_cache.cpp
+    single_device_scheduler.cpp
+    measurement/measurement.cpp
+    )
+ADD_EXECUTABLE(transfer_bench ${TRANSFERBENCH_SOURCES})
+TARGET_LINK_LIBRARIES(transfer_bench ${OPENCL_LIBRARIES} ${Boost_LIBRARIES} Threads::Threads)
+
 FIND_PACKAGE(JPEG)
 IF(JPEG_FOUND)
     SET(PICLUSTER_SOURCES

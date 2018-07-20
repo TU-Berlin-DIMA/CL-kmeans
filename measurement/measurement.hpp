@@ -14,6 +14,8 @@
 #include <deque>
 #include <map>
 #include <string>
+#include <regex>
+#include <tuple>
 
 #include <boost/compute/event.hpp>
 
@@ -102,6 +104,31 @@ public:
   }
 
   void write_csv(std::string filename);
+
+  template <typename UnitT = std::chrono::nanoseconds>
+  std::vector<std::tuple<std::string, uint64_t>> get_execution_times_by_name(std::regex expression) {
+      UnitT time_span;
+
+      std::vector<std::tuple<std::string, uint64_t>> times;
+      auto datapoints = get_datapoints_with_events();
+      for (auto& dp : datapoints) {
+          if (std::regex_match(dp.get_name(), expression)) {
+              size_t num_events = dp.num_events();
+              for (size_t i = 0; i < num_events; ++i) {
+                  std::chrono::duration<uint64_t, std::nano> nanoseconds(
+                          dp.get_event_end(i) - dp.get_event_start(i)
+                          );
+                  auto time_span = std::chrono::duration_cast<UnitT>(nanoseconds);
+                  times.push_back(std::make_tuple(
+                              dp.get_name(),
+                              time_span.count()
+                              ));
+              }
+          }
+      }
+
+      return times;
+  }
 
 private:
   std::string get_unique_id();
