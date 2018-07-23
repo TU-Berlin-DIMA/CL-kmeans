@@ -107,8 +107,6 @@ public:
 
   template <typename UnitT = std::chrono::nanoseconds>
   std::vector<std::tuple<std::string, uint64_t>> get_execution_times_by_name(std::regex expression) {
-      UnitT time_span;
-
       std::vector<std::tuple<std::string, uint64_t>> times;
       auto datapoints = get_datapoints_with_events();
       for (auto& dp : datapoints) {
@@ -118,7 +116,7 @@ public:
                   std::chrono::duration<uint64_t, std::nano> nanoseconds(
                           dp.get_event_end(i) - dp.get_event_start(i)
                           );
-                  auto time_span = std::chrono::duration_cast<UnitT>(nanoseconds);
+                  UnitT time_span = std::chrono::duration_cast<UnitT>(nanoseconds);
                   times.push_back(std::make_tuple(
                               dp.get_name(),
                               time_span.count()

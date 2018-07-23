@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <chrono>
 #include <iostream>
+#include <iomanip>
 #include <string>
 
 namespace bc = boost::compute;
@@ -87,11 +88,11 @@ public:
         this->destroy_scheduler();
     }
 
-    std::vector<uint64_t> transfer_to_device_only(std::vector<size_t> buffer_sizes) {
+    std::vector<std::tuple<size_t, uint64_t>> transfer_to_device_only(std::vector<size_t> buffer_sizes) {
 
         int ret = 0;
         uint32_t object_id = 0;
-        std::vector<uint64_t> all_milliseconds;
+        std::vector<std::tuple<size_t, uint64_t>> transfer_time;
 
         for (auto bs : buffer_sizes) {
             std::vector<int> data(DATA_SIZE / sizeof(int), 0);
@@ -118,25 +119,22 @@ public:
             auto events = fevents.get();
 
             auto times = measurement
-                .get_execution_times_by_name<std::chrono::milliseconds>(
-                    std::regex("^BufferCache*")
+                .get_execution_times_by_name<std::chrono::nanoseconds>(
+                    std::regex("^BufferCache.*")
                     );
 
-            uint64_t milliseconds = 0;
             for (auto& tuple : times) {
                 std::string s;
                 uint64_t t;
                 std::tie (s, t) = tuple;
 
-                std::cout << s << std::endl;
-                milliseconds += t;
+                transfer_time.emplace_back(bs, t);
             }
-            all_milliseconds.push_back(milliseconds);
 
             destroy_scheduler();
         }
 
-        return all_milliseconds;
+        return transfer_time;
     }
 
     void transfer_to_device_and_back() {
@@ -308,15 +306,29 @@ int main(int argc, char **argv) {
             config.local_size
             );
     tb.setup();
-
-    std::vector<uint64_t> millis = tb.transfer_to_device_only(buffer_sizes);
-
-    std::cout << "MB\ttransfer_to_device_(ms)" << std::endl;
-    for (auto i = 0ul; i < millis.size(); ++i) {
-        std::cout << buffer_sizes[i] << '\t' << millis[i] << std::endl;
-    }
-
+    auto transfer_time = tb.transfer_to_device_only(buffer_sizes);
     tb.teardown();
+
+    std::cout
+        << "Buffer_Size_(MB)\ttransfer_to_device_(ns)"
+        << std::endl
+        ;
+
+    for (auto& tuple : transfer_time) {
+        size_t size;
+        uint64_t nanos;
+        std::tie (size, nanos) = tuple;
+
+        std::cout
+            << std::setw(10)
+            << size
+            << '\t'
+            << nanos
+            << '\n'
+            ;
+    }
+    std::cout << std::flush;
+
 
     return 0;
 }
