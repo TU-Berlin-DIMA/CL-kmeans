@@ -310,7 +310,7 @@ int main(int argc, char **argv) {
     tb.teardown();
 
     std::cout
-        << "Buffer_Size_(MB)\ttransfer_to_device_(ns)"
+        << "Buffer_Size_(bytes)\ttransfer_to_device_(ns)"
         << std::endl
         ;
 
