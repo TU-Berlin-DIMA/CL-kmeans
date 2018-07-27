@@ -20,6 +20,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <algorithm>
 
 #include <sys/mman.h>
 #include <unistd.h>
@@ -91,18 +92,38 @@ public:
         this->destroy_scheduler();
     }
 
-    std::vector<std::tuple<size_t, uint64_t>> transfer_to_device_only(std::vector<size_t> buffer_sizes) {
+    std::vector<std::tuple<size_t, uint64_t>> transfer_to_device_only(
+            uint32_t repeat,
+            std::vector<size_t> buffer_sizes
+            ) {
 
         int ret = 0;
         uint32_t object_id = 0;
         std::vector<std::tuple<size_t, uint64_t>> transfer_time;
 
+        long page_size = ::sysconf(_SC_PAGESIZE);
+        assert(page_size != -1);
+
+        size_t max_buffer_size = *std::max_element(
+                buffer_sizes.begin(),
+                buffer_sizes.end()
+                );
+        size_t data_size = ((max_buffer_size * repeat + page_size - 1)
+                / page_size) * page_size;
+
         for (auto bs : buffer_sizes) {
-            long page_size = ::sysconf(_SC_PAGESIZE);
-            assert(page_size != -1);
-            void *vdata = static_cast<int*>(::mmap(nullptr, DATA_SIZE, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
-            assert(vdata != MAP_FAILED);
-            int *data = (int*)vdata;
+            size_t transfer_size = bs * repeat;
+            assert(transfer_size <= data_size);
+
+            void *data = static_cast<int*>(::mmap(nullptr, data_size, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+            assert(data != MAP_FAILED);
+
+            // Pre-fault allocated pages
+            volatile int throw_away = 0;
+            int *idata = (int*)data;
+            for (size_t i = 0; i < transfer_size / sizeof(int); ++i) {
+                throw_away += idata[i];
+            }
 
             std::future<std::deque<bc::event>> fevents;
             Measurement::Measurement measurement;
@@ -110,7 +131,7 @@ public:
             object_id = new_scheduler(
                     bs,
                     data,
-                    DATA_SIZE
+                    transfer_size
                     );
 
             ret = scheduler->enqueue(
@@ -123,6 +144,7 @@ public:
 
             ret = scheduler->run();
 
+            queue_i.finish();
             fevents.wait();
             auto events = fevents.get();
 
@@ -140,7 +162,7 @@ public:
             }
 
             destroy_scheduler();
-            ::munmap(data, DATA_SIZE);
+            ::munmap(data, data_size);
         }
 
         return transfer_time;
@@ -157,11 +179,14 @@ private:
         assert(true == scheduler->add_buffer_cache(buffer_cache));
         assert(true == scheduler->add_device(queue_i.get_context(), device_i));
 
+        size_t pool_size = buffer_size * 2 + 1;
+        assert(pool_size < device_i.global_memory_size());
+
         assert(true ==
                 buffer_cache->add_device(
                     queue_i.get_context(),
                     device_i,
-                    POOL_SIZE
+                    pool_size
                     ));
 
         uint32_t object_id = buffer_cache->add_object(
@@ -179,8 +204,6 @@ private:
         buffer_cache.reset();
     }
 
-    size_t static constexpr DATA_SIZE = 2ull << 30;
-    size_t static constexpr POOL_SIZE = 1ull << 30;
     bc::device device_i;
     bc::command_queue queue_i;
     size_t global_size_i;
@@ -196,7 +219,8 @@ public:
     :
         global_size(1024),
         local_size(64),
-        max_buffer_size(256ull << 20)
+        max_buffer_size(256ull << 20),
+        repeat(10)
     {
         this->platform = bc::system::default_device().platform().id();
         this->device = bc::system::default_device().id();
@@ -213,9 +237,10 @@ public:
             ("help", "Produce help message")
             ("platform", "OpenCL Platform ID")
             ("device", "OpenCL Device ID")
-            ("max_size", "Maximum transfer buffer size in Megabytes; Default: 256MB")
-            ("global_size", "Kernel Global Size; Default: 1024")
-            ("local_size", "Kernel Local Size; Default: 64")
+            ("max-size", po::value<size_t>(), "Maximum transfer buffer size in Megabytes; Default: 256MB")
+            ("repeat", po::value<uint32_t>(), "Number of transfers to make; Default: 10")
+            // ("global_size", po::value<size_t>(), "Kernel Global Size; Default: 1024")
+            // ("local_size", po::value<size_t>(), "Kernel Local Size; Default: 64")
             ;
 
         po::variables_map vm;
@@ -240,8 +265,12 @@ public:
             this->device = vm["device"].as<cl_device_id>();
         }
 
-        if (vm.count("max_size")) {
-            this->max_buffer_size = vm["max_size"].as<size_t>() << 20;
+        if (vm.count("max-size")) {
+            this->max_buffer_size = vm["max-size"].as<size_t>() << 20;
+        }
+
+        if (vm.count("repeat")) {
+            this->repeat = vm["repeat"].as<uint32_t>();
         }
 
         if (vm.count("global_size")) {
@@ -260,6 +289,7 @@ public:
     size_t global_size;
     size_t local_size;
     size_t max_buffer_size;
+    uint32_t repeat;
 };
 
 int main(int argc, char **argv) {
@@ -273,9 +303,10 @@ int main(int argc, char **argv) {
     }
 
     std::vector<size_t> buffer_sizes;
-    for (auto s = 1ull << 20; s <= config.max_buffer_size; s = s * 2) {
+    for (auto s = 1ull << 20; s < config.max_buffer_size; s = s * 2) {
         buffer_sizes.push_back(s);
     }
+    buffer_sizes.push_back(config.max_buffer_size);
 
     bc::platform platform = bc::platform(config.platform);
     bc::device device;
@@ -315,7 +346,7 @@ int main(int argc, char **argv) {
             config.local_size
             );
     tb.setup();
-    auto transfer_time = tb.transfer_to_device_only(buffer_sizes);
+    auto transfer_time = tb.transfer_to_device_only(config.repeat, buffer_sizes);
     tb.teardown();
 
     std::cout

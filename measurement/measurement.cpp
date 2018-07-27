@@ -71,6 +71,7 @@ uint64_t Measurement::DataPoint::get_event_queued(size_t i) {
     }
     else {
         auto& e = events_[i];
+        e.wait();
         return e.get_profiling_info<uint64_t>(Event::profiling_command_queued);
     }
 }
@@ -82,6 +83,7 @@ uint64_t Measurement::DataPoint::get_event_submit(size_t i) {
     }
     else {
         auto& e = events_[i];
+        e.wait();
         return e.get_profiling_info<uint64_t>(Event::profiling_command_submit);
     }
 }
@@ -93,6 +95,7 @@ uint64_t Measurement::DataPoint::get_event_start(size_t i) {
     }
     else {
         auto& e = events_[i];
+        e.wait();
         return e.get_profiling_info<uint64_t>(Event::profiling_command_start);
     }
 }
@@ -104,6 +107,7 @@ uint64_t Measurement::DataPoint::get_event_end(size_t i) {
     }
     else {
         auto& e = events_[i];
+        e.wait();
         return e.get_profiling_info<uint64_t>(Event::profiling_command_end);
     }
 }
