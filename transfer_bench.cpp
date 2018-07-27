@@ -97,7 +97,6 @@ public:
             std::vector<size_t> buffer_sizes
             ) {
 
-        int ret = 0;
         uint32_t object_id = 0;
         std::vector<std::tuple<size_t, uint64_t>> transfer_time;
 
@@ -134,17 +133,18 @@ public:
                     transfer_size
                     );
 
-            ret = scheduler->enqueue(
-                    zero_f,
-                    object_id,
-                    bs,
-                    fevents,
-                    measurement.add_datapoint()
-                    );
+            assert(true ==
+                    scheduler->enqueue(
+                        zero_f,
+                        object_id,
+                        bs,
+                        fevents,
+                        measurement.add_datapoint()
+                        ));
 
-            ret = scheduler->run();
+            assert(true ==
+                    scheduler->run());
 
-            queue_i.finish();
             fevents.wait();
             auto events = fevents.get();
 
