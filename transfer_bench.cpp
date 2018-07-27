@@ -21,6 +21,9 @@
 #include <iomanip>
 #include <string>
 
+#include <sys/mman.h>
+#include <unistd.h>
+
 namespace bc = boost::compute;
 namespace po = boost::program_options;
 
@@ -95,14 +98,19 @@ public:
         std::vector<std::tuple<size_t, uint64_t>> transfer_time;
 
         for (auto bs : buffer_sizes) {
-            std::vector<int> data(DATA_SIZE / sizeof(int), 0);
+            long page_size = ::sysconf(_SC_PAGESIZE);
+            assert(page_size != -1);
+            void *vdata = static_cast<int*>(::mmap(nullptr, DATA_SIZE, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+            assert(vdata != MAP_FAILED);
+            int *data = (int*)vdata;
+
             std::future<std::deque<bc::event>> fevents;
             Measurement::Measurement measurement;
 
             object_id = new_scheduler(
                     bs,
-                    data.data(),
-                    data.size() * sizeof(decltype(data)::value_type)
+                    data,
+                    DATA_SIZE
                     );
 
             ret = scheduler->enqueue(
@@ -132,6 +140,7 @@ public:
             }
 
             destroy_scheduler();
+            ::munmap(data, DATA_SIZE);
         }
 
         return transfer_time;
