@@ -15,6 +15,11 @@
 #include <unistd.h>
 #include <random>
 #include <sstream>
+#include <iostream>
+
+#include <boost/compute/core.hpp>
+
+namespace bc = boost::compute;
 
 uint32_t const max_datetime_length = 30;
 char const *const timestamp_format = "%F-%H-%M-%S";
@@ -71,7 +76,21 @@ uint64_t Measurement::DataPoint::get_event_queued(size_t i) {
     }
     else {
         auto& e = events_[i];
-        e.wait();
+
+        auto status = e.status();
+        if (
+                status == bc::event::queued or
+                status == bc::event::submitted or
+                status == bc::event::running
+           )
+        {
+            e.wait();
+        }
+        else if (status < 0) {
+            std::cerr << bc::opencl_error::to_string(status) << std::endl;
+            throw new bc::opencl_error(status);
+        }
+
         return e.get_profiling_info<uint64_t>(Event::profiling_command_queued);
     }
 }
@@ -83,7 +102,21 @@ uint64_t Measurement::DataPoint::get_event_submit(size_t i) {
     }
     else {
         auto& e = events_[i];
-        e.wait();
+
+        auto status = e.status();
+        if (
+                status == bc::event::queued or
+                status == bc::event::submitted or
+                status == bc::event::running
+           )
+        {
+            e.wait();
+        }
+        else if (status < 0) {
+            std::cerr << bc::opencl_error::to_string(status) << std::endl;
+            throw new bc::opencl_error(status);
+        }
+
         return e.get_profiling_info<uint64_t>(Event::profiling_command_submit);
     }
 }
@@ -95,7 +128,21 @@ uint64_t Measurement::DataPoint::get_event_start(size_t i) {
     }
     else {
         auto& e = events_[i];
-        e.wait();
+
+        auto status = e.status();
+        if (
+                status == bc::event::queued or
+                status == bc::event::submitted or
+                status == bc::event::running
+           )
+        {
+            e.wait();
+        }
+        else if (status < 0) {
+            std::cerr << bc::opencl_error::to_string(status) << std::endl;
+            throw new bc::opencl_error(status);
+        }
+
         return e.get_profiling_info<uint64_t>(Event::profiling_command_start);
     }
 }
@@ -107,7 +154,21 @@ uint64_t Measurement::DataPoint::get_event_end(size_t i) {
     }
     else {
         auto& e = events_[i];
-        e.wait();
+
+        auto status = e.status();
+        if (
+                status == bc::event::queued or
+                status == bc::event::submitted or
+                status == bc::event::running
+           )
+        {
+            e.wait();
+        }
+        else if (status < 0) {
+            std::cerr << bc::opencl_error::to_string(status) << std::endl;
+            throw new bc::opencl_error(status);
+        }
+
         return e.get_profiling_info<uint64_t>(Event::profiling_command_end);
     }
 }
