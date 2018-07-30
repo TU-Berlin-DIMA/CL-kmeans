@@ -23,6 +23,7 @@
 #include <algorithm>
 
 #include <sys/mman.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 namespace bc = boost::compute;
@@ -102,24 +103,54 @@ public:
 
         long page_size = ::sysconf(_SC_PAGESIZE);
         assert(page_size != -1);
+        assert(DATA_SIZE % page_size == 0);
 
-        size_t max_buffer_size = *std::max_element(
+        // Calculate size biggest array we will use and round up to page_size
+        size_t max_required_size = ((*std::max_element(
                 buffer_sizes.begin(),
                 buffer_sizes.end()
-                );
-        size_t data_size = ((max_buffer_size * repeat + page_size - 1)
-                / page_size) * page_size;
+                ) * repeat + page_size - 1) / page_size) * page_size;
+
+        // Reserve enough address space max_required_size,
+        // but don't actually allocate pages (relying on kernel to dedupliate pages)
+        void *reserved = ::mmap(nullptr, max_required_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
         for (auto bs : buffer_sizes) {
             size_t transfer_size = bs * repeat;
-            assert(transfer_size <= data_size);
 
-            void *data = static_cast<int*>(::mmap(nullptr, data_size, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+            // Create in-memory file and map it into address space
+            //int fdesc = ::memfd_create("DATA", 0); // Requires glibc >= 2.27
+	    int fdesc = ::syscall(SYS_memfd_create, "DATA", 0);
+            assert(fdesc != -1);
+            assert(0 == ftruncate(fdesc, DATA_SIZE));
+            void *data = ::mmap(reserved, DATA_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fdesc, 0);
             assert(data != MAP_FAILED);
+            assert(data == reserved);
 
-            // Pre-fault allocated pages
+            // Pre-fault pages and ensure they are allocated
+            int *idata = static_cast<int*>(data);
+            for (size_t i = 0; i < DATA_SIZE / sizeof(int); ++i) {
+                idata[i] = i;
+            }
+
+            // Clone the file in the address space until the array is big enough
+            std::vector<void*> maps = {data};
+            for (
+                    auto mapped_size = DATA_SIZE;
+                    mapped_size < transfer_size;
+                    mapped_size += DATA_SIZE
+                )
+            {
+                char *cdata = static_cast<char*>(data);
+                char *location = cdata + mapped_size;
+                void *clone = ::mmap(location, DATA_SIZE, PROT_READ, MAP_PRIVATE | MAP_FIXED, fdesc, 0);
+                assert(clone != MAP_FAILED);
+                assert(location == clone);
+                maps.push_back(clone);
+            }
+
+            // Pre-fault pages
             volatile int throw_away = 0;
-            int *idata = (int*)data;
             for (size_t i = 0; i < transfer_size / sizeof(int); ++i) {
                 throw_away += idata[i];
             }
@@ -162,8 +193,14 @@ public:
             }
 
             destroy_scheduler();
-            ::munmap(data, data_size);
+
+            for (void *map : maps) {
+                assert(0 == ::munmap(map, DATA_SIZE));
+            }
+            assert(0 == ::close(fdesc));
         }
+
+        assert(0 == ::munmap(reserved, max_required_size));
 
         return transfer_time;
     }
@@ -204,6 +241,7 @@ private:
         buffer_cache.reset();
     }
 
+    size_t DATA_SIZE = 128ull << 20; // 128 MB, much more than CPU's LLC
     bc::device device_i;
     bc::command_queue queue_i;
     size_t global_size_i;
