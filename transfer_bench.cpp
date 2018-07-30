@@ -260,8 +260,8 @@ public:
         max_buffer_size(256ull << 20),
         repeat(10)
     {
-        this->platform = bc::system::default_device().platform().id();
-        this->device = bc::system::default_device().id();
+        this->platform = 0;
+        this->device = 0;
     }
 
     int parse(int argc, char **argv) {
@@ -273,8 +273,8 @@ public:
         po::options_description options(help_msg);
         options.add_options()
             ("help", "Produce help message")
-            ("platform", "OpenCL Platform ID")
-            ("device", "OpenCL Device ID")
+            ("platform", po::value<uint32_t>(), "OpenCL Platform ID")
+            ("device", po::value<uint32_t>(), "OpenCL Device ID")
             ("max-size", po::value<size_t>(), "Maximum transfer buffer size in Megabytes; Default: 256MB")
             ("repeat", po::value<uint32_t>(), "Number of transfers to make; Default: 10")
             // ("global_size", po::value<size_t>(), "Kernel Global Size; Default: 1024")
@@ -296,11 +296,11 @@ public:
         }
 
         if (vm.count("platform")) {
-            this->platform = vm["platform"].as<cl_platform_id>();
+            this->platform = vm["platform"].as<uint32_t>();
         }
 
         if (vm.count("device")) {
-            this->device = vm["device"].as<cl_device_id>();
+            this->device = vm["device"].as<uint32_t>();
         }
 
         if (vm.count("max-size")) {
@@ -322,8 +322,8 @@ public:
         return 1;
     }
 
-    cl_platform_id platform;
-    cl_device_id device;
+    uint32_t platform;
+    uint32_t device;
     size_t global_size;
     size_t local_size;
     size_t max_buffer_size;
@@ -346,23 +346,8 @@ int main(int argc, char **argv) {
     }
     buffer_sizes.push_back(config.max_buffer_size);
 
-    bc::platform platform = bc::platform(config.platform);
-    bc::device device;
-    bool found_device = false;
-    for (auto& d : platform.devices()) {
-        if (d.id() == config.device) {
-            device = d;
-            found_device = true;
-        }
-    }
-    if (not found_device) {
-        std::cerr
-            << "Error: Could not find device with ID "
-            << config.device
-            << std::endl
-            ;
-        return 1;
-    }
+    bc::platform platform = bc::system::platforms()[config.platform];
+    bc::device device = platform.devices()[config.device];
     bc::context context = bc::context(device);
     bc::command_queue queue = bc::command_queue(
             context,
