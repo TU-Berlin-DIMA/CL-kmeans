@@ -42,4 +42,5 @@ processors in the '/configurations' directory.
 
 ## Publications
 
-[C. Lutz et al., "Efficient k-Means on GPUs", to appear in DaMoN 2018](https://www.dfki.de/web/forschung/publikationen/renameFileForDownload?filename=paper.pdf&file_id=uploads_3552)
+[C. Lutz et al., "Efficient and Scalable k-Means on GPUs", in Datenbanken Spektrum 2018](https://doi.org/10.1007/s13222-018-0293-x)  
+[C. Lutz et al., "Efficient k-Means on GPUs", in DaMoN 2018](http://doi.acm.org/10.1145/3211922.3211925)
