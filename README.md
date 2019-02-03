@@ -8,7 +8,7 @@ on a new centroid update algorithm that features a reduced cache footprint.
 ## Build Dependencies
 
 - A working OpenCL installation. Refer to [Andreas Klöckner's wiki](https://wiki.tiker.net/OpenCLHowTo).
-- Clang 3.5 or greater
+- Clang 3.8 or greater
 - Boost version 1.61 or greater
 
 ## Build Instructions
